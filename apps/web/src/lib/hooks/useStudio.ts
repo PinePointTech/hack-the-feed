@@ -3,7 +3,8 @@
  * useStudio(mythId): every studio behaviour, headless. The view only renders what this returns.
  *
  * Brief
- * - format: Format ("stitch" default). setFormat(f) only sets it; call generateBrief() to fetch.
+ * - format: Format ("stitch" default). The brief for it loads once when the studio opens.
+ *   setFormat(f) only sets it; call generateBrief(f) to fetch another format.
  * - FORMATS: Format[] in display order.
  * - generateBrief(f = format): POST /brief. Fires "Brief Generated". Resets hook, lines, checks.
  * - briefLoading: boolean. brief: Brief | null. from: "live" | "fixture" (brief source). error: string | null.
@@ -110,6 +111,15 @@ export function useStudio(mythId: string) {
       setBriefLoading(false);
     }
   }
+
+  // Load the brief for the default format once on open, so the evidence is on screen when the studio appears (demo 1:05).
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    if (autoLoaded.current) return;
+    autoLoaded.current = true;
+    void generateBrief();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function runCheck() {
     const sent = changedLines(linesRef.current, sentText.current);

@@ -4,8 +4,15 @@ import type { Radar, MythDetail, Brief, CheckRequest, CheckResponse, LineCheck }
 export function mythFromFixtures(id: string, myth: MythDetail, radar: Radar): MythDetail {
   if (id === myth.id) return myth;
   const m = radar.myths.find((x) => x.id === id);
-  // Never invent numbers: only what the radar summary has.
-  return m ? { ...m, videos: [], counter_voices: [], stance_counts: {} } : myth;
+  if (!m) return myth;
+  // Never invent numbers: only what the radar summary has. Its top video is real, so list it by its stance.
+  const top = m.top_video ? [m.top_video] : [];
+  return {
+    ...m,
+    videos: top.filter((v) => v.stance === "promotes"),
+    counter_voices: top.filter((v) => v.stance === "debunks"),
+    stance_counts: {},
+  };
 }
 
 export const normalizeLine = (s: string) =>
