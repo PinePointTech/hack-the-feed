@@ -1,15 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
-import { track } from "@/lib/track";
+import { useMythOpened } from "@/lib/hooks/usePageViews";
 
-type Props = { mythId: string; harmTier: string; trend: string; from: "radar" | "calendar" | "direct"; dataSource: "live" | "fixture" };
+type Props = { mythId: string; harmTier: string; trend: string; dataSource: "live" | "fixture" };
 
-export function MythOpened({ mythId, harmTier, trend, from, dataSource }: Props) {
-  const sent = useRef(false);
-  useEffect(() => {
-    if (sent.current) return;
-    sent.current = true;
-    track("Myth Opened", { myth_id: mythId, harm_tier: harmTier, trend, from, data_source: dataSource });
-  }, [mythId, harmTier, trend, from, dataSource]);
+export function MythOpened({ mythId, harmTier, trend, dataSource }: Props) {
+  useMythOpened({ id: mythId, harm_tier: harmTier, trend }, dataSource);
   return null;
 }

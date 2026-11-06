@@ -9,25 +9,14 @@ import { Stat } from "../../_components/Stat";
 import { windowLabel } from "../../_components/window";
 import { MythOpened } from "./_components/MythOpened";
 
-const FROMS = ["radar", "calendar", "direct"] as const;
-type From = (typeof FROMS)[number];
-
-export default async function MythPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string | string[] }>;
-}) {
+export default async function MythPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const q = (await searchParams).from;
-  const openedFrom: From = FROMS.includes(q as From) ? (q as From) : "direct";
   const { data: m, from } = await api.myth(id);
   const fixture = from === "fixture";
 
   return (
     <main className="mx-auto max-w-5xl space-y-10 px-6 py-12">
-      <MythOpened mythId={m.id} harmTier={m.harm_tier} trend={m.trend} from={openedFrom} dataSource={from} />
+      <MythOpened mythId={m.id} harmTier={m.harm_tier} trend={m.trend} dataSource={from} />
       <nav className="flex items-center justify-between gap-4">
         <Link href="/desk" className="text-blue-700 underline">
           Back to the radar

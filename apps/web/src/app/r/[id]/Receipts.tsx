@@ -1,41 +1,20 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import type { PublishedDebunk } from "@/contracts/types";
-import { api, type Sourced } from "@/lib/api";
-import { track } from "@/lib/track";
+import { useState } from "react";
+import { useReceipts, type VoteAnswer as Answer } from "@/lib/hooks/useReceipts";
 import { QuoteCard } from "@/components/QuoteCard";
 import { SourceCard } from "@/components/SourceCard";
 import { HarmChip } from "@/components/HarmChip";
 import { FixtureBadge } from "@/components/FixtureBadge";
 import { Qr } from "@/components/Qr";
 
-type Answer = "yes" | "no" | "already_knew";
 const ANSWERS: [Answer, string][] = [["yes", "Yes"], ["no", "No"], ["already_knew", "I already knew"]];
 
 export function Receipts({ id }: { id: string }) {
-  const [res, setRes] = useState<Sourced<PublishedDebunk> | null>(null);
-  const [voted, setVoted] = useState(false);
+  const { data: d, from, loading, vote, voted, qrUrl: shareUrl } = useReceipts(id);
   const [videoOk, setVideoOk] = useState(true);
-  const viewed = useRef(false);
 
-  useEffect(() => {
-    api.published(id).then(setRes);
-  }, [id]);
-
-  const published = res && res.data.id === id; // fallback fixture is a different id: treat as not published
-  useEffect(() => {
-    if (!published || viewed.current) return;
-    viewed.current = true;
-    const q = new URLSearchParams(window.location.search);
-    track("Receipts Viewed", {
-      myth_id: id,
-      utm_source: q.get("utm_source") ?? undefined,
-      utm_medium: q.get("utm_medium") ?? undefined,
-    });
-  }, [published, id]);
-
-  if (!res) return <main className="mx-auto max-w-2xl px-5 py-10 text-lg text-slate-600">Loading…</main>;
-  if (!published)
+  if (loading) return <main className="mx-auto max-w-2xl px-5 py-10 text-lg text-slate-600">Loading…</main>;
+  if (!d || !from)
     return (
       <main className="mx-auto max-w-2xl px-5 py-16">
         <h1 className="text-2xl font-semibold">This debunk isn&apos;t published yet.</h1>
@@ -43,21 +22,13 @@ export function Receipts({ id }: { id: string }) {
       </main>
     );
 
-  const d = res.data;
-  const vote = (answer: Answer) => {
-    if (voted) return;
-    setVoted(true);
-    track("Mind Changed Vote", { myth_id: id, answer });
-  };
-  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/r/${id}?utm_source=demo_qr`;
-
   return (
     <main className="mx-auto max-w-2xl space-y-10 bg-slate-50 px-5 py-10 text-lg">
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium uppercase tracking-wide text-slate-500">The myth</p>
           <HarmChip tier={d.myth.harm_tier} />
-          <FixtureBadge from={res.from} />
+          <FixtureBadge from={from} />
         </div>
         <h1 className="text-3xl font-semibold leading-tight">{d.myth.claim}</h1>
         {d.certified_by_clinician && (

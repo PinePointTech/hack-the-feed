@@ -1,29 +1,16 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import type { Calendar, CalendarItem } from "@/contracts/types";
-import { api, type Sourced } from "@/lib/api";
-import { track } from "@/lib/track";
+import type { CalendarItem } from "@/contracts/types";
+import { useCalendar } from "@/lib/hooks/useCalendar";
 import { compact, exact } from "@/lib/format";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
 import { FixtureBadge } from "@/components/FixtureBadge";
 
 export function CalendarView() {
-  const [res, setRes] = useState<Sourced<Calendar> | null>(null);
-  const viewed = useRef(false);
+  const { data, from, reuseScript } = useCalendar();
 
-  useEffect(() => {
-    api.calendar().then((r) => {
-      setRes(r);
-      if (viewed.current) return;
-      viewed.current = true;
-      track("Calendar Viewed", { week_of: r.data.week_of, item_count: r.data.this_week.length + r.data.watchlist.length });
-    });
-  }, []);
-
-  if (!res) return <main className="mx-auto max-w-3xl px-5 py-10 text-lg text-slate-600">Loading…</main>;
-  const { data, from } = res;
+  if (!data || !from) return <main className="mx-auto max-w-3xl px-5 py-10 text-lg text-slate-600">Loading…</main>;
   return (
     <main className="mx-auto max-w-3xl space-y-10 px-5 py-10 text-lg">
       <header className="space-y-2">
@@ -33,23 +20,25 @@ export function CalendarView() {
         </div>
         <p className="text-slate-600">Week of {data.week_of}</p>
       </header>
-      <Section title="This week" items={data.this_week} fixture={from === "fixture"} />
-      <Section title="Watchlist" items={data.watchlist} fixture={from === "fixture"} />
+      <Section title="This week" items={data.this_week} fixture={from === "fixture"} onReuse={reuseScript} />
+      <Section title="Watchlist" items={data.watchlist} fixture={from === "fixture"} onReuse={reuseScript} />
     </main>
   );
 }
 
-function Section({ title, items, fixture }: { title: string; items: CalendarItem[]; fixture: boolean }) {
+type Reuse = (mythId: string) => void;
+
+function Section({ title, items, fixture, onReuse }: { title: string; items: CalendarItem[]; fixture: boolean; onReuse: Reuse }) {
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-semibold">{title}</h2>
       {items.length === 0 && <p className="text-slate-600">Nothing here yet.</p>}
-      {items.map((it) => <Item key={it.topic} it={it} fixture={fixture} />)}
+      {items.map((it) => <Item key={it.topic} it={it} fixture={fixture} onReuse={onReuse} />)}
     </section>
   );
 }
 
-function Item({ it, fixture }: { it: CalendarItem; fixture: boolean }) {
+function Item({ it, fixture, onReuse }: { it: CalendarItem; fixture: boolean; onReuse: Reuse }) {
   return (
     <article className="space-y-2 rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex flex-wrap items-center gap-2">
@@ -73,7 +62,7 @@ function Item({ it, fixture }: { it: CalendarItem; fixture: boolean }) {
       {it.script_available && it.myth_id && (
         <Link
           href={`/r/${it.myth_id}`}
-          onClick={() => track("Script Reused", { myth_id: it.myth_id!, from: "calendar" })}
+          onClick={() => onReuse(it.myth_id!)}
           className="inline-block text-blue-700 underline"
         >
           Reuse script

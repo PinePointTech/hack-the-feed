@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { compact, exact } from "@/lib/format";
+import { pendingOr } from "@/lib/view-model";
 import { FixtureBadge } from "@/components/FixtureBadge";
 
 const Num = ({ n }: { n?: number }) =>
@@ -35,7 +36,7 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
       </header>
 
       <Stat label="Response ratio (response reach / myth reach)">
-        {d.response_ratio === undefined ? "Pending" : d.response_ratio.toFixed(2)}
+        {pendingOr(d.response_ratio, (n) => n.toFixed(2))}
       </Stat>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -49,7 +50,7 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
           {b ? <><Num n={b.videos} /> videos, <Num n={b.views} /> views</> : "Pending"}
         </Stat>
         <Stat label="Hours from spike to first response">
-          {d.hours_spike_to_first_response ?? "Pending"}
+          {pendingOr(d.hours_spike_to_first_response)}
         </Stat>
         <Stat label="Our debunk" note={o ? `Source: ${o.source}` : undefined}>
           {o ? (
