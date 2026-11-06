@@ -170,6 +170,7 @@ export function Studio({ mythId }: { mythId: string }) {
                   return (
                     <li key={l.id} className={`space-y-2 rounded-xl border-2 p-4 ${LINE_STYLE[l.status]}`}>
                       <input
+                        name={`line-${l.id}`}
                         value={l.text}
                         readOnly={!!approved}
                         onChange={(e) => s.setLineText(l.id, e.target.value)}
@@ -238,7 +239,7 @@ export function Studio({ mythId }: { mythId: string }) {
           </ol>
           <label className="block space-y-2">
             <span className="text-lg">Attach the exported MP4</span>
-            <input type="file" accept="video/mp4" onChange={(e) => s.attachVideo(e.target.files?.[0] ?? null)} className="block text-lg" />
+            <input type="file" name="video" accept="video/mp4" onChange={(e) => s.attachVideo(e.target.files?.[0] ?? null)} className="block text-lg" />
           </label>
           <button
             disabled={!file || qaRunning}

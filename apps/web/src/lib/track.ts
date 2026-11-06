@@ -8,6 +8,13 @@ export function initAmplitude() {
   if (!key) return console.warn("[amp] no key, events not sent");
   amplitude.init(key, { autocapture: true });
   started = true;
+  syncUser();
+}
+
+// Desk events carry a fixed user id; public pages stay anonymous. The SDK persists the id, so clear it off /desk.
+function syncUser() {
+  const uid = window.location.pathname.startsWith("/desk") ? "creator_demo" : undefined;
+  if (amplitude.getUserId() !== uid) amplitude.setUserId(uid);
 }
 
 type Events = {
@@ -30,7 +37,6 @@ type Events = {
 export function track<K extends keyof Events>(name: K, props: Events[K]) {
   initAmplitude(); // child effects run before the provider's effect, so init here too
   if (!started) return;
-  // Desk events carry a fixed user id; public pages stay anonymous.
-  if (window.location.pathname.startsWith("/desk") && amplitude.getUserId() !== "creator_demo") amplitude.setUserId("creator_demo");
+  syncUser();
   amplitude.track(name, props);
 }

@@ -11,6 +11,7 @@ export function Checklist({ items, onChange }: { items: ChecklistItem[]; onChang
           <label className={`flex items-start gap-3 text-lg ${it.disabled ? "opacity-60" : "cursor-pointer"}`}>
             <input
               type="checkbox"
+              name={it.key}
               className="mt-1 h-5 w-5 accent-blue-700"
               checked={it.checked}
               disabled={it.disabled}

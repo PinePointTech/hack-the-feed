@@ -28,7 +28,7 @@ async function get<T>(url: string, init: RequestInit | undefined, fixture: () =>
     if (!res.ok) {
       const body = await res.text();
       const code = brainErrorCode(body);
-      throw new Error(`${res.status}${code ? ` [${code}]` : ""} ${body}`);
+      throw new Error(`${res.status}${code ? ` [${code}]` : ""} ${body.slice(0, 200)}`); // a 404 body is a whole HTML page
     }
     return { data: (await res.json()) as T, from: "live" };
   } catch (err) {
