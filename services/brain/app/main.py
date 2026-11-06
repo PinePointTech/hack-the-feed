@@ -6,10 +6,14 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from . import brief
 from .config import Settings
+from .schemas import Brief, BriefRequest
 
 VERSION = "0.1.0"
 HEALTH_TTL = 300
@@ -103,6 +107,24 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    def api_error(status: int, code: str, message: str) -> JSONResponse:
+        return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
+        return api_error(422, "invalid_request", "The request body is invalid.")
+
+    @app.post("/brief", response_model=Brief, response_model_exclude_none=True)
+    async def grounded_brief(body: BriefRequest, request: Request):
+        if body.myth_id not in brief.MYTHS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        try:
+            async with asyncio.timeout(45):
+                return await brief.generate(body, request.app.state.client, settings)
+        except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
+            logger.warning("Brief generation failed (%s)", type(error).__name__)
+            return api_error(503, "brief_unavailable", "The grounded brief is temporarily unavailable.")
 
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:

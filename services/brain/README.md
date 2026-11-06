@@ -24,3 +24,12 @@ Results are stored in `data/sources/{myth_id}.json`. Pass `refresh=True` to fetc
 (an option and its probability distribution). The judge validates the result
 before returning it. For batches, pass a shared `httpx.AsyncClient` as
 `client=` to reuse connections.
+
+## Grounded brief
+
+Send `POST /brief` with `{"myth_id":"lymphatic-detox","format":"standalone"}`.
+The other formats are `stitch`, `duet`, and `no_camera`. Set `refresh` to
+`true` to regenerate the brief from the evidence cache. Each factual script
+line uses the exact text of a scored claim and cites its best source.
+`claims[].engine` uses the existing `cached` label for saved scores and
+`models.judge` identifies the OpenAI model that produced them.
