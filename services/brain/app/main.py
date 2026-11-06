@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from . import brief, check
+from . import brief, check, oriane, radar
 from .config import Settings
 from .schemas import Brief, BriefRequest, CheckRequest, CheckResponse
 
@@ -35,22 +35,16 @@ def bearer(key: str) -> dict[str, str]:
 async def check_oriane(client: httpx.AsyncClient, settings: Settings) -> bool:
     if not (settings.oriane_key and settings.oriane_search_url):
         return False
-    response = await client.post(
-        settings.oriane_search_url,
-        headers=bearer(settings.oriane_key),
-        params={"projection": "basic", "limit": 1, "offset": 0},
-        timeout=30,
-        json={
-            "operator": "and",
-            "filters": {
-                "transcript": {
-                    "includesExactly": {"operator": "and", "values": ["lymphatic drainage"]},
-                },
+    payload = await oriane.search(
+        client,
+        settings,
+        {"operator": "and", "filters": {
+            "transcript": {
+                "includesExactly": {"operator": "and", "values": ["lymphatic drainage"]},
             },
-        },
+        }},
     )
-    response.raise_for_status()
-    return isinstance(response.json()["data"]["results"], list)
+    return isinstance(payload["data"]["results"], list)
 
 
 async def check_openai(client: httpx.AsyncClient, settings: Settings) -> bool:
@@ -97,6 +91,7 @@ def create_app(
             app.state.client = client
             app.state.line_checker = check.LineChecker(settings)
             app.state.health_lock = asyncio.Lock()
+            app.state.radar_lock = asyncio.Lock()
             app.state.health = await probe_health(client)
             app.state.health_expires_at = time.monotonic() + HEALTH_TTL
             yield
@@ -137,6 +132,28 @@ def create_app(
         except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Live check failed (%s)", type(error).__name__)
             return api_error(503, "check_unavailable", "The live script check is temporarily unavailable.")
+
+    async def refresh_radar(request: Request):
+        async with request.app.state.radar_lock:
+            try:
+                await radar.refresh_radar(request.app.state.client, settings)
+            except (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError) as error:
+                logger.warning("Radar refresh failed (%s)", type(error).__name__)
+                return api_error(503, "radar_unavailable", "Oriane refresh failed. Try the saved snapshot.")
+
+    @app.get("/radar")
+    async def get_radar(request: Request, refresh: bool = False):
+        if refresh and (error := await refresh_radar(request)):
+            return error
+        return radar.read_radar()
+
+    @app.get("/myths/{myth_id}")
+    async def get_myth(myth_id: str, request: Request, refresh: bool = False):
+        if myth_id not in radar.TOPICS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        if refresh and (error := await refresh_radar(request)):
+            return error
+        return radar.read_myth(myth_id)
 
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:

@@ -1,0 +1,65 @@
+{
+  "id": "mouth-taping",
+  "title": "Mouth tape works, even for your jawline",
+  "topic": "mouth taping",
+  "claim": "Taping your mouth shut at night is a proven fix, including for a sharper jawline.",
+  "harm_tier": "unproven",
+  "harm_reason": "A 2025 review of 10 studies (213 patients) says clinical benefit still needs study and warns of a potentially serious risk of harm, including asphyxiation when the nose is blocked.",
+  "trend": "cooling",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "topic_video_count": 199,
+  "topic_views": 8304973,
+  "match_note": "Exact phrases \"mouth taping\", \"mouth tape\", \"tape my mouth\" or \"taping my mouth\" in transcript, caption or on-screen text. Transcript only: 65 videos, 2,929,555 views. Many are jokes or ads, so stance labels matter.",
+  "data_source": "oriane_live",
+  "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
+  "prev_window": {
+    "from": "2026-09-07",
+    "to": "2026-10-06"
+  },
+  "prev_topic_video_count": 306,
+  "prev_topic_views": 27129670,
+  "trend_pct": -35,
+  "top_video": {
+    "oriane_id": "cnt_1e7ab58965e07050f870cfe108f8",
+    "platform": "tiktok",
+    "url": "https://www.tiktok.com/@mari.aranaa/video/7694724543407017247",
+    "handle": "mari.aranaa",
+    "display_name": "mari.aranaa",
+    "followers": 98694,
+    "views": 241700,
+    "shares": 556,
+    "interactions": 24954,
+    "published_at": "2026-10-09T17:41:29.000Z",
+    "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp",
+    "quote": "I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps.",
+    "quote_source": "transcript",
+    "quote_start_s": 58.54,
+    "stance": "promotes",
+    "nameable": false
+  },
+  "videos": [
+    {
+      "oriane_id": "cnt_1e7ab58965e07050f870cfe108f8",
+      "platform": "tiktok",
+      "url": "https://www.tiktok.com/@mari.aranaa/video/7694724543407017247",
+      "handle": "mari.aranaa",
+      "display_name": "mari.aranaa",
+      "followers": 98694,
+      "views": 241700,
+      "shares": 556,
+      "interactions": 24954,
+      "published_at": "2026-10-09T17:41:29.000Z",
+      "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp",
+      "quote": "I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps.",
+      "quote_source": "transcript",
+      "quote_start_s": 58.54,
+      "stance": "promotes",
+      "nameable": false
+    }
+  ],
+  "counter_voices": [],
+  "stance_counts": {}
+}
