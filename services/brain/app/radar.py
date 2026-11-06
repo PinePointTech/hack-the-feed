@@ -170,6 +170,18 @@ async def refresh_radar(client: httpx.AsyncClient, settings: Settings, *, refres
 
     snapshot = {"generated_at": fetched_at, "window": CURRENT, "myths": myths}
     for summary in myths:
-        oriane.write_json(DATA_DIR / "myths" / f'{summary["id"]}.json', detail_for(summary))
+        prior = read_myth(summary["id"])
+        detail = detail_for(summary)
+        if "stance_sample_size" in prior:
+            # A counts-only refresh preserves the previously classified sample.
+            summary.pop("top_video", None)
+            detail.pop("top_video", None)
+            for field in ("top_video", "harm_tier", "harm_reason"):
+                if field in prior:
+                    summary[field] = detail[field] = prior[field]
+            for field in ("videos", "counter_voices", "stance_counts", "stance_sample_size", "clinician_share"):
+                if field in prior:
+                    detail[field] = prior[field]
+        oriane.write_json(DATA_DIR / "myths" / f'{summary["id"]}.json', detail)
     oriane.write_json(DATA_DIR / "radar.json", snapshot)
     return snapshot
