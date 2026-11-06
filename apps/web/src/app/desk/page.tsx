@@ -2,33 +2,36 @@ import { api } from "@/lib/api";
 import { FixtureBadge } from "@/components/FixtureBadge";
 import { MythCard } from "./_components/MythCard";
 import { RadarViewed } from "./_components/RadarViewed";
-import { sortMyths, windowLabel } from "@/lib/view-model";
+import { windowWithYear } from "./_components/window";
+import { sortMyths } from "@/lib/view-model";
 
 export default async function Desk() {
   const { data, from } = await api.radar();
   const myths = sortMyths(data.myths);
   return (
-    <main className="mx-auto max-w-5xl space-y-8 px-6 py-12">
+    <main className="wrap grid gap-8 pt-10 pb-24 min-[1100px]:pt-14">
       <RadarViewed mythCount={myths.length} from={from} />
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-4xl font-semibold">Myth radar</h1>
+      <header className="grid gap-4 border-b border-ink pb-6">
+        <p className="mono text-xs font-semibold text-ink-2">Creator mode, myth radar</p>
+        <h1 className="text-[clamp(2.25rem,1.3rem+2.8vw,3.75rem)] leading-[1] font-extrabold tracking-[-0.03em] [font-stretch:90%] [font-variation-settings:'opsz'_96]">
+          Health myths <em className="kw kw-mark">trending</em> this week
+        </h1>
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+          <p className="text-[1.125rem] text-ink-2">On short video, most harmful first.</p>
+          <span className="mono text-sm text-ink-2">{windowWithYear(data.window)}</span>
           <FixtureBadge from={from} />
         </div>
-        <p className="text-lg text-slate-600">
-          Health myths spreading on short video, {windowLabel(data.window)}. Most harmful first.
-        </p>
       </header>
       {myths.length === 0 ? (
-        <p className="text-lg text-slate-600">No myths found in this window.</p>
+        <p className="text-[1.125rem] text-ink-2">No myths found in this window.</p>
       ) : (
-        <ul className="space-y-6">
-          {myths.map((m) => (
-            <li key={m.id}>
-              <MythCard myth={m} />
+        <ol className="m-0 grid list-none grid-cols-1 gap-5 p-0 min-[1100px]:grid-cols-3 min-[1100px]:items-start min-[1100px]:[&>li:nth-child(3n+2)]:mt-14 min-[1100px]:[&>li:nth-child(3n+3)]:mt-6">
+          {myths.map((m, i) => (
+            <li key={m.id} className="min-w-0">
+              <MythCard myth={m} rank={i + 1} fixture={from === "fixture"} />
             </li>
           ))}
-        </ul>
+        </ol>
       )}
     </main>
   );
