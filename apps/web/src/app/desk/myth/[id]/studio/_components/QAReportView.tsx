@@ -10,36 +10,35 @@ const PROBLEM: Record<QAIssue["problem"], string> = {
 
 export function QAReportView({ report, placeholder }: { report: QAReport; placeholder: boolean }) {
   return (
-    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+    <div className="grid gap-5 rounded-[24px] border border-ink p-5 md:p-6" role="status">
       <div className="flex flex-wrap items-center gap-3">
         <span
-          className={`rounded-full px-3 py-1 text-lg font-medium ring-1 ${
-            report.pass ? "bg-green-100 text-green-800 ring-green-300" : "bg-red-100 text-red-800 ring-red-300"
+          className={`rounded-pill border-2 px-4 py-1 text-xl font-extrabold ${
+            report.pass ? "border-[#1f6b2e] bg-[#e3f2dc] text-[#1f5a27]" : "border-harmful-text bg-harmful-fill text-harmful-text"
           }`}
         >
           {report.pass ? "QA passed" : "QA failed"}
         </span>
-        {report.ran_in === "cached" && <span className="rounded-full bg-slate-200 px-3 py-1 text-sm">cached</span>}
-        {placeholder && <span className="rounded-full bg-slate-200 px-3 py-1 text-sm">placeholder</span>}
+        {report.ran_in === "cached" && <span className="databadge">cached</span>}
+        {placeholder && <span className="databadge">placeholder</span>}
       </div>
-      <p className="text-slate-700">
-        {report.frames_checked} frames checked, {report.texts_found} on-screen texts found.
+      <p className="text-lg text-ink-2">
+        <span className="font-mono font-semibold text-ink">{report.frames_checked}</span> frames checked,{" "}
+        <span className="font-mono font-semibold text-ink">{report.texts_found}</span> on-screen texts found.
       </p>
       {report.issues.length > 0 ? (
-        <ul className="space-y-3">
+        <ul className="grid gap-3">
           {report.issues.map((i, n) => (
-            <li key={n} className="rounded-lg border border-slate-200 p-3">
-              <p className="text-sm text-slate-500">
-                At {mss(i.t_s)}
-                {i.expected_line_id && ` (line ${i.expected_line_id})`}
-              </p>
-              <p className="text-lg">&ldquo;{i.found_text}&rdquo;</p>
-              <p className="text-slate-700">{PROBLEM[i.problem]}</p>
+            <li key={n} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 rounded-2xl border-2 border-harmful-text bg-harmful-fill p-4">
+              <span className="row-span-3 font-mono text-2xl font-semibold text-harmful-text">{mss(i.t_s)}</span>
+              {i.expected_line_id && <span className="font-mono text-sm text-ink-2">line {i.expected_line_id}</span>}
+              <p className="font-serif text-xl">&ldquo;{i.found_text}&rdquo;</p>
+              <p className="text-lg font-semibold text-harmful-text">{PROBLEM[i.problem]}</p>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-slate-700">No issues found.</p>
+        <p className="text-lg">No issues found.</p>
       )}
     </div>
   );
