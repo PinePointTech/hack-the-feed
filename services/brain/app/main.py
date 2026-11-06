@@ -43,10 +43,11 @@ async def check_oriane(client: httpx.AsyncClient, settings: Settings) -> bool:
             },
             "projection": "basic",
             "limit": 1,
+            "offset": 0,
         },
     )
     response.raise_for_status()
-    return isinstance(response.json(), dict)
+    return isinstance(response.json()["data"]["results"], list)
 
 
 async def check_gmi(client: httpx.AsyncClient, settings: Settings) -> bool:
@@ -96,21 +97,29 @@ def create_app(
 ) -> FastAPI:
     settings = settings or Settings.from_env()
 
+    async def probe_health(client: httpx.AsyncClient) -> Health:
+        oriane, gmi, jev = await asyncio.gather(
+            run_probe(check_oriane, client, settings),
+            run_probe(check_gmi, client, settings),
+            run_probe(check_jev, client, settings),
+        )
+        return Health(ok=oriane and gmi, oriane=oriane, gmi=gmi, jev=jev)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         async with httpx.AsyncClient(timeout=10, transport=transport) as client:
             app.state.client = client
             app.state.health_lock = asyncio.Lock()
-            app.state.health = None
-            app.state.health_expires_at = 0.0
+            app.state.health = await probe_health(client)
+            app.state.health_expires_at = time.monotonic() + HEALTH_TTL
             yield
 
     app = FastAPI(title="MyBuster Brain", version=VERSION, lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
-        allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/health", response_model=Health)
@@ -118,12 +127,7 @@ def create_app(
         state = request.app.state
         async with state.health_lock:
             if time.monotonic() >= state.health_expires_at:
-                oriane, gmi, jev = await asyncio.gather(
-                    run_probe(check_oriane, state.client, settings),
-                    run_probe(check_gmi, state.client, settings),
-                    run_probe(check_jev, state.client, settings),
-                )
-                state.health = Health(ok=oriane and gmi, oriane=oriane, gmi=gmi, jev=jev)
+                state.health = await probe_health(state.client)
                 state.health_expires_at = time.monotonic() + HEALTH_TTL
             return state.health
 

@@ -14,4 +14,4 @@ curl -fsS "${GMI_BASE_URL:-https://api.gmi-serving.com/v1}/models" \
   -H "Authorization: Bearer $GMI_API_KEY"
 ```
 
-The first health request runs the provider probes in parallel. Results are cached for five minutes per process. `ok` requires a successful Oriane search and all three configured GMI models to appear in the catalog. Jev is reported separately because the planned judge can fall back to GMI.
+Startup runs the provider probes in parallel. Results are cached for five minutes per process and refreshed on the next health request after expiry. `ok` requires a successful Oriane search and all three configured GMI models to appear in the catalog. Jev is reported separately because the planned judge can fall back to GMI.
