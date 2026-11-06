@@ -6,9 +6,11 @@
 .lp-headline {
   margin: 0;
   font-weight: 800; font-variation-settings: "opsz" 96; font-stretch: 90%;
-  font-size: clamp(2.75rem, 1.5rem + 3.4vw, 4.75rem); line-height: .98; letter-spacing: -.035em;
+  font-size: clamp(2.75rem, 1.5rem + 3.4vw, 4.75rem); line-height: 1.02; letter-spacing: -.035em;
 }
 .lp-headline .kw { letter-spacing: -.01em; }
+/* The highlight on the next line painted over the "y" in "myth" above it; keep its top clear. */
+.lp-headline .kw-mark { background: linear-gradient(to bottom, transparent 0.2em, var(--lime) 0.2em); }
 .lp-hero-actions { display: grid; gap: 22px; justify-items: start; }
 .lp-search { width: 100%; max-width: 560px; display: grid; gap: 8px; }
 .lp-search label { font-weight: 700; font-size: 1.0625rem; }
