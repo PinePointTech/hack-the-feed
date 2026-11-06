@@ -8,6 +8,7 @@ import qaFx from "@/contracts/fixtures/qa.json";
 import publishedFx from "@/contracts/fixtures/published-lymphatic-detox.json";
 import impactFx from "@/contracts/fixtures/impact.json";
 import calendarFx from "@/contracts/fixtures/calendar.json";
+import { mythFromFixtures, checkFromFixtures, brainErrorCode } from "./fixture-logic";
 
 const BRAIN = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8000";
 const MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
@@ -24,7 +25,11 @@ async function get<T>(url: string, init: RequestInit | undefined, fixture: () =>
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
     const res = await fetch(url, { ...init, signal: ctrl.signal, cache: "no-store" });
-    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      const body = await res.text();
+      const code = brainErrorCode(body);
+      throw new Error(`${res.status}${code ? ` [${code}]` : ""} ${body}`);
+    }
     return { data: (await res.json()) as T, from: "live" };
   } catch (err) {
     console.warn(`[api] ${url} failed, using fixture`, err);
@@ -38,23 +43,8 @@ const post = (body: unknown): RequestInit => ({
 });
 const fx = <T,>(x: unknown) => x as T;
 
-function mythFallback(id: string): MythDetail {
-  const detail = fx<MythDetail>(mythFx);
-  if (id === detail.id) return detail;
-  const m = fx<Radar>(radarFx).myths.find((x) => x.id === id) ?? fx<Radar>(radarFx).myths[0];
-  return { ...m, videos: m.top_video ? [m.top_video] : [], counter_voices: [], stance_counts: {} };
-}
-
-function checkFallback(req: CheckRequest): CheckResponse {
-  const hit = fx<CheckResponse>(checkFx).results[0];
-  return {
-    results: req.lines.map((l) =>
-      l.text.toLowerCase().includes("burns fat")
-        ? { ...hit, line_id: l.id }
-        : { line_id: l.id, has_claim: false, engine: "cached", note: "Not checked (brain offline)" },
-    ),
-  };
-}
+const mythFallback = (id: string) => mythFromFixtures(id, fx<MythDetail>(mythFx), fx<Radar>(radarFx));
+const checkFallback = (req: CheckRequest) => checkFromFixtures(req, fx<CheckResponse>(checkFx), fx<Brief>(briefFx));
 
 export const api = {
   radar: () => call<Radar>("/radar", undefined, () => fx<Radar>(radarFx), 15000),

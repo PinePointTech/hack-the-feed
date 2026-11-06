@@ -10,3 +10,7 @@ export function mss(seconds: number) {
 }
 
 export const pct = (n: number) => `${n > 0 ? "+" : ""}${Math.round(n)}%`; // -22 -> "-22%"
+
+// docs/03-CONTRACTS.md: supported >= 0.8, weak 0.5 to 0.8, unsupported < 0.5
+export const statusFor = (support: number): "supported" | "weak" | "unsupported" =>
+  support >= 0.8 ? "supported" : support >= 0.5 ? "weak" : "unsupported";
