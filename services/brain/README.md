@@ -40,3 +40,12 @@ Send `POST /check` with a `myth_id` and `lines` containing `id` and `text`.
 The checker compares edited lines with the saved brief's excerpts and returns
 one result per input line in order. It caches results by normalized text and
 the current excerpts, and preserves each request's line IDs.
+
+## Demo radar
+
+`GET /radar` and `GET /myths/{myth_id}` read the saved radar and myth
+snapshots. Add `?refresh=1` to either endpoint to pull all three demo myths
+from Oriane and save updated snapshots. The refresh uses the demo windows
+October 7 to November 6 and September 7 to October 6, 2026. It uses basic
+results for counts and full transcripts for the three seeded video IDs.
+Naming and model-based stance decisions are handled in HTF-10.

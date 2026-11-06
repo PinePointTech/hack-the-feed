@@ -1,0 +1,68 @@
+{
+  "id": "lymphatic-detox",
+  "title": "Lymphatic drainage detoxes you and melts fat",
+  "topic": "lymphatic drainage",
+  "claim": "Lymphatic drainage pulls toxins out of the body and causes fat or weight loss.",
+  "harm_tier": "false",
+  "harm_reason": "Sources say there is no evidence it causes weight loss and the toxin claims are unfounded. The massage itself is not described as harmful.",
+  "trend": "cooling",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "topic_video_count": 1317,
+  "topic_views": 49537321,
+  "prev_window": {
+    "from": "2026-09-07",
+    "to": "2026-10-06"
+  },
+  "prev_topic_video_count": 1688,
+  "prev_topic_views": 95767171,
+  "claim_video_count": 170,
+  "claim_views": 5533317,
+  "claim_interactions": 174952,
+  "match_note": "Topic: exact phrase in transcript, caption or on-screen text. Claim: topic matches that also contain one of the claim keywords in transcript or caption.",
+  "data_source": "oriane_live",
+  "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
+  "trend_pct": -22,
+  "top_video": {
+    "oriane_id": "cnt_8bf297ba22d2c059c502b32dbf53",
+    "platform": "instagram",
+    "url": "https://www.instagram.com/reel/DeM2Kywtwcj/",
+    "handle": "tulumtrainer",
+    "display_name": "Kate Nolte | Coach & Trainer",
+    "followers": 656165,
+    "views": 2298948,
+    "interactions": 169979,
+    "published_at": "2026-10-07T17:00:16.000Z",
+    "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeM2Kywtwcj/thumbnail.webp",
+    "quote": "It's the easiest way to get inflammation out of the body, detox, and wake up.",
+    "quote_source": "transcript",
+    "quote_start_s": 7.44,
+    "stance": "promotes",
+    "nameable": false,
+    "shares": 0
+  },
+  "videos": [
+    {
+      "oriane_id": "cnt_8bf297ba22d2c059c502b32dbf53",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DeM2Kywtwcj/",
+      "handle": "tulumtrainer",
+      "display_name": "Kate Nolte | Coach & Trainer",
+      "followers": 656165,
+      "views": 2298948,
+      "interactions": 169979,
+      "published_at": "2026-10-07T17:00:16.000Z",
+      "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeM2Kywtwcj/thumbnail.webp",
+      "quote": "It's the easiest way to get inflammation out of the body, detox, and wake up.",
+      "quote_source": "transcript",
+      "quote_start_s": 7.44,
+      "stance": "promotes",
+      "nameable": false,
+      "shares": 0
+    }
+  ],
+  "counter_voices": [],
+  "stance_counts": {}
+}
