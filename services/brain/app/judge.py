@@ -50,7 +50,8 @@ def validate_answers(content: str, questions: dict) -> dict:
 
 
 class Judge:
-    def __init__(self, concurrency: int = 8) -> None:
+    def __init__(self, concurrency: int = 8, *, settings: Settings | None = None) -> None:
+        self._settings = settings
         self._slots = asyncio.Semaphore(concurrency)
 
     async def ask(
@@ -67,7 +68,7 @@ class Judge:
                 if not isinstance(options, dict) or not options:
                     raise ValueError("Choice questions require an options or criteria map")
 
-        settings = Settings.from_env()
+        settings = self._settings or Settings.from_env()
         if not (settings.openai_key and settings.openai_model):
             raise RuntimeError("Set OPENAI_API_KEY and OPENAI_MODEL to use the judge")
 
