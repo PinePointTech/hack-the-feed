@@ -9,7 +9,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test src/lib/*.test.ts"
+    "test": "node --test src/lib/*.test.ts",
+    "demo": "npm run build && next start -p 3000",
+    "demo:check": "node scripts/demo-check.mjs"
   },
   "dependencies": {
     "@amplitude/analytics-browser": "^2.49.2",
