@@ -1,0 +1,65 @@
+{
+  "id": "garlic-tumor",
+  "title": "Garlic paste destroys tumors",
+  "topic": "garlic and cancer",
+  "claim": "Garlic destroys cancer tumors, and a garlic paste put on a tumor can treat it instead of standard care.",
+  "harm_tier": "harmful",
+  "harm_reason": "The video tells viewers to put a garlic paste on a breast tumor and says chemo and radiation would have killed the patient, which can push people away from real cancer care.",
+  "trend": "steady",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "topic_video_count": 59,
+  "topic_views": 5768385,
+  "match_note": "Exact word \"garlic\" plus \"tumor\", \"tumors\" or \"cancer\" in transcript or caption. Many matches are unrelated (recipes, research on body odor), so stance labels decide what counts as promotion.",
+  "data_source": "oriane_live",
+  "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
+  "prev_window": {
+    "from": "2026-09-07",
+    "to": "2026-10-06"
+  },
+  "prev_topic_video_count": 54,
+  "prev_topic_views": 7453526,
+  "trend_pct": 9,
+  "top_video": {
+    "oriane_id": "cnt_a82665807e1dc2ba6408b2459b72",
+    "platform": "instagram",
+    "url": "https://www.instagram.com/reel/DeUEusVxZr7/",
+    "handle": "barlowherbal",
+    "display_name": "Jane Barlow | Master Herbalist",
+    "followers": 142264,
+    "views": 2144856,
+    "shares": 70681,
+    "interactions": 191484,
+    "published_at": "2026-10-10T12:26:45.000Z",
+    "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp",
+    "quote": "Garlic's been proven in medical industries in this country to destroy cancer tumors, period.",
+    "quote_source": "transcript",
+    "quote_start_s": 55.72,
+    "stance": "promotes",
+    "nameable": false
+  },
+  "videos": [
+    {
+      "oriane_id": "cnt_a82665807e1dc2ba6408b2459b72",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DeUEusVxZr7/",
+      "handle": "barlowherbal",
+      "display_name": "Jane Barlow | Master Herbalist",
+      "followers": 142264,
+      "views": 2144856,
+      "shares": 70681,
+      "interactions": 191484,
+      "published_at": "2026-10-10T12:26:45.000Z",
+      "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp",
+      "quote": "Garlic's been proven in medical industries in this country to destroy cancer tumors, period.",
+      "quote_source": "transcript",
+      "quote_start_s": 55.72,
+      "stance": "promotes",
+      "nameable": false
+    }
+  ],
+  "counter_voices": [],
+  "stance_counts": {}
+}
