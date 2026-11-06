@@ -75,3 +75,27 @@ class Brief(BaseModel):
     script: Script
     models: dict[str, str]
     generated_at: datetime
+
+
+class CheckLine(BaseModel):
+    id: str
+    text: str
+
+
+class CheckRequest(BaseModel):
+    myth_id: str
+    lines: list[CheckLine]
+
+
+class LineCheck(BaseModel):
+    line_id: str
+    has_claim: bool
+    support: float | None = Field(default=None, ge=0, le=1)
+    status: Literal["supported", "weak", "unsupported"] | None = None
+    evidence: list[Evidence] | None = None
+    engine: Literal["cached"] = "cached"
+    note: str | None = None
+
+
+class CheckResponse(BaseModel):
+    results: list[LineCheck]

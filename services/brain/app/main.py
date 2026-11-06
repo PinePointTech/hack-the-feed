@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from . import brief
+from . import brief, check
 from .config import Settings
-from .schemas import Brief, BriefRequest
+from .schemas import Brief, BriefRequest, CheckRequest, CheckResponse
 
 VERSION = "0.1.0"
 HEALTH_TTL = 300
@@ -95,6 +95,7 @@ def create_app(
     async def lifespan(app: FastAPI):
         async with httpx.AsyncClient(timeout=10, transport=transport) as client:
             app.state.client = client
+            app.state.line_checker = check.LineChecker(settings)
             app.state.health_lock = asyncio.Lock()
             app.state.health = await probe_health(client)
             app.state.health_expires_at = time.monotonic() + HEALTH_TTL
@@ -125,6 +126,17 @@ def create_app(
         except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Brief generation failed (%s)", type(error).__name__)
             return api_error(503, "brief_unavailable", "The grounded brief is temporarily unavailable.")
+
+    @app.post("/check", response_model=CheckResponse, response_model_exclude_none=True)
+    async def check_lines(body: CheckRequest, request: Request):
+        if body.myth_id not in brief.MYTHS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        try:
+            async with asyncio.timeout(12):
+                return await request.app.state.line_checker.check(body, request.app.state.client)
+        except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
+            logger.warning("Live check failed (%s)", type(error).__name__)
+            return api_error(503, "check_unavailable", "The live script check is temporarily unavailable.")
 
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:
