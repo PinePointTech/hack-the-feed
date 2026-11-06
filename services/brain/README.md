@@ -7,11 +7,6 @@ uv run --env-file .env uvicorn app.main:app --reload --port 8000
 curl http://localhost:8000/health
 ```
 
-To select the three GMI model IDs, query the authenticated model catalog and copy the IDs into `GMI_LLM_MODEL`, `GMI_LLM_FAST_MODEL`, and `GMI_VLM_MODEL`.
+Set `OPENAI_MODEL` to an ID available to the OpenAI API project. Startup checks the authenticated OpenAI model catalog and runs one Oriane search. Results are cached for five minutes per process and refreshed on the next health request after expiry.
 
-```sh
-curl -fsS "${GMI_BASE_URL:-https://api.gmi-serving.com/v1}/models" \
-  -H "Authorization: Bearer $GMI_API_KEY"
-```
-
-Startup runs the provider probes in parallel. Results are cached for five minutes per process and refreshed on the next health request after expiry. `ok` requires a successful Oriane search and all three configured GMI models to appear in the catalog. Jev is reported separately because the planned judge can fall back to GMI.
+`ok` requires both Oriane and the configured OpenAI model to pass their checks. The `gmi` and `jev` flags remain in the existing response contract and report false in this configuration.

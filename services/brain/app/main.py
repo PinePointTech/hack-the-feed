@@ -34,6 +34,8 @@ async def check_oriane(client: httpx.AsyncClient, settings: Settings) -> bool:
     response = await client.post(
         settings.oriane_search_url,
         headers=bearer(settings.oriane_key),
+        params={"projection": "basic", "limit": 1, "offset": 0},
+        timeout=30,
         json={
             "operator": "and",
             "filters": {
@@ -41,39 +43,20 @@ async def check_oriane(client: httpx.AsyncClient, settings: Settings) -> bool:
                     "includesExactly": {"operator": "and", "values": ["lymphatic drainage"]},
                 },
             },
-            "projection": "basic",
-            "limit": 1,
-            "offset": 0,
         },
     )
     response.raise_for_status()
     return isinstance(response.json()["data"]["results"], list)
 
 
-async def check_gmi(client: httpx.AsyncClient, settings: Settings) -> bool:
-    if not settings.gmi_key:
+async def check_openai(client: httpx.AsyncClient, settings: Settings) -> bool:
+    if not (settings.openai_key and settings.openai_model):
         return False
-    response = await client.get(f"{settings.gmi_base_url}/models", headers=bearer(settings.gmi_key))
-    response.raise_for_status()
-    model_ids = {model["id"] for model in response.json()["data"]}
-    return all(model and model in model_ids for model in settings.gmi_models)
-
-
-async def check_jev(client: httpx.AsyncClient, settings: Settings) -> bool:
-    if not settings.jev_key:
-        return False
-    response = await client.post(
-        f"{settings.jev_base_url}/v1/systemone",
-        headers=bearer(settings.jev_key),
-        json={
-            "model": settings.jev_model,
-            "state": "The sky is blue.",
-            "questions": {"q": {"type": "noul", "instructions": "Is the sky blue?"}},
-        },
+    response = await client.get(
+        "https://api.openai.com/v1/models", headers=bearer(settings.openai_key)
     )
     response.raise_for_status()
-    probability = response.json()["answers"]["q"]["noul"]
-    return isinstance(probability, (int, float)) and 0 <= probability <= 1
+    return any(model["id"] == settings.openai_model for model in response.json()["data"])
 
 
 async def run_probe(
@@ -98,12 +81,11 @@ def create_app(
     settings = settings or Settings.from_env()
 
     async def probe_health(client: httpx.AsyncClient) -> Health:
-        oriane, gmi, jev = await asyncio.gather(
+        oriane, openai = await asyncio.gather(
             run_probe(check_oriane, client, settings),
-            run_probe(check_gmi, client, settings),
-            run_probe(check_jev, client, settings),
+            run_probe(check_openai, client, settings),
         )
-        return Health(ok=oriane and gmi, oriane=oriane, gmi=gmi, jev=jev)
+        return Health(ok=oriane and openai, oriane=oriane, gmi=False, jev=False)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

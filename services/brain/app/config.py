@@ -6,12 +6,8 @@ from dataclasses import dataclass, field
 class Settings:
     oriane_key: str = field(repr=False)
     oriane_search_url: str
-    gmi_key: str = field(repr=False)
-    gmi_base_url: str
-    gmi_models: tuple[str, ...]
-    jev_key: str = field(repr=False)
-    jev_base_url: str
-    jev_model: str
+    openai_key: str = field(repr=False)
+    openai_model: str
     allowed_origins: list[str]
 
     @classmethod
@@ -24,15 +20,8 @@ class Settings:
         )
         return cls(
             oriane_key=os.getenv("ORIANE_API_KEY", ""),
-            oriane_search_url=os.getenv("ORIANE_SEARCH_URL", ""),
-            gmi_key=os.getenv("GMI_API_KEY", ""),
-            gmi_base_url=os.getenv("GMI_BASE_URL", "https://api.gmi-serving.com/v1").rstrip("/"),
-            gmi_models=tuple(
-                os.getenv(name, "")
-                for name in ("GMI_LLM_MODEL", "GMI_LLM_FAST_MODEL", "GMI_VLM_MODEL")
-            ),
-            jev_key=os.getenv("JEV_API_KEY", ""),
-            jev_base_url=os.getenv("JEV_BASE_URL", "https://inference.do-ai.run").rstrip("/"),
-            jev_model=os.getenv("JEV_MODEL", "typesafe-jev-1.13.0"),
+            oriane_search_url=os.getenv("ORIANE_SEARCH_URL", "https://connect.oriane.xyz/rest/contents/search"),
+            openai_key=os.getenv("OPENAI_API_KEY", ""),
+            openai_model=os.getenv("OPENAI_MODEL", ""),
             allowed_origins=origins,
         )
