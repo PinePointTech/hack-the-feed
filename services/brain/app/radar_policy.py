@@ -161,11 +161,25 @@ async def build(client: httpx.AsyncClient, settings: Settings, *, refresh: bool 
                 "includes": [entry.item["id"] for entry in quote_candidates],
             }}}, projection="full", limit=len(quote_candidates))
             full_items = {item["id"]: item for item in full["data"]["results"]}
-        videos = []
-        for entry in quote_candidates:
-            if item := full_items.get(entry.item["id"]):
-                if video := quote_video(entry, item, summary):
-                    videos.append(video)
+        async def verified_quote(entry: Classified) -> dict | None:
+            item = full_items.get(entry.item["id"])
+            if not item or not (video := quote_video(entry, item, summary)):
+                return None
+            state = json.dumps({
+                "claim": summary["claim"], "stance": entry.stance, "quote": video["quote"],
+            })
+            answers, _ = await evaluator.ask(state, {
+                "relevant": {"type": "noul", "instructions": (
+                    "Does this quote itself clearly illustrate the stated stance on the "
+                    "specific claim? Mere mention of the topic or an anecdote is insufficient."
+                )},
+            }, client=client)
+            return video if answers["relevant"]["noul"] >= 0.8 else None
+
+        videos = [
+            video for video in await asyncio.gather(*(verified_quote(entry) for entry in quote_candidates))
+            if video is not None
+        ]
 
         promoters = [video for video in videos if video["stance"] == "promotes"]
         updated = summary.copy()

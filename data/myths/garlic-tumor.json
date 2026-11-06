@@ -27,18 +27,19 @@
     "platform": "instagram",
     "url": "https://www.instagram.com/reel/DeUEusVxZr7/",
     "handle": "barlowherbal",
+    "views": 2144856,
+    "published_at": "2026-10-10T12:26:45.000Z",
+    "stance": "promotes",
+    "stance_confidence": 0.99,
+    "nameable": true,
     "display_name": "Jane Barlow | Master Herbalist",
     "followers": 142264,
-    "views": 2144856,
     "shares": 70681,
     "interactions": 191484,
-    "published_at": "2026-10-10T12:26:45.000Z",
     "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp",
     "quote": "Garlic's been proven in medical industries in this country to destroy cancer tumors, period.",
     "quote_source": "transcript",
-    "quote_start_s": 55.72,
-    "stance": "promotes",
-    "nameable": false
+    "quote_start_s": 55.72
   },
   "videos": [
     {
@@ -46,20 +47,27 @@
       "platform": "instagram",
       "url": "https://www.instagram.com/reel/DeUEusVxZr7/",
       "handle": "barlowherbal",
+      "views": 2144856,
+      "published_at": "2026-10-10T12:26:45.000Z",
+      "stance": "promotes",
+      "stance_confidence": 0.99,
+      "nameable": true,
       "display_name": "Jane Barlow | Master Herbalist",
       "followers": 142264,
-      "views": 2144856,
       "shares": 70681,
       "interactions": 191484,
-      "published_at": "2026-10-10T12:26:45.000Z",
       "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp",
       "quote": "Garlic's been proven in medical industries in this country to destroy cancer tumors, period.",
       "quote_source": "transcript",
-      "quote_start_s": 55.72,
-      "stance": "promotes",
-      "nameable": false
+      "quote_start_s": 55.72
     }
   ],
   "counter_voices": [],
-  "stance_counts": {}
+  "stance_counts": {
+    "promotes": 4,
+    "unrelated": 22,
+    "debunks": 1,
+    "neutral": 3
+  },
+  "stance_sample_size": 30
 }

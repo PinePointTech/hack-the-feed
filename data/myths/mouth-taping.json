@@ -27,18 +27,19 @@
     "platform": "tiktok",
     "url": "https://www.tiktok.com/@mari.aranaa/video/7694724543407017247",
     "handle": "mari.aranaa",
+    "views": 241700,
+    "published_at": "2026-10-09T17:41:29.000Z",
+    "stance": "promotes",
+    "stance_confidence": 0.99,
+    "nameable": true,
     "display_name": "mari.aranaa",
     "followers": 98694,
-    "views": 241700,
     "shares": 556,
     "interactions": 24954,
-    "published_at": "2026-10-09T17:41:29.000Z",
     "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp",
     "quote": "I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps.",
     "quote_source": "transcript",
-    "quote_start_s": 58.54,
-    "stance": "promotes",
-    "nameable": false
+    "quote_start_s": 58.54
   },
   "videos": [
     {
@@ -46,20 +47,28 @@
       "platform": "tiktok",
       "url": "https://www.tiktok.com/@mari.aranaa/video/7694724543407017247",
       "handle": "mari.aranaa",
+      "views": 241700,
+      "published_at": "2026-10-09T17:41:29.000Z",
+      "stance": "promotes",
+      "stance_confidence": 0.99,
+      "nameable": true,
       "display_name": "mari.aranaa",
       "followers": 98694,
-      "views": 241700,
       "shares": 556,
       "interactions": 24954,
-      "published_at": "2026-10-09T17:41:29.000Z",
       "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp",
       "quote": "I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps.",
       "quote_source": "transcript",
-      "quote_start_s": 58.54,
-      "stance": "promotes",
-      "nameable": false
+      "quote_start_s": 58.54
     }
   ],
   "counter_voices": [],
-  "stance_counts": {}
+  "stance_counts": {
+    "unrelated": 17,
+    "promotes": 5,
+    "ad": 2,
+    "neutral": 5,
+    "debunks": 1
+  },
+  "stance_sample_size": 30
 }

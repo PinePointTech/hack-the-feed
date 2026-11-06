@@ -31,7 +31,7 @@ def validate_answers(content: str, questions: dict) -> dict:
     for name, question in questions.items():
         answer = answers[name]
         if question["type"] == "noul":
-            result[name] = {"noul": probability(answer["noul"])}
+            result[name] = {"noul": probability(answer["noul"] if isinstance(answer, dict) else answer)}
             continue
         options = question.get("criteria") or question["options"]
         probabilities = answer["probabilities"]

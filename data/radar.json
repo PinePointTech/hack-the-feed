@@ -33,22 +33,22 @@
       "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
       "trend_pct": -22,
       "top_video": {
-        "oriane_id": "cnt_8bf297ba22d2c059c502b32dbf53",
+        "oriane_id": "cnt_a701cd2974ee087211dd1869d02a",
         "platform": "instagram",
-        "url": "https://www.instagram.com/reel/DeM2Kywtwcj/",
-        "handle": "tulumtrainer",
-        "display_name": "Kate Nolte | Coach & Trainer",
-        "followers": 656165,
-        "views": 2298948,
-        "interactions": 169979,
-        "published_at": "2026-10-07T17:00:16.000Z",
-        "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeM2Kywtwcj/thumbnail.webp",
-        "quote": "It's the easiest way to get inflammation out of the body, detox, and wake up.",
-        "quote_source": "transcript",
-        "quote_start_s": 7.44,
+        "url": "https://www.instagram.com/reel/DecWFNKuich/",
+        "handle": "pouya_yoga",
+        "views": 828515,
+        "published_at": "2026-10-13T17:29:59.000Z",
         "stance": "promotes",
-        "nameable": false,
-        "shares": 0
+        "stance_confidence": 0.99,
+        "nameable": true,
+        "display_name": "Pouya Saadat",
+        "followers": 4400119,
+        "shares": 0,
+        "interactions": 14630,
+        "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DecWFNKuich/thumbnail.webp",
+        "quote": "✨ Drainage & Detox: Tapping on your lymph nodes boosts lymphatic flow to clear out toxins and reduce swelling.",
+        "quote_source": "caption"
       }
     },
     {
@@ -80,18 +80,19 @@
         "platform": "instagram",
         "url": "https://www.instagram.com/reel/DeUEusVxZr7/",
         "handle": "barlowherbal",
+        "views": 2144856,
+        "published_at": "2026-10-10T12:26:45.000Z",
+        "stance": "promotes",
+        "stance_confidence": 0.99,
+        "nameable": true,
         "display_name": "Jane Barlow | Master Herbalist",
         "followers": 142264,
-        "views": 2144856,
         "shares": 70681,
         "interactions": 191484,
-        "published_at": "2026-10-10T12:26:45.000Z",
         "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp",
         "quote": "Garlic's been proven in medical industries in this country to destroy cancer tumors, period.",
         "quote_source": "transcript",
-        "quote_start_s": 55.72,
-        "stance": "promotes",
-        "nameable": false
+        "quote_start_s": 55.72
       }
     },
     {
@@ -123,18 +124,19 @@
         "platform": "tiktok",
         "url": "https://www.tiktok.com/@mari.aranaa/video/7694724543407017247",
         "handle": "mari.aranaa",
+        "views": 241700,
+        "published_at": "2026-10-09T17:41:29.000Z",
+        "stance": "promotes",
+        "stance_confidence": 0.99,
+        "nameable": true,
         "display_name": "mari.aranaa",
         "followers": 98694,
-        "views": 241700,
         "shares": 556,
         "interactions": 24954,
-        "published_at": "2026-10-09T17:41:29.000Z",
         "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp",
         "quote": "I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps.",
         "quote_source": "transcript",
-        "quote_start_s": 58.54,
-        "stance": "promotes",
-        "nameable": false
+        "quote_start_s": 58.54
       }
     }
   ]
