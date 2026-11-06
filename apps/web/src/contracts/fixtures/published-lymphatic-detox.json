@@ -1,0 +1,155 @@
+{
+  "_fixture": {
+    "note": "Example of what POST /publish writes to data/published/lymphatic-detox.json. Sources, excerpts, quote and Oriane numbers are real. Placeholders: video_url (the video is not recorded yet), the approval timestamps and name, claims[].support, and published_at.",
+    "placeholders": ["video_url", "approval", "claims[].support", "claims[].engine", "published_at"]
+  },
+  "id": "lymphatic-detox",
+  "myth": {
+    "id": "lymphatic-detox",
+    "title": "Lymphatic drainage detoxes you and melts fat",
+    "topic": "lymphatic drainage",
+    "claim": "Lymphatic drainage pulls toxins out of the body and causes fat or weight loss.",
+    "harm_tier": "false",
+    "harm_reason": "Sources say there is no evidence it causes weight loss and the toxin claims are unfounded. The massage itself is not described as harmful.",
+    "trend": "cooling",
+    "trend_pct": -22,
+    "window": { "from": "2026-10-07", "to": "2026-11-06" },
+    "topic_video_count": 1317,
+    "topic_views": 49537321,
+    "prev_window": { "from": "2026-09-07", "to": "2026-10-06" },
+    "prev_topic_video_count": 1688,
+    "prev_topic_views": 95767171,
+    "claim_video_count": 364,
+    "claim_views": 17910579,
+    "claim_interactions": 946248,
+    "match_note": "Topic: exact phrase \"lymphatic drainage\" in transcript, caption or on-screen text. Claim: a separate fuzzy search for \"lymphatic detox\", \"lymphatic toxins\", \"lymphatic debloat\", \"lymphatic weight loss\" or \"lymphatic flush\" in transcript or caption.",
+    "data_source": "oriane_snapshot",
+    "snapshot_at": "2026-11-06T13:00:12-08:00"
+  },
+  "quoted": [
+    {
+      "oriane_id": "cnt_8bf297ba22d2c059c502b32dbf53",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DeM2Kywtwcj/",
+      "handle": "tulumtrainer",
+      "display_name": "Kate Nolte | Coach & Trainer",
+      "followers": 656165,
+      "views": 2298948,
+      "interactions": 169979,
+      "published_at": "2026-10-07T17:00:16Z",
+      "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeM2Kywtwcj/thumbnail.webp",
+      "quote": "It's the easiest way to get inflammation out of the body, detox, and wake up.",
+      "quote_source": "transcript",
+      "quote_start_s": 7.44,
+      "stance": "promotes",
+      "nameable": true
+    }
+  ],
+  "verdict": "There's no good evidence that lymphatic drainage detoxes you or causes weight loss. It can reduce swelling for a while, and it plays a real role in treating lymphedema.",
+  "what_is_true": [
+    "It can reduce swelling and give a temporary slimmer, tighter look (UCLA Health).",
+    "It plays a critical role in treating lymphedema (UCLA Health)."
+  ],
+  "what_is_false": [
+    "That it causes weight loss. There is no evidence for that (UCLA Health, National Geographic).",
+    "That it gets rid of toxins. Those claims are unfounded (National Geographic)."
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "title": "Lymphatic drainage massage - separating fact from fiction",
+      "publisher": "UCLA Health",
+      "url": "https://www.uclahealth.org/news/article/lymphatic-drainage-massage-separating-fact-fiction",
+      "kind": "health_system",
+      "excerpts": [
+        "The problem is there is no substantial scientific evidence supporting these claims.",
+        "Lymphatic massage can reduce swelling and give the temporary appearance of slimmer, tighter skin. However, there is no evidence that MLD causes weight loss.",
+        "MLD plays a critical role in treating lymphedema"
+      ],
+      "fetched_at": "2026-11-06"
+    },
+    {
+      "id": "s2",
+      "title": "What lymphatic drainage massage actually does for your body",
+      "publisher": "National Geographic",
+      "url": "https://nationalgeographic.com/health/article/lymphatic-drainage-massage-therapy-wellness",
+      "kind": "journalism",
+      "excerpts": [
+        "it has nothing to do with weight loss.",
+        "The claims that lymphatic massage can get rid of toxins are unfounded as well, adds Rockson.",
+        "isn't harmful, adds Rockson, but it won't necessarily have the long-term detoxifying effects that some influencers promise."
+      ],
+      "fetched_at": "2026-11-06"
+    }
+  ],
+  "claims": [
+    {
+      "id": "c1",
+      "text": "There is no evidence that lymphatic drainage causes weight loss.",
+      "evidence": [
+        { "source_id": "s1", "excerpt": "Lymphatic massage can reduce swelling and give the temporary appearance of slimmer, tighter skin. However, there is no evidence that MLD causes weight loss." },
+        { "source_id": "s2", "excerpt": "it has nothing to do with weight loss." }
+      ],
+      "support": 0.93,
+      "status": "supported",
+      "engine": "cached"
+    },
+    {
+      "id": "c2",
+      "text": "The claims that it gets rid of toxins are unfounded.",
+      "evidence": [
+        { "source_id": "s2", "excerpt": "The claims that lymphatic massage can get rid of toxins are unfounded as well, adds Rockson." }
+      ],
+      "support": 0.91,
+      "status": "supported",
+      "engine": "cached"
+    },
+    {
+      "id": "c3",
+      "text": "It can reduce swelling and make skin look slimmer and tighter for a while.",
+      "evidence": [
+        { "source_id": "s1", "excerpt": "Lymphatic massage can reduce swelling and give the temporary appearance of slimmer, tighter skin. However, there is no evidence that MLD causes weight loss." }
+      ],
+      "support": 0.9,
+      "status": "supported",
+      "engine": "cached"
+    },
+    {
+      "id": "c4",
+      "text": "It plays a critical role in treating lymphedema.",
+      "evidence": [
+        { "source_id": "s1", "excerpt": "MLD plays a critical role in treating lymphedema" }
+      ],
+      "support": 0.88,
+      "status": "supported",
+      "engine": "cached"
+    }
+  ],
+  "script": {
+    "format": "standalone",
+    "duration_s": 35,
+    "lines": [
+      { "id": "l1", "text": "Lymphatic drainage is all over your feed. Does it detox you or melt fat?", "on_screen": "Does lymphatic drainage detox you?" },
+      { "id": "l2", "text": "Here's one claim with 2.3 million views.", "on_screen": "\"It's the easiest way to get inflammation out of the body, detox, and wake up.\" @tulumtrainer, 0:07" },
+      { "id": "l3", "text": "There's no evidence it causes weight loss.", "claim_id": "c1", "on_screen": "No evidence it causes weight loss", "source_id": "s1" },
+      { "id": "l4", "text": "And National Geographic reports the claims that it gets rid of toxins are unfounded.", "claim_id": "c2", "on_screen": "Toxin claims: unfounded", "source_id": "s2" },
+      { "id": "l5", "text": "What it can do: reduce swelling and make skin look tighter for a while.", "claim_id": "c3", "on_screen": "Less swelling, for a while", "source_id": "s1" },
+      { "id": "l6", "text": "Where it really matters: it plays a critical role in treating lymphedema.", "claim_id": "c4", "on_screen": "Real use: lymphedema care", "source_id": "s1" },
+      { "id": "l7", "text": "Sources are on the receipts page. Link in bio.", "on_screen": "Receipts: link in bio" }
+    ],
+    "caption": "What lymphatic drainage does and doesn't do. Sources: UCLA Health and National Geographic. Full receipts at the link in bio. #lymphaticdrainage #healthmyths",
+    "cta": "Check the receipts page before you buy a detox."
+  },
+  "video_url": "/video/lymphatic-detox.mp4",
+  "approval": {
+    "every_claim_has_source": true,
+    "quotes_are_exact": true,
+    "targets_claim_not_person": true,
+    "no_minors_or_illness_stories": true,
+    "video_qa_passed": true,
+    "approved_by": "Vi Huynh",
+    "approved_at": "2026-11-06T16:35:00-08:00"
+  },
+  "certified_by_clinician": false,
+  "published_at": "2026-11-06T16:40:00-08:00"
+}

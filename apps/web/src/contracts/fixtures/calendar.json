@@ -1,0 +1,101 @@
+{
+  "_fixture": {
+    "note": "Counts are real Oriane results for Oct 7 to Nov 6, 2026 (queries in docs/research/ORIANE-FINDINGS.md). Trend is unknown where we have no previous window. Watchlist items are curated guesses with no data behind them yet, and are labeled that way.",
+    "placeholders": ["this_week[].harm_tier", "watchlist"]
+  },
+  "week_of": "2026-11-09",
+  "this_week": [
+    {
+      "topic": "Lymphatic drainage detox and fat loss",
+      "myth_id": "lymphatic-detox",
+      "harm_tier": "false",
+      "trend": "cooling",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "1,317 videos said \"lymphatic drainage\" in the last 30 days (49.5M views), down 22% in video count from the 30 days before.",
+      "video_count": 1317,
+      "views": 49537321,
+      "script_available": true
+    },
+    {
+      "topic": "Garlic on tumors",
+      "myth_id": "garlic-tumor",
+      "harm_tier": "harmful",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "59 videos mention garlic with tumor or cancer in the last 30 days (5.8M views). The top one, with 2.1M views, tells viewers to put garlic paste on a tumor.",
+      "video_count": 59,
+      "views": 5768385,
+      "script_available": false
+    },
+    {
+      "topic": "Mouth taping",
+      "myth_id": "mouth-taping",
+      "harm_tier": "unproven",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "199 videos used a mouth taping phrase in the last 30 days (8.3M views).",
+      "video_count": 199,
+      "views": 8304973,
+      "script_available": false
+    },
+    {
+      "topic": "Sea moss",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "659 videos said \"sea moss\" in the last 30 days (19.4M views). Claims not reviewed yet.",
+      "video_count": 659,
+      "views": 19432612,
+      "script_available": false
+    },
+    {
+      "topic": "Castor oil packs and belly button oiling",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "239 videos matched castor oil belly button, navel, pack or detox in the last 30 days (18.1M views, fuzzy match). Claims not reviewed yet.",
+      "video_count": 239,
+      "views": 18146452,
+      "script_available": false
+    },
+    {
+      "topic": "Berberine as \"nature's Ozempic\"",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "445 videos matched berberine or \"nature's ozempic\" in the last 30 days (11.2M views, fuzzy match). Claims not reviewed yet.",
+      "video_count": 445,
+      "views": 11195302,
+      "script_available": false
+    },
+    {
+      "topic": "Parasite cleanses",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "325 videos matched parasite cleanse or parasite detox in the last 30 days (10.1M views, fuzzy match). Claims not reviewed yet.",
+      "video_count": 325,
+      "views": 10125946,
+      "script_available": false
+    }
+  ],
+  "watchlist": [
+    {
+      "topic": "Cold and flu remedies",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "curated",
+      "why": "Seasonal guess: cold and flu season. No Oriane data pulled yet.",
+      "script_available": false
+    },
+    {
+      "topic": "Thanksgiving food and sleep claims",
+      "window": "Nov 23 to Nov 29, 2026",
+      "basis": "curated",
+      "why": "Seasonal guess: Thanksgiving is Nov 26, 2026. No Oriane data pulled yet.",
+      "script_available": false
+    }
+  ]
+}

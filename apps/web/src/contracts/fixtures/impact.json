@@ -1,0 +1,15 @@
+{
+  "_fixture": {
+    "note": "Real numbers from Oriane. myth_reach uses the claim search (364 videos, 17,910,579 views) as a stand-in for promoting videos until stance labels run. response_reach, response_ratio, hours_spike_to_first_response and our_debunk are left out on purpose: they are not measured yet. The UI should show 'pending' for them.",
+    "placeholders": ["myth_reach"]
+  },
+  "myth_id": "lymphatic-detox",
+  "window": { "from": "2026-10-07", "to": "2026-11-06" },
+  "myth_reach": { "videos": 364, "views": 17910579 },
+  "baseline_clinician": {
+    "videos": 63,
+    "views": 1228159,
+    "note": "Videos saying \"lymphatic drainage\" from accounts with a clinician word in their bio: 2.5% of topic views. Our manual read of the five biggest: promotions, not corrections."
+  },
+  "note": "Response reach is pending. Run stance labels on the topic to count debunking videos and their views."
+}
