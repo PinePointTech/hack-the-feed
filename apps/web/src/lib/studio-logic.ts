@@ -17,7 +17,7 @@ export function lineStatus(c: LineCheck | undefined): LineStatus {
 }
 
 export const canApprove = (ticks: Ticks, statuses: LineStatus[]) =>
-  REQUIRED_TICKS.every((k) => ticks[k]) && !statuses.includes("unsupported");
+  REQUIRED_TICKS.every((k) => ticks[k]) && !statuses.some((s) => s === "unsupported" || s === "pending");
 
 // Lines whose text differs from the text last sent to (or seeded from) the brain.
 export const changedLines = (lines: ScriptLine[], checked: Record<string, string>) =>

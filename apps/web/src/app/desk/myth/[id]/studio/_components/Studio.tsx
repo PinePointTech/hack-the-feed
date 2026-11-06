@@ -257,9 +257,10 @@ export function Studio({ mythId }: { mythId: string }) {
             <div className="flex flex-wrap items-center gap-8">
               <div className="space-y-2">
                 <Link href={receiptsPath} className="text-xl text-blue-700 underline">Open receipts</Link>
+                <FixtureBadge from={s.publishFrom} />
                 {published.certified_by_clinician && <p className="text-green-800">Certified by clinician</p>}
               </div>
-              <Qr url={`${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}${receiptsPath}?utm_source=demo_qr`} size={160} />
+              <Qr url={`${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}${receiptsPath}?utm_source=demo_qr&utm_medium=qr`} size={160} />
             </div>
           ) : (
             <button

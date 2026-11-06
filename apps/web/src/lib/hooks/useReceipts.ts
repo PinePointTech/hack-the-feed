@@ -14,7 +14,11 @@ export function useReceipts(id: string) {
 
   useEffect(() => {
     let live = true;
-    api.published(id).then((r) => live && setRes(r));
+    api.published(id).then((r) => {
+      if (!live) return;
+      try { if (localStorage.getItem(`mb_voted_${id}`)) setVoted(true); } catch {} // one vote per device
+      setRes(r);
+    });
     return () => { live = false; };
   }, [id]);
 
@@ -29,6 +33,7 @@ export function useReceipts(id: string) {
   const vote = (answer: VoteAnswer) => {
     if (voted) return;
     setVoted(true);
+    try { localStorage.setItem(`mb_voted_${id}`, "1"); } catch {}
     track("Mind Changed Vote", { myth_id: id, answer });
   };
 
@@ -39,6 +44,6 @@ export function useReceipts(id: string) {
     notFound,
     vote,
     voted,
-    qrUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/r/${id}?utm_source=demo_qr`,
+    qrUrl: `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "")}/r/${id}?utm_source=demo_qr&utm_medium=qr`,
   };
 }

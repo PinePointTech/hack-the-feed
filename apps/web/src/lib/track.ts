@@ -29,5 +29,8 @@ type Events = {
 
 export function track<K extends keyof Events>(name: K, props: Events[K]) {
   initAmplitude(); // child effects run before the provider's effect, so init here too
-  if (started) amplitude.track(name, props);
+  if (!started) return;
+  // Desk events carry a fixed user id; public pages stay anonymous.
+  if (window.location.pathname.startsWith("/desk") && amplitude.getUserId() !== "creator_demo") amplitude.setUserId("creator_demo");
+  amplitude.track(name, props);
 }

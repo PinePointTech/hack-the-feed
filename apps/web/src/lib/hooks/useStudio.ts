@@ -19,8 +19,8 @@
  * - checkFrom: "live" | "fixture" (source of the latest check). hasUnsupported: boolean.
  *
  * Approval
- * - checklist: Ticks (the ApprovalChecklist booleans). toggle(key) flips one.
- * - canApprove: four required ticks set, no unsupported line, brief loaded, not yet approved.
+ * - checklist: Ticks (the ApprovalChecklist booleans). toggle(key) flips one; video_qa_passed is set only by runQA, and nothing changes after approve().
+ * - canApprove: four required ticks set, no unsupported or pending line, brief loaded, not yet approved.
  * - approve(): fires "Brief Approved" and freezes the lines. approved: boolean. approvedLines: ScriptLine[] | null.
  *
  * Handoff to Compound (Mac app, no API)
@@ -34,7 +34,7 @@
  *
  * Publish
  * - publish(): only after approve(); POST /publish; fires "Debunk Published".
- * - publishing: boolean. published: PublishedDebunk | null. receiptsHref: "/r/{id}".
+ * - publishing: boolean. published: PublishedDebunk | null. publishFrom: "live" | "fixture". receiptsHref: "/r/{id}".
  */
 import { useEffect, useRef, useState } from "react";
 import type { Brief, Format, LineCheck, PublishedDebunk, QAReport, ScriptLine } from "@/contracts/types";
@@ -74,6 +74,7 @@ export function useStudio(mythId: string) {
   const [qaRunning, setQaRunning] = useState(false);
   const [published, setPublished] = useState<PublishedDebunk | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [publishFrom, setPublishFrom] = useState<From>("live");
 
   const linesRef = useRef<ScriptLine[]>([]);
   linesRef.current = lines;
@@ -120,7 +121,7 @@ export function useStudio(mythId: string) {
       const fresh: Record<string, { text: string; check: LineCheck }> = {};
       for (const r of data.results) {
         const s = sent.find((x) => x.id === r.line_id);
-        if (!s) continue;
+        if (!s || sentText.current[r.line_id] !== s.text) continue; // stale response
         fresh[r.line_id] = { text: s.text, check: r };
         const status = lineStatus(r);
         const key = flagKey(r.line_id, s.text);
@@ -162,7 +163,10 @@ export function useStudio(mythId: string) {
   const hasUnsupported = studioLines.some((l) => l.status === "unsupported");
   const canApprove = !!brief && !approvedLines && rulesAllowApproval(checklist, studioLines.map((l) => l.status));
 
-  const toggle = (key: keyof Ticks) => setChecklist((t) => ({ ...t, [key]: !t[key] }));
+  const toggle = (key: keyof Ticks) => {
+    if (key === "video_qa_passed" || approvedLines) return; // QA ticks itself in runQA
+    setChecklist((t) => ({ ...t, [key]: !t[key] }));
+  };
 
   function approve() {
     if (!canApprove) return;
@@ -224,14 +228,16 @@ export function useStudio(mythId: string) {
     if (!brief || !approvedLines || publishing) return;
     setPublishing(true);
     try {
-      const { data } = await api.publish({
+      const { data, from } = await api.publish({
         myth_id: mythId,
         brief: { ...brief, script: { ...brief.script, format, lines: approvedLines } },
         approval: { ...checklist, approved_by: "Vi", approved_at: new Date().toISOString() },
-        ...(video ? { video_url: "/video/lymphatic-detox.mp4" } : {}),
+        ...(video ? { video_url: `/video/${mythId}.mp4` } : {}),
       });
       setPublished(data);
-      track("Debunk Published", { myth_id: mythId, has_video: !!video, certified_by_clinician: data.certified_by_clinician });
+      setPublishFrom(from);
+      if (from === "live") track("Debunk Published", { myth_id: mythId, has_video: !!video, certified_by_clinician: data.certified_by_clinician });
+      else if (process.env.NEXT_PUBLIC_USE_MOCKS !== "1") setError("Publish failed, showing the example receipts");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -246,6 +252,6 @@ export function useStudio(mythId: string) {
     checklist, toggle, canApprove, approve, approved: !!approvedLines, approvedLines,
     copyScriptText, copyScript, copied,
     video, attachVideo, runQA, qa, qaFrom, qaRunning,
-    publish, publishing, published, receiptsHref: `/r/${published?.id ?? mythId}`,
+    publish, publishing, published, publishFrom, receiptsHref: `/r/${published?.id ?? mythId}`,
   };
 }
