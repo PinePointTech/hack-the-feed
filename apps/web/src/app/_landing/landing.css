@@ -118,3 +118,48 @@
   .lp-quick a { transition: transform 160ms var(--ease); }
   .lp-quick a:active { transform: scale(.97); }
 }
+
+/* Featured debunk and signal band (v2 .featured, .band) */
+.lp-featured { padding-top: 72px; padding-bottom: 88px; border-top: 1px solid var(--ink); }
+.lp-stack { max-width: 46rem; margin-inline: auto; display: grid; gap: 32px; min-width: 0; }
+.lp-stack-head { display: grid; gap: 14px; }
+.lp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lp-label { font-weight: 600; font-size: .75rem; color: var(--ink-2); }
+.lp-verdict { display: grid; gap: 8px; }
+.lp-verdict p { margin: 0; font-family: var(--font-source-serif), serif; font-weight: 400; font-size: clamp(1.375rem, 1.1rem + .9vw, 1.75rem); line-height: 1.35; max-width: 36em; }
+.lp-facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.lp-facts h3, .lp-sources h3 { margin: 0; font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.25rem; letter-spacing: -.01em; padding-bottom: 10px; border-bottom: 1px solid var(--ink); }
+.lp-facts ul { list-style: none; margin: 0; padding: 0; }
+.lp-facts li { font-family: var(--font-source-serif), serif; font-size: 1.0625rem; line-height: 1.5; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.lp-sources { display: grid; gap: 14px; }
+.lp-source-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; list-style: none; margin: 0; padding: 0; }
+.lp-source { min-width: 0; display: grid; gap: 6px; align-content: start; padding: 18px 20px; border: 1px solid var(--ink); border-radius: 24px; }
+.lp-source a { display: block; min-height: 44px; padding-top: 4px; padding-bottom: 4px; font-family: var(--font-source-serif), serif; font-weight: 600; font-size: 1.125rem; line-height: 1.35; overflow-wrap: anywhere; }
+.lp-host { font-size: .75rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.lp-receipts-link { justify-self: start; }
+.lp-signal {
+  border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding-top: 72px; padding-bottom: 80px; background-color: var(--paper);
+  background-image:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--rule) 55%, transparent) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--rule) 55%, transparent) 0 1px, transparent 1px 32px);
+}
+.lp-signal + .lp-band { border-top: 0; }
+.lp-signal-inner { display: grid; gap: 40px; }
+.lp-signal-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.lp-signal-head h2 { margin: 0; font-weight: 800; font-variation-settings: "opsz" 72; font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); line-height: 1.05; letter-spacing: -.025em; }
+.lp-trace { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.lp-trace-label { font-weight: 800; font-size: 1.0625rem; padding: 4px 14px; border-radius: 999px; background: var(--paper); border: 1px solid var(--ink); white-space: nowrap; }
+.lp-trace-line { position: relative; height: 28px; min-width: 0; }
+.lp-dash { position: absolute; left: 0; top: 13px; width: 38%; border-top: 2px dashed var(--ink); }
+.lp-solid { position: absolute; left: 52%; right: 14px; top: 13px; border-top: 2px solid var(--ink); }
+.lp-lock { position: absolute; right: 0; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--lime); border: 2px solid var(--ink); }
+.lp-readouts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 0; }
+.lp-readout { min-width: 0; display: grid; gap: 4px; padding: 20px 22px; background: var(--paper); border: 1px solid var(--ink); border-radius: 24px; }
+.lp-readout dt { font-weight: 700; font-size: .9375rem; }
+.lp-readout dd { margin: 0; display: grid; gap: 2px; }
+.lp-big { font-family: var(--font-azeret), ui-monospace, monospace; font-weight: 600; font-variant-numeric: tabular-nums; font-size: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem); line-height: 1.15; overflow-wrap: anywhere; }
+.lp-sub { font-weight: 500; font-size: .8125rem; color: var(--ink-2); }
+@media (min-width: 900px) {
+  .lp-facts, .lp-source-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

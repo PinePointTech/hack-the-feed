@@ -58,7 +58,7 @@ function Step({ n, done, children }: { n: number; done: boolean; children: React
     >
       <span
         aria-hidden="true"
-        className={`relative z-10 grid size-9 place-items-center rounded-full border-2 border-ink font-mono text-sm font-semibold md:size-14 md:text-xl ${
+        className={`relative z-[1] grid size-9 place-items-center rounded-full border-2 border-ink font-mono text-sm font-semibold md:size-14 md:text-xl ${
           done ? "bg-ink text-paper" : "bg-paper"
         }`}
       >
@@ -101,7 +101,7 @@ export function Studio({ mythId }: { mythId: string }) {
   return (
     <main className="wrap pb-24 pt-10 md:pt-14">
       <header className="grid gap-6 border-b border-ink pb-10">
-        <Link href={`/desk/myth/${mythId}`} className="inline-flex min-h-11 items-center self-start justify-self-start text-lg font-semibold underline">
+        <Link href={`/desk/myth/${mythId}`} className="inline-flex min-h-11 items-center self-start justify-self-start rounded-pill border border-ink px-[18px] font-semibold no-underline hover:bg-ink hover:text-paper">
           Back to the myth
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -293,13 +293,14 @@ export function Studio({ mythId }: { mythId: string }) {
                         )}
                         {c?.has_claim && checkFrom === "fixture" && <Placeholder />}
                       </div>
-                      <input
+                      <textarea
+                        rows={1}
                         name={`line-${l.id}`}
                         value={l.text}
                         readOnly={approved}
                         onChange={(e) => s.setLineText(l.id, e.target.value)}
                         aria-label={`Script line ${l.id}`}
-                        className="min-h-14 w-full min-w-0 rounded-2xl border border-ink bg-paper px-4 text-lg text-ink read-only:border-rule md:text-xl"
+                        className="min-h-14 w-full min-w-0 resize-none rounded-2xl border border-ink bg-paper px-4 py-3 text-lg text-ink [field-sizing:content] read-only:border-rule md:text-xl"
                       />
                       {c?.note && <p className="text-lg font-semibold">{c.note}</p>}
                       {(l.on_screen || l.source_id) && (

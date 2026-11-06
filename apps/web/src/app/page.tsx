@@ -6,6 +6,7 @@ import { FixtureBadge } from "@/components/FixtureBadge";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
 import { ClaimCheck } from "./_landing/ClaimCheck";
+import { Featured } from "./_landing/Featured";
 import "./_landing/landing.css";
 
 const STEPS = [
@@ -83,6 +84,8 @@ export default async function Home() {
           )}
         </section>
       </div>
+
+      <Featured myths={myths} />
 
       <section className="lp-band" aria-labelledby="creator-h">
         <div className="wrap lp-creator">

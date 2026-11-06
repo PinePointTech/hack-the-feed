@@ -40,7 +40,7 @@ export function Receipts({ id }: { id: string }) {
   return (
     <main className="wrap pt-10 pb-20 min-[700px]:pt-16">
       <div className="mx-auto grid max-w-[46rem] min-w-0 gap-10">
-        <header className="grid gap-3.5">
+        <header className="grid gap-3.5 max-[699px]:-order-2">
           <p className={LABEL}>The receipts</p>
           <h1 className={SECTION_H}>
             <Title title={d.myth.title} topic={d.myth.topic} />
@@ -83,7 +83,8 @@ export function Receipts({ id }: { id: string }) {
           </figcaption>
         </figure>
 
-        <section className="grid gap-2" aria-labelledby="verdict-h">
+        {/* Phones: verdict before the 9:16 video so a QR scan sees it on the first screen */}
+        <section className="grid gap-2 max-[699px]:-order-1" aria-labelledby="verdict-h">
           <h2 id="verdict-h" className={LABEL}>
             Verdict
           </h2>
@@ -159,7 +160,7 @@ export function Receipts({ id }: { id: string }) {
 }
 
 // v2 sets one word in bold italic serif: the word right after the topic ("Lymphatic drainage *detoxes* you").
-function Title({ title, topic }: { title: string; topic: string }) {
+export function Title({ title, topic }: { title: string; topic: string }) {
   const head = title.slice(0, topic.length);
   const [word, ...rest] = title.slice(topic.length).trimStart().split(" ");
   if (head.toLowerCase() !== topic.toLowerCase() || !word) return <>{title}</>;

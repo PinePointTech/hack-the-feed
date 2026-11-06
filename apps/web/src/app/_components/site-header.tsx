@@ -10,7 +10,7 @@ const pill =
 
 export function SiteHeader() {
   return (
-    <div className="wrap sticky top-3 z-10 pt-3">
+    <div className="wrap sticky top-3 z-50 pt-3">
       <header className="flex items-center justify-between gap-4 rounded-pill border border-ink bg-paper py-1.5 pr-1.5 pl-[22px]">
         <Link
           href="/"
