@@ -33,3 +33,10 @@ The other formats are `stitch`, `duet`, and `no_camera`. Set `refresh` to
 line uses the exact text of a scored claim and cites its best source.
 `claims[].engine` uses the existing `cached` label for saved scores and
 `models.judge` identifies the OpenAI model that produced them.
+
+## Live script check
+
+Send `POST /check` with a `myth_id` and `lines` containing `id` and `text`.
+The checker compares edited lines with the saved brief's excerpts and returns
+one result per input line in order. It caches results by normalized text and
+the current excerpts, and preserves each request's line IDs.
