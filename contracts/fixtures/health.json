@@ -1,0 +1,11 @@
+{
+  "_fixture": {
+    "note": "Example response only. The real values come from GET /health on the brain.",
+    "placeholders": ["ok", "oriane", "gmi", "jev", "version"]
+  },
+  "ok": true,
+  "oriane": true,
+  "gmi": true,
+  "jev": true,
+  "version": "0.1.0"
+}

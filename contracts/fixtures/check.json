@@ -1,0 +1,31 @@
+{
+  "_fixture": {
+    "note": "Response to the demo edit: line l3 changed to \"Lymphatic drainage burns fat.\" plus the unchanged CTA line. The evidence excerpt is real; support values are placeholders until Kris replaces them with real Jev output. In mock mode the web app returns results[0] only when the edited text says \"burns fat\", and marks every other edited line \"Not checked (brain offline)\".",
+    "placeholders": ["results[].support", "results[].engine"],
+    "request": {
+      "myth_id": "lymphatic-detox",
+      "lines": [
+        { "id": "l3", "text": "Lymphatic drainage burns fat." },
+        { "id": "l7", "text": "Sources are on the receipts page. Link in bio." }
+      ]
+    }
+  },
+  "results": [
+    {
+      "line_id": "l3",
+      "has_claim": true,
+      "support": 0.04,
+      "status": "unsupported",
+      "evidence": [
+        { "source_id": "s1", "excerpt": "Lymphatic massage can reduce swelling and give the temporary appearance of slimmer, tighter skin. However, there is no evidence that MLD causes weight loss." }
+      ],
+      "engine": "cached",
+      "note": "No source says this. The closest source says there is no evidence it causes weight loss."
+    },
+    {
+      "line_id": "l7",
+      "has_claim": false,
+      "engine": "cached"
+    }
+  ]
+}

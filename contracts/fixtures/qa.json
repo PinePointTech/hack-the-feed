@@ -1,0 +1,17 @@
+{
+  "_fixture": {
+    "note": "Example QA report for building the UI. No video has been checked yet, so every value is a placeholder. It shows a failing run (one claim that is not in the script and one typo) so the issue list has something to render.",
+    "placeholders": ["frames_checked", "texts_found", "issues", "pass", "models", "ran_in", "duration_ms"]
+  },
+  "myth_id": "lymphatic-detox",
+  "frames_checked": 35,
+  "texts_found": 6,
+  "issues": [
+    { "t_s": 12, "found_text": "Burns fat fast", "problem": "unsupported_claim", "support": 0.05 },
+    { "t_s": 21, "found_text": "No evidence it causes weight los", "expected_line_id": "l3", "problem": "typo" }
+  ],
+  "pass": false,
+  "models": { "vision": "nvidia/NVIDIA-Nemotron-3-Nano-Omni", "judge": "jev-1.13" },
+  "ran_in": "cached",
+  "duration_ms": 41000
+}

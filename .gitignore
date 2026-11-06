@@ -1,0 +1,27 @@
+# deps and builds
+node_modules/
+.next/
+out/
+.vercel/
+.turbo/
+
+# env
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# brain scratch (published JSON and radar snapshots stay tracked)
+data/cache/
+data/frames/
+data/tmp/
+
+# misc
+*.log
+.DS_Store
