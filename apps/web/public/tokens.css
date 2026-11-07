@@ -1,0 +1,65 @@
+/* MyBuster tokens, direction: proof sheet. Light only. */
+/* Type: Archivo (display) is a grotesk with a width axis; its condensed cuts read like film edge printing on a contact sheet, and it stays sturdy on a projector. */
+/* Type: Public Sans (text) is a neutral, plain-spoken grotesk built for public-service pages, which suits calm health copy. */
+
+:root {
+  /* Color: cool photographic paper, black edge print, one cobalt grease pencil. */
+  --color-ground: #f1f4f6;        /* page, cool off-white paper */
+  --color-paper: #fbfcfd;         /* frames and sheets */
+  --color-print: #dfe4e8;         /* unexposed frame area */
+  --color-ink: #111417;           /* body text, 16.9:1 on ground */
+  --color-ink-muted: #474f56;     /* secondary text, 7.6:1 on ground */
+  --color-rule: #c3cad0;          /* thin contact-sheet rules */
+  --color-rule-strong: #8a939b;
+  --color-accent: #2142c4;        /* cobalt, verdict marks and the primary action only */
+  --color-accent-hover: #18329c;
+  --color-on-accent: #ffffff;     /* 7.4:1 on accent */
+
+  /* Harm tiers. */
+  /* OPEN: unproven is gray in the Linear web spec and amber in docs/WEB-APP.md. Gray is used until Vi decides. */
+  --color-harm-harmful-bg: #fbe1dd;
+  --color-harm-harmful-ink: #8e1a0f;
+  --color-harm-harmful-dot: #cf2e1c;
+  --color-harm-false-bg: #fde6d2;
+  --color-harm-false-ink: #823a00;
+  --color-harm-false-dot: #e36c0a;
+  --color-harm-unproven-bg: #e2e6ea;
+  --color-harm-unproven-ink: #3a4248;
+  --color-harm-unproven-dot: #78828b;
+
+  /* Radius: generous on frames and sheets, pill on the app bar and buttons. */
+  --radius-chip: 999px;
+  --radius-pill: 999px;
+  --radius-print: 20px;
+  --radius-frame: 24px;
+  --radius-sheet: 32px;
+
+  /* Spacing. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --space-9: 7rem;
+
+  /* Type. */
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-text: "Public Sans", system-ui, sans-serif;
+  --text-edge: 0.8125rem;   /* edge notes and frame numbers */
+  --text-small: 0.9375rem;
+  --text-body: 1.125rem;    /* large base for projector distance */
+  --text-lead: 1.3125rem;
+  --text-h3: 1.375rem;
+  --text-h2: clamp(1.875rem, 1.3rem + 1.8vw, 2.75rem);
+  --text-display: clamp(2.5rem, 1.55rem + 2.9vw, 4rem);
+  --leading-tight: 1.04;
+  --leading-body: 1.55;
+
+  /* Focus. */
+  --focus-ring: 0 0 0 3px var(--color-ground), 0 0 0 6px var(--color-accent);
+
+  --tap-min: 44px;
+}
