@@ -27,15 +27,6 @@
 }
 .lp-field input::placeholder { color: var(--ink-2); opacity: 1; }
 .lp-field .btn { min-height: 44px; padding: 0 20px; font-size: 1rem; flex: none; }
-.lp-search-state { display: grid; gap: 10px; max-width: 560px; }
-.lp-search-msg { margin: 0; font-weight: 600; color: var(--ink); }
-.lp-quick { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
-.lp-quick a {
-  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px;
-  border: 1px solid var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap;
-}
-.lp-quick a:hover { background: var(--ink); color: var(--paper); }
-
 /* Trending feed (v3 .feed and .frame contact sheet) */
 .lp-feed { scroll-margin-top: 110px; min-width: 0; display: grid; gap: 16px; padding-bottom: 80px; }
 .lp-feed-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-bottom: 14px; border-bottom: 1px solid var(--ink); }
@@ -160,8 +151,11 @@
   .lp-readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .lp-live { display: grid; gap: 8px; margin: 4px 0 8px; }
-.lp-live h3 { margin: 0; font-size: 1rem; }
 .lp-live p { margin: 0; }
+.lp-topic-analysis { display: grid; justify-items: start; gap: 8px; padding-block: 12px; }
+.lp-topic-analysis h3 { margin: 0; }
+.lp-search-metrics { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 8px 0; }
+.lp-search-metrics dd { margin: 0; font-size: 1.5rem; font-weight: 700; }
 .lp-live-tag { font-size: .75rem; font-weight: 600; padding: 2px 6px; border: 1px solid currentColor; border-radius: 999px; margin-left: 6px; }
 .lp-live-list { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
 .lp-live-list li { display: flex; gap: 12px; align-items: flex-start; }

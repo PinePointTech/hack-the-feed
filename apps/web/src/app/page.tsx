@@ -27,19 +27,7 @@ export default async function Home() {
   const draft = from === "fixture" && ["title", "harm_tier"].some((f) => isPlaceholder(data, `myths[].${f}`));
 
   return (
-    <main>
-      <section className="wrap lp-hero" aria-labelledby="hero-h">
-        <h1 id="hero-h" className="lp-headline">
-          Find the health myth. Get the <em className="kw kw-mark">receipts</em>. Make the debunk.
-        </h1>
-        <div className="lp-hero-actions">
-          <Link className="btn lp-btn-lg lp-btn-solid" href="/desk">
-            See the myth radar
-          </Link>
-          <ClaimCheck myths={myths.map(({ id, title, topic, claim }) => ({ id, title, topic, claim }))} />
-        </div>
-      </section>
-
+    <ClaimCheck myths={myths}>
       <section className="wrap lp-feed" id="trending" aria-labelledby="feed-h">
         <div className="lp-feed-head">
           <h2 id="feed-h">Trends in the measured window</h2>
@@ -108,6 +96,6 @@ export default async function Home() {
         </Link>
         </div>
       </section>
-    </main>
+    </ClaimCheck>
   );
 }
