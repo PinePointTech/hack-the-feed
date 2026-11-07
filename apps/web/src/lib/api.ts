@@ -1,13 +1,14 @@
 import type { Radar, MythDetail, Brief, BriefRequest, CheckRequest, CheckResponse, QAReport,
   PublishRequest, PublishedDebunk, Impact, Calendar } from "@/contracts/types";
-import radarFx from "@/contracts/fixtures/radar.json";
-import mythFx from "@/contracts/fixtures/myth-lymphatic-detox.json";
+// Fallbacks are the real pipeline outputs (apps/web/src/data, copied from data/), not hand-written fixtures.
+import radarFx from "@/data/radar.json";
+import mythFx from "@/data/myth-lymphatic-detox.json";
 import briefFx from "@/contracts/fixtures/brief-lymphatic-detox.json";
 import checkFx from "@/contracts/fixtures/check.json";
 import qaFx from "@/contracts/fixtures/qa.json";
-import publishedFx from "@/contracts/fixtures/published-lymphatic-detox.json";
-import impactFx from "@/contracts/fixtures/impact.json";
-import calendarFx from "@/contracts/fixtures/calendar.json";
+import publishedFx from "@/data/published-lymphatic-detox.json";
+import impactFx from "@/data/impact.json";
+import calendarFx from "@/data/calendar.json";
 import { mythFromFixtures, checkFromFixtures, brainErrorCode } from "./fixture-logic";
 
 const BRAIN = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8000";

@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-11-06T23:46:37.046619+00:00",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "myths": [
+    {
+      "id": "lymphatic-detox",
+      "title": "Lymphatic drainage detoxes you and melts fat",
+      "topic": "lymphatic drainage",
+      "claim": "Lymphatic drainage pulls toxins out of the body and causes fat or weight loss.",
+      "harm_tier": "false",
+      "harm_reason": "Sources say there is no evidence it causes weight loss and the toxin claims are unfounded. The massage itself is not described as harmful.",
+      "trend": "cooling",
+      "window": {
+        "from": "2026-10-07",
+        "to": "2026-11-06"
+      },
+      "topic_video_count": 1317,
+      "topic_views": 49537321,
+      "prev_window": {
+        "from": "2026-09-07",
+        "to": "2026-10-06"
+      },
+      "prev_topic_video_count": 1688,
+      "prev_topic_views": 95767171,
+      "claim_video_count": 170,
+      "claim_views": 5533317,
+      "claim_interactions": 174952,
+      "match_note": "Topic: exact phrase in transcript, caption or on-screen text. Claim: topic matches that also contain one of the claim keywords in transcript or caption.",
+      "data_source": "oriane_live",
+      "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
+      "trend_pct": -22,
+      "top_video": {
+        "oriane_id": "cnt_a701cd2974ee087211dd1869d02a",
+        "platform": "instagram",
+        "url": "https://www.instagram.com/reel/DecWFNKuich/",
+        "handle": "pouya_yoga",
+        "views": 828515,
+        "published_at": "2026-10-13T17:29:59.000Z",
+        "stance": "promotes",
+        "stance_confidence": 0.99,
+        "nameable": true,
+        "display_name": "Pouya Saadat",
+        "followers": 4400119,
+        "shares": 0,
+        "interactions": 14630,
+        "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DecWFNKuich/thumbnail.webp",
+        "quote": "✨ Drainage & Detox: Tapping on your lymph nodes boosts lymphatic flow to clear out toxins and reduce swelling.",
+        "quote_source": "caption"
+      }
+    },
+    {
+      "id": "garlic-tumor",
+      "title": "Garlic paste destroys tumors",
+      "topic": "garlic and cancer",
+      "claim": "Garlic destroys cancer tumors, and a garlic paste put on a tumor can treat it instead of standard care.",
+      "harm_tier": "harmful",
+      "harm_reason": "The video tells viewers to put a garlic paste on a breast tumor and says chemo and radiation would have killed the patient, which can push people away from real cancer care.",
+      "trend": "steady",
+      "window": {
+        "from": "2026-10-07",
+        "to": "2026-11-06"
+      },
+      "topic_video_count": 59,
+      "topic_views": 5768385,
+      "match_note": "Exact word \"garlic\" plus \"tumor\", \"tumors\" or \"cancer\" in transcript or caption. Many matches are unrelated (recipes, research on body odor), so stance labels decide what counts as promotion.",
+      "data_source": "oriane_live",
+      "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
+      "prev_window": {
+        "from": "2026-09-07",
+        "to": "2026-10-06"
+      },
+      "prev_topic_video_count": 54,
+      "prev_topic_views": 7453526,
+      "trend_pct": 9,
+      "top_video": {
+        "oriane_id": "cnt_a82665807e1dc2ba6408b2459b72",
+        "platform": "instagram",
+        "url": "https://www.instagram.com/reel/DeUEusVxZr7/",
+        "handle": "barlowherbal",
+        "views": 2144856,
+        "published_at": "2026-10-10T12:26:45.000Z",
+        "stance": "promotes",
+        "stance_confidence": 0.99,
+        "nameable": true,
+        "display_name": "Jane Barlow | Master Herbalist",
+        "followers": 142264,
+        "shares": 70681,
+        "interactions": 191484,
+        "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp",
+        "quote": "Garlic's been proven in medical industries in this country to destroy cancer tumors, period.",
+        "quote_source": "transcript",
+        "quote_start_s": 55.72
+      }
+    },
+    {
+      "id": "mouth-taping",
+      "title": "Mouth tape works, even for your jawline",
+      "topic": "mouth taping",
+      "claim": "Taping your mouth shut at night is a proven fix, including for a sharper jawline.",
+      "harm_tier": "unproven",
+      "harm_reason": "A 2025 review of 10 studies (213 patients) says clinical benefit still needs study and warns of a potentially serious risk of harm, including asphyxiation when the nose is blocked.",
+      "trend": "cooling",
+      "window": {
+        "from": "2026-10-07",
+        "to": "2026-11-06"
+      },
+      "topic_video_count": 199,
+      "topic_views": 8304973,
+      "match_note": "Exact phrases \"mouth taping\", \"mouth tape\", \"tape my mouth\" or \"taping my mouth\" in transcript, caption or on-screen text. Transcript only: 65 videos, 2,929,555 views. Many are jokes or ads, so stance labels matter.",
+      "data_source": "oriane_live",
+      "snapshot_at": "2026-11-06T23:46:37.046619+00:00",
+      "prev_window": {
+        "from": "2026-09-07",
+        "to": "2026-10-06"
+      },
+      "prev_topic_video_count": 306,
+      "prev_topic_views": 27129670,
+      "trend_pct": -35,
+      "top_video": {
+        "oriane_id": "cnt_1e7ab58965e07050f870cfe108f8",
+        "platform": "tiktok",
+        "url": "https://www.tiktok.com/@mari.aranaa/video/7694724543407017247",
+        "handle": "mari.aranaa",
+        "views": 241700,
+        "published_at": "2026-10-09T17:41:29.000Z",
+        "stance": "promotes",
+        "stance_confidence": 0.99,
+        "nameable": true,
+        "display_name": "mari.aranaa",
+        "followers": 98694,
+        "shares": 556,
+        "interactions": 24954,
+        "thumbnail_url": "https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp",
+        "quote": "I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps.",
+        "quote_source": "transcript",
+        "quote_start_s": 58.54
+      }
+    }
+  ]
+}
