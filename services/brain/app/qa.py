@@ -56,7 +56,7 @@ class VideoQA:
         self.vision_slots = asyncio.Semaphore(4)
         self.key = os.getenv("GMI_API_KEY", "")
         self.base_url = os.getenv("GMI_BASE_URL", "https://api.gmi-serving.com/v1").rstrip("/")
-        self.model = os.getenv("GMI_VLM_MODEL", "nvidia/NVIDIA-Nemotron-3-Nano-Omni")
+        self.model = os.getenv("GMI_VLM_MODEL", "google/gemini-3.5-flash-lite")
 
     async def read_frames(self, client: httpx.AsyncClient, frames: list[tuple[int, Path]]) -> list[str]:
         content = []
