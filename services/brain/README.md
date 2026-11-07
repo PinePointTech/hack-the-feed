@@ -49,3 +49,14 @@ from Oriane and save updated snapshots. The refresh uses the demo windows
 October 7 to November 6 and September 7 to October 6, 2026. It uses basic
 results for counts and full transcripts for the three seeded video IDs.
 Naming and model-based stance decisions are handled in HTF-10.
+
+## Radar stance and naming
+
+Run `uv run --env-file .env python -m app.radar_policy` to classify the top
+30 Oriane posts by views for each demo myth and save the results. Use
+`--refresh` to bypass the Oriane response cache. Saved myth details include
+the stance counts, sample size, quoted promoters and counter-voices, and the
+lymphatic clinician bio estimate. The full label audit and suggested harm
+tiers are saved under `data/cache/radar-policy/`. Review any tier disagreement
+before changing the editorial tier or reason. A radar totals refresh preserves
+the previous classification sample.
