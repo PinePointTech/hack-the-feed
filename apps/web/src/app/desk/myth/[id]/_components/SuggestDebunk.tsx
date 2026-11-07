@@ -29,7 +29,7 @@ export function SuggestDebunk({ mythId, video }: { mythId: string; video: VideoR
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid content-start gap-3 self-start">
       {state.status !== "done" && (
         <button
           type="button"
