@@ -55,10 +55,18 @@ async def check_openai(client: httpx.AsyncClient, settings: Settings) -> bool:
     if not (settings.openai_key and settings.openai_model):
         return False
     response = await client.get(
-        "https://api.openai.com/v1/models", headers=bearer(settings.openai_key)
+        f"{settings.openai_base_url}/models", headers=bearer(settings.openai_key)
     )
     response.raise_for_status()
     return any(model["id"] == settings.openai_model for model in response.json()["data"])
+
+
+async def check_gmi(client: httpx.AsyncClient, settings: Settings) -> bool:
+    if not settings.gmi_key:
+        return False
+    response = await client.get(f"{settings.gmi_base_url}/models", headers=bearer(settings.gmi_key))
+    response.raise_for_status()
+    return isinstance(response.json()["data"], list)
 
 
 async def run_probe(
@@ -83,11 +91,13 @@ def create_app(
     settings = settings or Settings.from_env()
 
     async def probe_health(client: httpx.AsyncClient) -> Health:
-        oriane, openai = await asyncio.gather(
+        oriane, openai, gmi = await asyncio.gather(
             run_probe(check_oriane, client, settings),
             run_probe(check_openai, client, settings),
+            run_probe(check_gmi, client, settings),
         )
-        return Health(ok=oriane and openai, oriane=oriane, gmi=False, jev=False)
+        # Jev is not wired into this brain, so ok never waits on it.
+        return Health(ok=oriane and openai, oriane=oriane, gmi=gmi, jev=False)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

@@ -1,4 +1,4 @@
-"""Sample MP4 frames, read overlays with GMI, and check them with OpenAI."""
+"""Sample MP4 frames, read overlays with GMI, and check them with OPENAI_MODEL."""
 
 import asyncio
 import base64
@@ -15,7 +15,7 @@ from rapidfuzz.fuzz import token_set_ratio
 
 from . import brief, evidence, judge, oriane
 from .check import LineChecker, load_excerpts
-from .config import Settings
+from .config import Settings, gmi_label
 from .schemas import CheckLine, CheckRequest, QAIssue, QAReport, ScriptLine
 
 MAX_UPLOAD = 100 * 1024 * 1024
@@ -54,8 +54,8 @@ class VideoQA:
         self.checker = checker
         self.judge = judge.Judge(settings=settings)
         self.vision_slots = asyncio.Semaphore(4)
-        self.key = os.getenv("GMI_API_KEY", "")
-        self.base_url = os.getenv("GMI_BASE_URL", "https://api.gmi-serving.com/v1").rstrip("/")
+        self.key = settings.gmi_key
+        self.base_url = settings.gmi_base_url
         self.model = os.getenv("GMI_VLM_MODEL", "google/gemini-3.5-flash-lite")
 
     async def read_frames(self, client: httpx.AsyncClient, frames: list[tuple[int, Path]]) -> list[str]:
@@ -140,7 +140,7 @@ class VideoQA:
         report = QAReport(
             myth_id=myth_id, frames_checked=len(frames), texts_found=len(observations),
             issues=issues, **{"pass": passed},
-            models={"vision": self.model, "judge": self.settings.openai_model},
+            models={"vision": gmi_label(self.model), "judge": self.settings.chat_model},
             ran_in="local", duration_ms=round((time.perf_counter() - start) * 1000),
         )
         data = report.model_dump(by_alias=True, exclude_none=True)

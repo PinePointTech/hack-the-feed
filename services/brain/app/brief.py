@@ -65,7 +65,7 @@ async def draft_claims(
 ) -> Draft:
     publishers = {source.id: source.publisher for source in sources}
     response = await client.post(
-        "https://api.openai.com/v1/chat/completions",
+        f"{settings.openai_base_url}/chat/completions",
         headers={"Authorization": f"Bearer {settings.openai_key}"},
         timeout=20,
         json={
@@ -208,7 +208,7 @@ async def generate(request: BriefRequest, client: httpx.AsyncClient, settings: S
 
     sources = await evidence.find(evidence.Myth(request.myth_id, claim))
     if not sources:
-        return assemble(request, [], [], settings.openai_model)
+        return assemble(request, [], [], settings.chat_model)
 
     excerpts = {
         f"e{index}": item
@@ -223,6 +223,6 @@ async def generate(request: BriefRequest, client: httpx.AsyncClient, settings: S
         for index, item in enumerate(draft.claims, 1)
     ))
     checked = [(item, score) for item, score in zip(draft.claims, scored) if score is not None]
-    brief = assemble(request, sources, checked, settings.openai_model)
+    brief = assemble(request, sources, checked, settings.chat_model)
     save_brief(path, brief)
     return brief

@@ -101,7 +101,7 @@ class LineChecker:
         if settings.openai_model.startswith(("gpt-6-luna", "gpt-6-sol")):
             payload["reasoning_effort"] = "none"
         response = await client.post(
-            "https://api.openai.com/v1/chat/completions",
+            f"{settings.openai_base_url}/chat/completions",
             headers={"Authorization": f"Bearer {settings.openai_key}"},
             json=payload,
         )

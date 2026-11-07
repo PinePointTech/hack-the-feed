@@ -85,20 +85,20 @@ class Judge:
 
         async with self._slots:
             if client is not None:
-                answers = await self._request(client, settings.openai_key, payload, questions)
+                answers = await self._request(client, settings, payload, questions)
             else:
                 async with httpx.AsyncClient() as client:
-                    answers = await self._request(client, settings.openai_key, payload, questions)
+                    answers = await self._request(client, settings, payload, questions)
         return answers, "openai"
 
     async def _request(
-        self, client: httpx.AsyncClient, key: str, payload: dict, questions: dict
+        self, client: httpx.AsyncClient, settings: Settings, payload: dict, questions: dict
     ) -> dict:
         for attempt in range(2):
             try:
                 response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {key}"},
+                    f"{settings.openai_base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {settings.openai_key}"},
                     json=payload,
                     timeout=10,
                 )

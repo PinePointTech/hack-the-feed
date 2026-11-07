@@ -9,6 +9,15 @@ class Settings:
     openai_key: str = field(repr=False)
     openai_model: str
     allowed_origins: list[str]
+    openai_base_url: str = "https://api.openai.com/v1"
+    gmi_key: str = field(default="", repr=False)
+    gmi_base_url: str = "https://api.gmi-serving.com/v1"
+
+    @property
+    def chat_model(self) -> str:
+        """OPENAI_MODEL as reported in briefs and QA reports, naming GMI when it served the call."""
+        on_gmi = self.openai_model and self.openai_base_url == self.gmi_base_url
+        return gmi_label(self.openai_model) if on_gmi else self.openai_model
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -24,4 +33,12 @@ class Settings:
             openai_key=os.getenv("OPENAI_API_KEY", ""),
             openai_model=os.getenv("OPENAI_MODEL", ""),
             allowed_origins=origins,
+            # `or` so an empty OPENAI_BASE_URL= line in .env still means OpenAI
+            openai_base_url=(os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/"),
+            gmi_key=os.getenv("GMI_API_KEY", ""),
+            gmi_base_url=(os.getenv("GMI_BASE_URL") or "https://api.gmi-serving.com/v1").rstrip("/"),
         )
+
+
+def gmi_label(model: str) -> str:
+    return f"{model} on GMI Cloud"
