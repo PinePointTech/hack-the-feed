@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { api } from "@/lib/api";
+import { DebunkVideo } from "@/components/DebunkVideo";
 import { FixtureBadge } from "@/components/FixtureBadge";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
@@ -169,6 +171,9 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
             Make the debunk
           </Link>
           <Link href={`/desk/impact/${m.id}`} className="underline">View impact</Link>
+          <Suspense fallback={null}>
+            <DebunkVideo id={m.id} />
+          </Suspense>
         </section>
       </div>
     </main>

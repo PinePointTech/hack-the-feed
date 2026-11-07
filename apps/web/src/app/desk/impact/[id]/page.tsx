@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { api } from "@/lib/api";
 import { exact } from "@/lib/format";
 import { pendingOr, windowLabel } from "@/lib/view-model";
 import { FixtureBadge } from "@/components/FixtureBadge";
 import { AudiencePanel } from "@/components/AudiencePanel";
+import { QuoteCard } from "@/components/QuoteCard";
+import { DebunkVideo } from "@/components/DebunkVideo";
 
 // v2 signal band (design/preview/v2.html .band, .readout)
 const GRATICULE =
@@ -42,7 +45,7 @@ const videos = (r: { videos: number } | undefined, win: string) => (r ? `${exact
 
 export default async function ImpactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { data: d, from } = await api.impact(id);
+  const [{ data: d, from }, { data: m }] = await Promise.all([api.impact(id), api.myth(id)]);
   if (d.myth_id !== id) return <main className="wrap py-10"><h1>Impact</h1><p>Response reach is pending for this myth.</p></main>;
   const win = `${windowLabel(d.window)}, ${d.window.to.slice(0, 4)}`;
   const o = d.our_debunk;
@@ -93,6 +96,19 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
       </section>
 
       <div className="wrap grid gap-6 pt-12 pb-20">
+        {m.id === id && m.top_video && (
+          <section aria-labelledby="media-h" className="grid gap-4">
+            <h2 id="media-h" className="border-b border-ink pb-3 text-xl font-extrabold tracking-[-0.01em]">
+              The myth and our response
+            </h2>
+            <div className="grid items-start gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
+              <QuoteCard video={m.top_video} />
+              <Suspense fallback={null}>
+                <DebunkVideo id={id} />
+              </Suspense>
+            </div>
+          </section>
+        )}
         {d.baseline_clinician && (
           <p className="max-w-[44rem] font-serif text-[1.0625rem] leading-normal text-ink-2">{d.baseline_clinician.note}</p>
         )}
