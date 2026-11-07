@@ -42,7 +42,8 @@ const QuoteSource = oneOf("transcript", "caption", "on_screen_text");
 const Format = oneOf("stitch", "duet", "standalone", "no_camera");
 const HookStyle = oneOf("question", "myth_quote", "stat", "pov", "stitch_reaction");
 const SupportStatus = oneOf("supported", "weak", "unsupported");
-const Engine = oneOf("jev", "gmi_judge", "cached");
+// "openai": team decision Nov 6 (Kris's judge runs on OpenAI); Kris adds it to contracts/types.ts Engine.
+const Engine = oneOf("jev", "gmi_judge", "openai", "cached");
 const DataSource = oneOf("oriane_live", "oriane_snapshot");
 const DateWindow = { from: S, to: S };
 const Reach = { videos: N, views: N };
