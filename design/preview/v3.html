@@ -597,5 +597,49 @@ const show = state => {
 };
 refresh.addEventListener('click', () => { show('loading'); setTimeout(() => show('empty'), 900); });
 </script>
+<script>
+// Claim search: open a myth we have checked, else say plainly it is not checked yet (never an invented result).
+(() => {
+  const myths = [
+    { id: "lymphatic-detox", name: "Lymphatic drainage", tier: "False", cls: "chip--false", words: ["lymph", "drainage", "debloat"] },
+    { id: "garlic-tumor", name: "Garlic and tumors", tier: "Harmful", cls: "chip--harmful", words: ["garlic"] },
+    { id: "mouth-taping", name: "Mouth taping", tier: "Unproven", cls: "chip--unproven", words: ["mouth tap", "mouth-tap", "mouthtap"] },
+  ];
+  const form = document.querySelector("form.bar-search");
+  if (!form) return;
+  const input = form.querySelector('input[name="q"]');
+  const states = form.querySelectorAll(".search-state");
+  const show = (i) => states.forEach((s, j) => { s.hidden = j !== i; });
+  const queue = states[0] && states[0].querySelector("button");
+  if (queue) queue.hidden = true;
+  function check(q) {
+    const t = (q || "").toLowerCase().trim();
+    if (!t) return;
+    const m = myths.find((x) => x.words.some((w) => t.includes(w)));
+    if (m) {
+      const s = states[1];
+      s.querySelector(".result-h").textContent = m.name;
+      const chip = s.querySelector(".chip");
+      if (chip) { chip.textContent = m.tier; chip.className = "chip " + m.cls; }
+      const trend = s.querySelector(".trend");
+      if (trend) trend.hidden = m.id !== "lymphatic-detox";
+      const a = s.querySelector("a.btn");
+      a.href = "/desk/myth/" + m.id + "?from=radar";
+      show(1);
+    } else {
+      states[0].querySelector(".result-h").textContent = "Not checked yet.";
+      states[0].querySelector(".result-p").textContent = "We haven't checked this claim yet. Myths we have checked: lymphatic drainage, garlic and tumors, mouth taping.";
+      show(0);
+    }
+  }
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    check(input.value);
+    history.replaceState(null, "", "/?q=" + encodeURIComponent(input.value) + "#search");
+  });
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) { input.value = q; check(q); }
+})();
+</script>
 </body>
 </html>
