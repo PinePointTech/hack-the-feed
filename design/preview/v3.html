@@ -611,7 +611,7 @@ refresh.addEventListener('click', () => { show('loading'); setTimeout(() => show
   const states = form.querySelectorAll(".search-state");
   const show = (i) => states.forEach((s, j) => { s.hidden = j !== i; });
   const queue = states[0] && states[0].querySelector("button");
-  if (queue) queue.hidden = true;
+  if (queue) queue.style.display = "none";
   function check(q) {
     const t = (q || "").toLowerCase().trim();
     if (!t) return;
@@ -622,7 +622,7 @@ refresh.addEventListener('click', () => { show('loading'); setTimeout(() => show
       const chip = s.querySelector(".chip");
       if (chip) { chip.textContent = m.tier; chip.className = "chip " + m.cls; }
       const trend = s.querySelector(".trend");
-      if (trend) trend.hidden = m.id !== "lymphatic-detox";
+      if (trend) trend.style.display = m.id === "lymphatic-detox" ? "" : "none";
       const a = s.querySelector("a.btn");
       a.href = "/desk/myth/" + m.id + "?from=radar";
       show(1);
