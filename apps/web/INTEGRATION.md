@@ -61,12 +61,13 @@ It never calls `/publish` or `/qa`. One line per check, exit code 1 on any failu
 
 ## Live Amplitude audience (creator impact page)
 
-`/desk/impact/[id]` shows live receipts views (and how many came from the demo QR), the "Did this change your mind?" vote split and source clicks for that myth, read from Amplitude through `GET /api/audience/{id}` every 10 s. The route caches each myth for 15 s, so many open tabs still make only three Amplitude calls.
+`/desk/impact/[id]` shows live receipts views (and how many came from the demo QR), the "Did this change your mind?" vote split and source clicks for that myth, read from Amplitude through `GET /api/audience/{id}` every 15 s. The route caches each myth for 30 s, so many open tabs still make only three Amplitude calls. It loads at most 3 myths per 30 s window, so random ids cannot burn the Amplitude query budget.
 
 | Name | Where | Notes |
 |---|---|---|
 | `AMPLITUDE_SECRET_KEY` | server only | Never prefix with `NEXT_PUBLIC_`. Never commit it. |
 | `AMPLITUDE_API_KEY` | server, optional | Defaults to `NEXT_PUBLIC_AMPLITUDE_API_KEY`. |
+| `AMPLITUDE_TIMEZONE` | server, optional | IANA name, for example `America/Los_Angeles`. Must match the time zone set on the Amplitude project (Settings, Projects, General). Default: `UTC`. |
 | `AUDIENCE_SINCE` | server, optional | ISO time, for example `2026-11-06T17:00:00-08:00`. Counts start at the hour holding this time, so rehearsal traffic before it is left out. Default: midnight today, Los Angeles time. |
 
 - Find the secret in Amplitude: Settings, Projects, pick the project, General tab, API key and Secret key.
@@ -74,4 +75,4 @@ It never calls `/publish` or `/qa`. One line per check, exit code 1 on any failu
 - Vercel: Project, Settings, Environment Variables, add `AMPLITUDE_SECRET_KEY` for Production (and Preview if wanted), mark it Sensitive, then redeploy.
 - Without the secret the page says "Connect Amplitude to see live audience numbers" and the "Our debunk" figures stay "Pending". If Amplitude fails it says "Amplitude is not answering right now". It never shows made-up zeros.
 - Check: `curl localhost:3000/api/audience/lymphatic-detox` returns `"configured": true` and a `stats` object once the secret is set.
-- Hourly buckets are read as UTC. If the Amplitude project uses another time zone, the `AUDIENCE_SINCE` cutoff shifts by that offset.
+- Set `AMPLITUDE_TIMEZONE` to the project's time zone. Amplitude returns hourly buckets in that zone; a mismatch drops or adds hours at the `AUDIENCE_SINCE` cutoff.

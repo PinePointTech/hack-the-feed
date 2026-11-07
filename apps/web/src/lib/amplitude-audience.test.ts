@@ -31,6 +31,12 @@ test("sumSince: hourly buckets before since are excluded, the hour holding since
   assert.equal(m.get("yes"), 5);
 });
 
+test("sumSince: xValues are wall clock in the project time zone", () => {
+  const m = sumSince(seg(["yes"], [[4]], ["2026-11-06T17:00:00"]), new Date("2026-11-07T01:00:00Z"), "America/Los_Angeles");
+  assert.equal(m.get("yes"), 4);
+  assert.equal(sumSince(seg(["yes"], [[4]], ["2026-11-06T16:00:00"]), new Date("2026-11-07T01:00:00Z"), "America/Los_Angeles").get("yes"), 0);
+});
+
 test("sumSince: array labels use the group value", () => {
   const m = sumSince(seg([[0, "yes"], [0, "no"]], [[1, 1, 1], [0, 0, 4]], HOURS), SINCE);
   assert.equal(m.get("yes"), 2);
@@ -81,7 +87,7 @@ test("audienceQueries: hourly totals filtered to one myth, grouped as needed", (
     assert.equal(p.get("m"), "totals");
     assert.equal(p.get("i"), "-3600000");
     assert.equal(p.get("start"), "20261105");
-    assert.equal(p.get("end"), "20261107");
+    assert.equal(p.get("end"), "20261108");
     const e = JSON.parse(p.get("e")!);
     assert.deepEqual(e.filters, [{ subprop_type: "event", subprop_key: "myth_id", subprop_op: "is", subprop_value: ["lymphatic-detox"] }]);
   }

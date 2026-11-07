@@ -34,7 +34,7 @@ export function useReceipts(id: string) {
     if (voted) return;
     setVoted(true);
     try { localStorage.setItem(`mb_voted_${id}`, "1"); } catch {}
-    track("Mind Changed Vote", { myth_id: id, answer, utm_source: new URLSearchParams(window.location.search).get("utm_source") ?? undefined });
+    track("Mind Changed Vote", { myth_id: id, answer });
   };
 
   return {

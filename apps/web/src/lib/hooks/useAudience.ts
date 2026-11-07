@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import type { AudienceResponse, AudienceStats } from "../amplitude-audience";
 
-const EVERY = 10_000;
+const EVERY = 15_000;
 
-/** Polls /api/audience/{id} every 10 s while the tab is visible. Returns { stats, configured, loading, error, updatedAt }. */
+/** Polls /api/audience/{id} every 15 s while the tab is visible. Returns { stats, configured, loading, error, updatedAt }. */
 export function useAudience(id: string) {
   const [res, setRes] = useState<AudienceResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -33,7 +33,7 @@ export function useAudience(id: string) {
     return () => { live = false; clearTimeout(timer); document.removeEventListener("visibilitychange", load); };
   }, [id]);
 
-  const stats: AudienceStats | null = res?.stats ?? null;
+  const stats: AudienceStats | null = failed ? null : res?.stats ?? null; // never show old numbers as live during an error
   return {
     stats,
     configured: res?.configured ?? null,

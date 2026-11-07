@@ -34,8 +34,8 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10).replaceAll("-", "");
 
 /** Query strings for the three event segmentation calls, each filtered to one myth_id. */
 export function audienceQueries(mythId: string, since: Date, now: Date): Record<AudienceKey, string> {
-  // Start a day early so any project time zone at or behind UTC covers the cutoff; sumSince trims the extra hours.
-  const range = { start: ymd(new Date(since.getTime() - DAY)), end: ymd(now) };
+  // Pad a day each side so any project time zone covers since and its local today; sumSince trims the extra hours.
+  const range = { start: ymd(new Date(since.getTime() - DAY)), end: ymd(new Date(now.getTime() + DAY)) };
   const out = {} as Record<AudienceKey, string>;
   for (const k of Object.keys(EVENTS) as AudienceKey[]) {
     const { event_type, group_by } = EVENTS[k];
@@ -52,7 +52,7 @@ export function audienceQueries(mythId: string, since: Date, now: Date): Record<
 // The docs show string labels; grouped responses are also seen as [eventIndex, value]. Take the group value either way.
 const label = (l: unknown) => (Array.isArray(l) ? String(l[l.length - 1]) : typeof l === "string" ? l : "");
 
-// shortcut: xValues without an offset are read as UTC; if the Amplitude project uses another time zone the cutoff shifts by that offset.
+// xValues are wall clock in the project's time zone; read them as if UTC and compare against since in the same wall clock.
 function bucketEnd(x: unknown): number {
   if (typeof x !== "string") return Infinity; // unreadable bucket: keep it rather than drop real data
   const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(x);
@@ -61,12 +61,13 @@ function bucketEnd(x: unknown): number {
   return Number.isNaN(t) ? Infinity : t + (dateOnly ? DAY : HOUR);
 }
 
-/** Sums each group's buckets that end after since (the bucket holding since counts). Returns label -> total. */
-export function sumSince(res: Segmentation, since: Date): Map<string, number> {
+/** Sums each group's buckets that end after since (the bucket holding since counts). tz is the Amplitude project's time zone. Returns label -> total. */
+export function sumSince(res: Segmentation, since: Date, tz = "UTC"): Map<string, number> {
   const out = new Map<string, number>();
   const d = res?.data;
   if (!d || !Array.isArray(d.series)) return out;
-  const keep = (d.xValues ?? []).map((x) => bucketEnd(x) > since.getTime());
+  const sinceWall = wallClockAsUtc(tz, since);
+  const keep = (d.xValues ?? []).map((x) => bucketEnd(x) > sinceWall);
   d.series.forEach((row, g) => {
     const sum = (Array.isArray(row) ? row : []).reduce<number>((a, v, k) => a + (keep[k] !== false ? Number(v) || 0 : 0), 0);
     const key = label(d.seriesLabels?.[g]);
@@ -78,15 +79,15 @@ export function sumSince(res: Segmentation, since: Date): Map<string, number> {
 const total = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
 
 /** Turns the three segmentation responses into AudienceStats counted from since. */
-export function audienceStats(res: Record<AudienceKey, Segmentation>, since: Date): AudienceStats {
-  const views = sumSince(res.views, since);
-  const votes = sumSince(res.votes, since);
+export function audienceStats(res: Record<AudienceKey, Segmentation>, since: Date, tz = "UTC"): AudienceStats {
+  const views = sumSince(res.views, since, tz);
+  const votes = sumSince(res.votes, since, tz);
   const yes = votes.get("yes") ?? 0, no = votes.get("no") ?? 0, already_knew = votes.get("already_knew") ?? 0;
   return {
     receipts_views: total(views),
     receipts_views_demo_qr: views.get("demo_qr") ?? 0,
     votes: { yes, no, already_knew, total: yes + no + already_knew },
-    source_clicks: total(sumSince(res.clicks, since)),
+    source_clicks: total(sumSince(res.clicks, since, tz)),
     since: since.toISOString(),
   };
 }
@@ -135,7 +136,7 @@ export async function loadAudience(id: string, env: Env, now = new Date()): Prom
         return [k, (await r.json()) as Segmentation] as const;
       }),
     );
-    return { configured: true, ...base, stats: audienceStats(Object.fromEntries(res) as Record<AudienceKey, Segmentation>, since) };
+    return { configured: true, ...base, stats: audienceStats(Object.fromEntries(res) as Record<AudienceKey, Segmentation>, since, env.AMPLITUDE_TIMEZONE || "UTC") };
   } catch (e) {
     const why = e instanceof Error && e.message.startsWith("HTTP ") ? e.message : e instanceof Error ? e.name : "unknown";
     console.warn(`[audience] ${id}: Amplitude query failed (${why})`);
