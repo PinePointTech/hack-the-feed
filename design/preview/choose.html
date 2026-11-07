@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Choose a direction</title>
+<title>MyBuster design preview</title>
 <style>
   :root {
     --ground: #f4f6f7;
@@ -23,27 +23,20 @@
   main { max-width: 72rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
   h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.1; margin: 0 0 0.75rem; }
   .intro { color: var(--muted); max-width: 42rem; margin: 0 0 2.5rem; }
-  .cards { display: grid; gap: 1.5rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cards { display: grid; gap: 1.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card {
     background: var(--paper);
     border: 1px solid var(--rule);
     border-radius: 20px;
-    padding: 1rem;
+    padding: 1.25rem;
     display: grid;
     gap: 0.75rem;
     align-content: start;
   }
-  .card img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border: 1px solid var(--rule);
-    border-radius: 12px;
-  }
   .card h2 { font-size: 1.25rem; margin: 0.25rem 0 0; }
   .card p { margin: 0; color: var(--muted); }
   .card .tag { font-size: 0.875rem; font-weight: 600; color: var(--ink); }
-  .card a {
+  .card a, .earlier-list a {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
@@ -51,8 +44,9 @@
     font-weight: 600;
     text-decoration: none;
   }
-  .card a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
-  .note { margin-top: 2.5rem; color: var(--muted); max-width: 42rem; }
+  .card a:focus-visible, .earlier-list a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .earlier { font-size: 1.125rem; margin: 3rem 0 0.5rem; }
+  .earlier-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.25rem; max-width: 42rem; }
   @media (max-width: 52rem) {
     .cards { grid-template-columns: minmax(0, 1fr); }
   }
@@ -60,36 +54,46 @@
 </head>
 <body>
 <main>
-  <h1>Choose a direction</h1>
-  <p class="intro">Three prototypes of the same landing, with the same copy and fixture data. Open each one, then tell me which to build out.</p>
+  <h1>MyBuster design preview</h1>
+  <p class="intro">The current direction is the landing (v3). The other pages use the same direction. Open each one to see the current copy.</p>
 
   <div class="cards">
     <article class="card">
-      <img src="desktop.png" alt="Screenshot of the proof sheet prototype at 1440 wide" width="1440" height="1000">
-      <h2>Proof sheet</h2>
-      <p class="tag">Default if you don't choose</p>
-      <p>Myths sit as frames on a photo contact sheet. Verdicts are grease-pencil marks.</p>
-      <a href="index.html">Open the proof sheet</a>
+      <p class="tag">Current direction</p>
+      <h2>Landing</h2>
+      <p>The newest myths we found, with search in the app bar.</p>
+      <a href="v3.html">Open the landing</a>
     </article>
 
     <article class="card">
-      <img src="field-guide-desktop.png" alt="Screenshot of the field guide prototype at 1440 wide" width="1440" height="1000">
-      <h2>Field guide</h2>
-      <p class="tag">Impeccable's pick</p>
-      <p>Each myth is a specimen plate with its traits and a verdict tag. Risk: the nature-guide tone can read as twee.</p>
-      <a href="field-guide.html">Open the field guide</a>
+      <p class="tag">Page</p>
+      <h2>Calendar</h2>
+      <p>This week's myths with videos first, then coming-up dates and the watchlist.</p>
+      <a href="calendar.html">Open the calendar</a>
     </article>
 
     <article class="card">
-      <img src="signal-bench-desktop.png" alt="Screenshot of the signal bench prototype at 1440 wide" width="1440" height="1000">
-      <h2>Signal bench</h2>
-      <p class="tag">Strongest challenger</p>
-      <p>A claim is a trace that locks only when a source triggers it. The cyber creator is the signal. Translated from dark CRT glass to light paper.</p>
-      <a href="signal-bench.html">Open the signal bench</a>
+      <p class="tag">Page</p>
+      <h2>Myth videos</h2>
+      <p>The video list for one myth, with stance tabs, quotes, and watch links.</p>
+      <a href="myth-videos.html">Open the myth video list</a>
+    </article>
+
+    <article class="card">
+      <p class="tag">Page</p>
+      <h2>Creator mode</h2>
+      <p>Pick a myth, work through six steps, and save the workflow.</p>
+      <a href="creator.html">Open creator mode</a>
     </article>
   </div>
 
-  <p class="note">The thumbnails were taken before the latest copy fixes, so their heading, badge, and trend wording differ. Open each live page for current copy. The category standard, the safe health-news layout, is available on request.</p>
+  <h2 class="earlier">Earlier directions</h2>
+  <ul class="earlier-list">
+    <li><a href="v2.html">v2, combined direction (superseded)</a></li>
+    <li><a href="index.html">Proof sheet</a></li>
+    <li><a href="field-guide.html">Field guide</a></li>
+    <li><a href="signal-bench.html">Signal bench</a></li>
+  </ul>
 </main>
 </body>
 </html>
