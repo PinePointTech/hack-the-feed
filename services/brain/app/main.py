@@ -1,9 +1,13 @@
 import asyncio
+import hmac
 import json
 import logging
+import os
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
+from dataclasses import replace
+from xml.etree.ElementTree import ParseError
 
 import httpx
 from fastapi import FastAPI, File, Form, Request, Response, UploadFile
@@ -12,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, oriane, publish, qa, radar, reporting
+from . import brief, check, fact_check, oriane, publish, qa, radar, reporting
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -89,6 +93,8 @@ def create_app(
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
+    fact_check_token = os.getenv("FACT_CHECK_API_TOKEN", "")
+    fact_check_settings = replace(settings, openai_model=os.getenv("FACT_CHECK_MODEL") or settings.openai_model)
 
     async def probe_health(client: httpx.AsyncClient) -> Health:
         oriane, openai, gmi = await asyncio.gather(
@@ -104,6 +110,7 @@ def create_app(
         async with httpx.AsyncClient(timeout=10, transport=transport) as client:
             app.state.client = client
             app.state.line_checker = check.LineChecker(settings)
+            app.state.fact_checker = fact_check.FactChecker(fact_check_settings)
             app.state.video_qa = qa.VideoQA(settings, app.state.line_checker)
             app.state.health_lock = asyncio.Lock()
             app.state.radar_lock = asyncio.Lock()
@@ -151,6 +158,26 @@ def create_app(
         except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Live check failed (%s)", type(error).__name__)
             return api_error(503, "check_unavailable", "The live script check is temporarily unavailable.")
+
+    @app.post("/fact-check", response_model=fact_check.FactCheckResult)
+    async def check_post(body: fact_check.FactCheckRequest, request: Request):
+        if not (fact_check_token and settings.oriane_key and settings.openai_key and fact_check_settings.openai_model):
+            return api_error(503, "fact_check_unavailable", "Post fact-checking is not configured.")
+        provided = request.headers.get("Authorization", "")
+        if not hmac.compare_digest(provided.encode(), f"Bearer {fact_check_token}".encode()):
+            return api_error(401, "fact_check_unauthorized", "Authorization is required.")
+        try:
+            return await request.app.state.fact_checker.check(request.app.state.client, body)
+        except fact_check.PostNotFound:
+            return api_error(404, "post_not_found", "Oriane no longer has this post.")
+        except fact_check.Busy:
+            return api_error(429, "fact_check_busy", "Fact-checking is busy. Try again in a few minutes.")
+        except httpx.HTTPStatusError as error:
+            logger.warning("Post fact check provider %s returned HTTP %d", error.request.url.host, error.response.status_code)
+            return api_error(503, "fact_check_unavailable", "Fact-checking is temporarily unavailable. Try again.")
+        except (TimeoutError, httpx.RequestError, ParseError, ValueError, TypeError, KeyError, IndexError) as error:
+            logger.warning("Post fact check failed (%s)", type(error).__name__)
+            return api_error(503, "fact_check_unavailable", "Fact-checking is temporarily unavailable. Try again.")
 
     @app.post("/qa", response_model=QAReport, response_model_exclude_none=True)
     async def video_qa(

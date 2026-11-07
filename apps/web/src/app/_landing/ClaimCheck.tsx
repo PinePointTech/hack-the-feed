@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { matchClaim, type MythKey } from "./match";
+import { PostFactCheck } from "./PostFactCheck";
 import { exact } from "@/lib/format";
 import type { SearchResult, TopicAnalysisResult } from "../api/search/route";
 
@@ -106,6 +107,7 @@ function SearchResults({ query, result }: { query: string; result: SearchResult 
                   </p>
                   {video.snippet && <p className="lp-live-snippet">{video.snippet_source}: &ldquo;{video.snippet}&rdquo;</p>}
                   {video.url && <a href={video.url} target="_blank" rel="noopener noreferrer">Open the post</a>}
+                  <PostFactCheck key={query} postId={video.id} topic={query} />
                 </div>
               </li>
             ))}
