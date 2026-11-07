@@ -99,3 +99,22 @@ class LineCheck(BaseModel):
 
 class CheckResponse(BaseModel):
     results: list[LineCheck]
+
+
+class QAIssue(BaseModel):
+    t_s: int
+    found_text: str
+    expected_line_id: str | None = None
+    problem: Literal["text_not_in_script", "unsupported_claim", "missing_source", "typo"]
+    support: float | None = Field(default=None, ge=0, le=1)
+
+
+class QAReport(BaseModel):
+    myth_id: str
+    frames_checked: int
+    texts_found: int
+    issues: list[QAIssue]
+    passed: bool = Field(alias="pass")
+    models: dict[str, str]
+    ran_in: Literal["local", "cached"]
+    duration_ms: int

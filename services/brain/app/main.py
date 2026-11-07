@@ -5,15 +5,15 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, oriane, radar
+from . import brief, check, oriane, qa, radar
 from .config import Settings
-from .schemas import Brief, BriefRequest, CheckRequest, CheckResponse
+from .schemas import Brief, BriefRequest, CheckRequest, CheckResponse, QAReport, ScriptLine
 
 VERSION = "0.1.0"
 HEALTH_TTL = 300
@@ -90,6 +90,7 @@ def create_app(
         async with httpx.AsyncClient(timeout=10, transport=transport) as client:
             app.state.client = client
             app.state.line_checker = check.LineChecker(settings)
+            app.state.video_qa = qa.VideoQA(settings, app.state.line_checker)
             app.state.health_lock = asyncio.Lock()
             app.state.radar_lock = asyncio.Lock()
             app.state.health = await probe_health(client)
@@ -132,6 +133,27 @@ def create_app(
         except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Live check failed (%s)", type(error).__name__)
             return api_error(503, "check_unavailable", "The live script check is temporarily unavailable.")
+
+    @app.post("/qa", response_model=QAReport, response_model_exclude_none=True)
+    async def video_qa(
+        request: Request, myth_id: str = Form(), approved_lines: str = Form(), file: UploadFile = File(),
+    ):
+        if myth_id not in brief.MYTHS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        try:
+            lines = TypeAdapter(list[ScriptLine]).validate_json(approved_lines)
+            if not lines:
+                raise ValueError("No approved lines")
+        except ValueError:
+            return api_error(422, "invalid_approved_lines", "Provide the approved script lines as JSON.")
+        try:
+            async with asyncio.timeout(58):
+                return await request.app.state.video_qa.run(request.app.state.client, myth_id, lines, file)
+        except qa.InvalidVideo as error:
+            return api_error(422, "invalid_video", str(error))
+        except (TimeoutError, OSError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
+            logger.warning("Video QA failed (%s)", type(error).__name__)
+            return api_error(503, "qa_unavailable", "Video QA is temporarily unavailable.")
 
     async def refresh_radar(request: Request):
         async with request.app.state.radar_lock:

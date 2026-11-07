@@ -60,3 +60,12 @@ lymphatic clinician bio estimate. The full label audit and suggested harm
 tiers are saved under `data/cache/radar-policy/`. Review any tier disagreement
 before changing the editorial tier or reason. A radar totals refresh preserves
 the previous classification sample.
+
+## Video QA
+
+Install ffmpeg and set `GMI_API_KEY` to a GMI Inference Engine key with access
+to `GMI_VLM_MODEL`. Keep the existing OpenAI key and model for caption matching
+and evidence checks. Send `POST /qa` as multipart with `myth_id`,
+`approved_lines` (JSON), and `file` (an MP4 up to 45 seconds and 100 MiB).
+The brain saves the latest report under `data/qa/` and reuses a cached result
+for the same video, approved script, evidence and models.
