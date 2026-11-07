@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose a direction</title>
+<style>
+  :root {
+    --ground: #f4f6f7;
+    --paper: #ffffff;
+    --ink: #111417;
+    --muted: #4f5a60;
+    --rule: #c4cbcf;
+    --accent: #1f4fd8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 72rem; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.1; margin: 0 0 0.75rem; }
+  .intro { color: var(--muted); max-width: 42rem; margin: 0 0 2.5rem; }
+  .cards { display: grid; gap: 1.5rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    padding: 1rem;
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+  }
+  .card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+  }
+  .card h2 { font-size: 1.25rem; margin: 0.25rem 0 0; }
+  .card p { margin: 0; color: var(--muted); }
+  .card .tag { font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+  .card a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .card a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .note { margin-top: 2.5rem; color: var(--muted); max-width: 42rem; }
+  @media (max-width: 52rem) {
+    .cards { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Choose a direction</h1>
+  <p class="intro">Three prototypes of the same landing, with the same copy and fixture data. Open each one, then tell me which to build out.</p>
+
+  <div class="cards">
+    <article class="card">
+      <img src="desktop.png" alt="Screenshot of the proof sheet prototype at 1440 wide" width="1440" height="1000">
+      <h2>Proof sheet</h2>
+      <p class="tag">Default if you don't choose</p>
+      <p>Myths sit as frames on a photo contact sheet. Verdicts are grease-pencil marks.</p>
+      <a href="index.html">Open the proof sheet</a>
+    </article>
+
+    <article class="card">
+      <img src="field-guide-desktop.png" alt="Screenshot of the field guide prototype at 1440 wide" width="1440" height="1000">
+      <h2>Field guide</h2>
+      <p class="tag">Impeccable's pick</p>
+      <p>Each myth is a specimen plate with its traits and a verdict tag. Risk: the nature-guide tone can read as twee.</p>
+      <a href="field-guide.html">Open the field guide</a>
+    </article>
+
+    <article class="card">
+      <img src="signal-bench-desktop.png" alt="Screenshot of the signal bench prototype at 1440 wide" width="1440" height="1000">
+      <h2>Signal bench</h2>
+      <p class="tag">Strongest challenger</p>
+      <p>A claim is a trace that locks only when a source triggers it. The cyber creator is the signal. Translated from dark CRT glass to light paper.</p>
+      <a href="signal-bench.html">Open the signal bench</a>
+    </article>
+  </div>
+
+  <p class="note">The thumbnails were taken before the latest copy fixes, so their heading, badge, and trend wording differ. Open each live page for current copy. The category standard, the safe health-news layout, is available on request.</p>
+</main>
+</body>
+</html>
