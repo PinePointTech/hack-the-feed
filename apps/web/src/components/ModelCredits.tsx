@@ -1,8 +1,9 @@
 // Names come straight from the brain's `models` field; empty values are hidden, never filled in.
 type Models = { drafter: string; judge: string } | { vision: string; judge: string };
 
-export function ModelCredits({ models }: { models?: Models }) {
-  if (!models) return null;
+// Fixture model names are placeholders (each fixture's _fixture key), so never show them as real credits.
+export function ModelCredits({ models, placeholder = false }: { models?: Models; placeholder?: boolean }) {
+  if (!models || placeholder) return null;
   const [first, second] = "vision" in models ? (["Frames read by", "matched by"] as const) : (["Drafted by", "checked by"] as const);
   const maker = ("vision" in models ? models.vision : models.drafter)?.trim();
   const judge = models.judge?.trim();
