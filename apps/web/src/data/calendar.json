@@ -1,0 +1,117 @@
+{
+  "week_of": "2026-11-09",
+  "this_week": [
+    {
+      "topic": "Lymphatic drainage detoxes you and melts fat",
+      "myth_id": "lymphatic-detox",
+      "harm_tier": "false",
+      "trend": "cooling",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "Oriane matched 1,317 videos with 49,537,321 views from 2026-10-07 through 2026-11-06. Video count changed -22% versus the previous window.",
+      "video_count": 1317,
+      "views": 49537321,
+      "script_available": true
+    },
+    {
+      "topic": "Garlic paste destroys tumors",
+      "myth_id": "garlic-tumor",
+      "harm_tier": "harmful",
+      "trend": "steady",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "Oriane matched 59 videos with 5,768,385 views from 2026-10-07 through 2026-11-06. Video count changed +9% versus the previous window.",
+      "video_count": 59,
+      "views": 5768385,
+      "script_available": false
+    },
+    {
+      "topic": "Mouth tape works, even for your jawline",
+      "myth_id": "mouth-taping",
+      "harm_tier": "unproven",
+      "trend": "cooling",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "Oriane matched 199 videos with 8,304,973 views from 2026-10-07 through 2026-11-06. Video count changed -35% versus the previous window.",
+      "video_count": 199,
+      "views": 8304973,
+      "script_available": false
+    },
+    {
+      "topic": "Sea moss",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "659 videos said \"sea moss\" in the last 30 days (19.4M views). Claims not reviewed yet. Oriane snapshot from October 7 through November 6, 2026.",
+      "video_count": 659,
+      "views": 19432612,
+      "script_available": false
+    },
+    {
+      "topic": "Castor oil packs and belly button oiling",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "239 videos matched castor oil belly button, navel, pack or detox in the last 30 days (18.1M views, fuzzy match). Claims not reviewed yet. Oriane snapshot from October 7 through November 6, 2026.",
+      "video_count": 239,
+      "views": 18146452,
+      "script_available": false
+    },
+    {
+      "topic": "Berberine as \"nature's Ozempic\"",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "445 videos matched berberine or \"nature's ozempic\" in the last 30 days (11.2M views, fuzzy match). Claims not reviewed yet. Oriane snapshot from October 7 through November 6, 2026.",
+      "video_count": 445,
+      "views": 11195302,
+      "script_available": false
+    },
+    {
+      "topic": "Parasite cleanses",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "325 videos matched parasite cleanse or parasite detox in the last 30 days (10.1M views, fuzzy match). Claims not reviewed yet. Oriane snapshot from October 7 through November 6, 2026.",
+      "video_count": 325,
+      "views": 10125946,
+      "script_available": false
+    },
+    {
+      "topic": "Cortisol face and belly",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "Oriane matched 69 videos with 4,636,041 views from October 7 through November 6, 2026. Exact match for cortisol face, belly, detox or cocktail. Claims are awaiting review.",
+      "video_count": 69,
+      "views": 4636041,
+      "script_available": false
+    },
+    {
+      "topic": "Tallow skincare",
+      "trend": "unknown",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "oriane_trend",
+      "why": "Oriane matched 154 videos with 2,639,652 views from October 7 through November 6, 2026. Exact match for the tallow skincare phrases. Claims are awaiting review.",
+      "video_count": 154,
+      "views": 2639652,
+      "script_available": false
+    }
+  ],
+  "watchlist": [
+    {
+      "topic": "Cold and flu remedies",
+      "window": "Nov 9 to Nov 15, 2026",
+      "basis": "curated",
+      "why": "Seasonal guess: cold and flu season. No Oriane data pulled yet.",
+      "script_available": false
+    },
+    {
+      "topic": "Thanksgiving food and sleep claims",
+      "window": "Nov 23 to Nov 29, 2026",
+      "basis": "curated",
+      "why": "Seasonal guess: Thanksgiving is Nov 26, 2026. No Oriane data pulled yet.",
+      "script_available": false
+    }
+  ]
+}
