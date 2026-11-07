@@ -94,5 +94,5 @@ export const api = {
     }
     return get<PublishedDebunk>(`${path}.json`, undefined, () => fx<PublishedDebunk>(publishedFx), 15000);
   },
-  calendar: () => get<Calendar>("/calendar.json", undefined, () => fx<Calendar>(calendarFx), 15000),
+  calendar: () => call<Calendar>("/calendar", undefined, () => fx<Calendar>(calendarFx), 15000),
 };

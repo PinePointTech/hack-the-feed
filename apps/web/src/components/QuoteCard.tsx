@@ -13,9 +13,16 @@ export function QuoteCard({ video }: { video: VideoRef }) {
   const named = video.nameable;
   return (
     <figure className="m-0 flex min-w-0 gap-4 rounded-3xl border border-ink bg-paper p-5">
-      {named && video.thumbnail_url && (
+      {named && video.thumbnail_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={video.thumbnail_url} alt="" className="h-28 w-20 shrink-0 rounded-2xl border border-ink object-cover" />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="grid h-28 w-20 shrink-0 place-items-center rounded-2xl border border-dashed border-ink-2 p-2 text-center font-mono text-[0.625rem] leading-snug text-ink-2"
+        >
+          {named ? "No thumbnail yet" : "Not shown"}
+        </div>
       )}
       <div className="grid min-w-0 content-start gap-3">
         <blockquote className="m-0 font-serif text-xl leading-snug">&ldquo;{video.quote}&rdquo;</blockquote>
