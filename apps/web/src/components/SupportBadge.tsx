@@ -12,7 +12,7 @@ export function SupportBadge({ status, support }: { status?: SupportStatus; supp
   return (
     <span className={`chip gap-1.5 ${STYLE[status]}`}>
       {LABEL[status]}
-      {support !== undefined && <span className="mono">{support.toFixed(2)}</span>}
+      {support !== undefined && <span className="mono" title="Estimated evidence support">{Math.round(support * 100)}% support</span>}
     </span>
   );
 }

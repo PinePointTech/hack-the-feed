@@ -10,7 +10,7 @@ import { Featured } from "./_landing/Featured";
 import "./_landing/landing.css";
 
 const STEPS = [
-  ["Radar", "Myths ranked by reach, with harm tier and trend."],
+  ["Radar", "Myths ordered by harm tier, then claim views."],
   ["Myth page", "Exact quotes with timestamps and links."],
   ["Brief", "Verdict, what is true, what is false, sources."],
   ["Studio", "Pick a format and a hook. Every line is re-checked."],
@@ -35,7 +35,7 @@ export default async function Home() {
           </h1>
           <div className="lp-hero-actions">
             <Link className="btn" href="/desk">
-              See this week&apos;s myths
+              See the myth radar
             </Link>
             <ClaimCheck myths={myths.map(({ id, title, topic, claim }) => ({ id, title, topic, claim }))} />
           </div>
@@ -43,8 +43,8 @@ export default async function Home() {
 
         <section className="lp-feed" id="trending" aria-labelledby="feed-h">
           <div className="lp-feed-head">
-            <h2 id="feed-h">Trending this week</h2>
-            <span className="mono lp-window">{span}</span>
+            <h2 id="feed-h">Trends in the measured window</h2>
+            <span className="mono lp-window">{span} · Harm tier, then claim views</span>
             <FixtureBadge from={from} />
           </div>
           {myths.length === 0 ? (
@@ -53,7 +53,6 @@ export default async function Home() {
             <ol className="lp-frames">
               {myths.map((m, i) => (
                 <li key={m.id} className={`lp-frame ${i === 0 ? "lp-frame-hot" : ""}`}>
-                  {i === 0 && <span className="lp-sticker">Trending</span>}
                   <div className={`lp-poster lp-poster--${m.harm_tier}`} aria-hidden="true">
                     {String(i + 1).padStart(2, "0")}
                   </div>
@@ -62,8 +61,9 @@ export default async function Home() {
                       <Link href={`/desk/myth/${m.id}?from=radar`}>{m.title}</Link>
                     </h3>
                     <div className="lp-frame-tags">
-                      <HarmChip tier={m.harm_tier} />
-                      <TrendBadge trend={m.trend} pct={m.trend_pct} />
+                      <span className="chip">Harm: {m.harm_tier === "harmful" ? "Flagged" : "Not flagged"}</span>
+                      {m.harm_tier !== "harmful" && <span>Verdict <HarmChip tier={m.harm_tier} /></span>}
+                      <span>Trend <TrendBadge trend={m.trend} pct={m.trend_pct} /></span>
                       {draft && (
                         <span className="databadge" title="Title and harm tier are drafts until the brain sets them">
                           placeholder

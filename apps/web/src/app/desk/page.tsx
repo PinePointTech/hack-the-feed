@@ -14,10 +14,10 @@ export default async function Desk() {
       <header className="grid gap-4 border-b border-ink pb-6">
         <p className="mono text-xs font-semibold text-ink-2">Creator mode, myth radar</p>
         <h1 className="text-[clamp(2.25rem,1.3rem+2.8vw,3.75rem)] leading-[1] font-extrabold tracking-[-0.03em] [font-stretch:90%] [font-variation-settings:'opsz'_96]">
-          Health myths <em className="kw kw-mark">trending</em> this week
+          Health myths <em className="kw kw-mark">trending</em> in this window
         </h1>
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-          <p className="text-[1.125rem] text-ink-2">On short video, most harmful first.</p>
+          <p className="text-[1.125rem] text-ink-2">Ordered by harm tier, then claim views within each tier.</p>
           <span className="mono text-sm text-ink-2">{windowWithYear(data.window)}</span>
           <FixtureBadge from={from} />
         </div>

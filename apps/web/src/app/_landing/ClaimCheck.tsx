@@ -4,24 +4,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { matchClaim, type MythKey } from "./match";
 
-// Keyword match against this week's radar only. No brain call, so nothing is invented.
 export function ClaimCheck({ myths }: { myths: MythKey[] }) {
   const router = useRouter();
-  const [missed, setMissed] = useState(false);
+  const [state, setState] = useState<"idle" | "empty" | "missed">("idle");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const q = String(new FormData(e.currentTarget).get("q") ?? "").trim();
-    if (!q) return;
+    if (!q) { setState("empty"); return; }
     const hit = matchClaim(q, myths);
-    setMissed(!hit);
+    setState(hit ? "idle" : "missed");
     if (hit) router.push(`/desk/myth/${hit.id}`);
   }
 
   return (
     <>
       <form className="lp-search" role="search" onSubmit={onSubmit}>
-        <label htmlFor="claim">Check a health claim</label>
+        <label htmlFor="claim">Search reviewed claims</label>
         <div className="lp-field">
           <input
             id="claim"
@@ -29,18 +28,20 @@ export function ClaimCheck({ myths }: { myths: MythKey[] }) {
             type="search"
             placeholder="Type a claim, like lymphatic drainage burns fat"
             autoComplete="off"
-            onChange={() => setMissed(false)}
+            onChange={() => setState("idle")}
+            aria-describedby="claim-search-state"
           />
           <button className="btn" type="submit">
             Check it
           </button>
         </div>
       </form>
-      <div className="lp-search-state" role="status">
-        {missed && (
+      <div id="claim-search-state" className="lp-search-state" role="status">
+        {state === "empty" && <p className="lp-search-msg">Enter the claim you want to check.</p>}
+        {state === "missed" && (
           <>
-            <p className="lp-search-msg">We haven&apos;t checked this claim yet. Try one of these.</p>
-            <ul className="lp-quick" aria-label="Myths on the radar">
+            <p className="lp-search-msg">No reviewed match. You can edit your search or browse these reviewed examples.</p>
+            <ul className="lp-quick" aria-label="Reviewed examples">
               {myths.map((m) => (
                 <li key={m.id}>
                   <Link href={`/desk/myth/${m.id}?from=radar`}>{m.topic.charAt(0).toUpperCase() + m.topic.slice(1)}</Link>
