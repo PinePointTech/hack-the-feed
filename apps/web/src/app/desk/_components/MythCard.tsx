@@ -15,18 +15,11 @@ const POSTER: Record<HarmTier, string> = {
 
 // v2 contact-sheet frame: tier-colored poster with the rank, then the myth, its reach and its top quote.
 export function MythCard({ myth, rank, fixture }: { myth: MythSummary; rank: number; fixture: boolean }) {
-  // The radar is sorted harmful first, so rank 1 with a harmful tier is factually the most harmful.
-  const sticker = rank === 1 && myth.harm_tier === "harmful";
   return (
     <article
       aria-labelledby={`myth-${myth.id}`}
       className="relative grid min-w-0 overflow-hidden rounded-frame border border-ink bg-paper motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-v2 motion-safe:hover:-translate-y-1"
     >
-      {sticker && (
-        <span className="absolute top-3.5 left-3.5 z-[1] -rotate-2 rounded-pill border border-ink bg-lime px-3 py-1 text-sm leading-[1.3] font-extrabold text-ink max-[1099px]:top-3 max-[1099px]:right-4 max-[1099px]:left-auto">
-          Most harmful
-        </span>
-      )}
       <div
         aria-hidden="true"
         className={`mono grid items-center justify-items-start px-5 py-3 text-[1.75rem] leading-none font-semibold min-[1100px]:aspect-[5/2] min-[1100px]:place-items-center min-[1100px]:p-0 min-[1100px]:text-[3.25rem] ${POSTER[myth.harm_tier]}`}
@@ -43,8 +36,9 @@ export function MythCard({ myth, rank, fixture }: { myth: MythSummary; rank: num
             {myth.title}
           </h2>
           <div className="flex flex-wrap items-center gap-1.5">
-            <HarmChip tier={myth.harm_tier} />
-            <TrendBadge trend={myth.trend} pct={myth.trend_pct} />
+            <span className="chip">Harm: {myth.harm_tier === "harmful" ? "Flagged" : "Not flagged"}</span>
+            {myth.harm_tier !== "harmful" && <span>Verdict <HarmChip tier={myth.harm_tier} /></span>}
+            <span>Trend <TrendBadge trend={myth.trend} pct={myth.trend_pct} /></span>
             {fixture && <Placeholder what="draft title and harm tier until the brain sets them" />}
           </div>
         </div>
@@ -70,6 +64,7 @@ export function MythCard({ myth, rank, fixture }: { myth: MythSummary; rank: num
         <Link href={`/desk/myth/${myth.id}?from=radar`} className="btn w-full">
           Open<span className="sr-only">: {myth.title}</span>
         </Link>
+        <Link href={`/desk/impact/${myth.id}`} className="underline">View impact</Link>
       </div>
     </article>
   );

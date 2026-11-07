@@ -106,7 +106,7 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
             {fixture && <Placeholder what="hand-labeled stance sample" />}
           </div>
           <StanceBar counts={m.stance_counts} sampleSize={m.stance_sample_size} />
-          {fixture && <p className="text-sm text-ink-2">Hand-labeled sample, placeholder until stance labels run.</p>}
+          {fixture && <p className="text-sm text-ink-2">Example classifications. Live stance counts may still be pending.</p>}
         </section>
 
         <section aria-labelledby="videos-h" className="grid gap-4">
@@ -151,7 +151,7 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
             <p className="font-serif text-[clamp(1.25rem,1.1rem+0.6vw,1.5rem)] leading-[1.4]">
               <span className="mono font-semibold">{m.clinician_share.video_pct}%</span> of videos and{" "}
               <span className="mono font-semibold">{m.clinician_share.view_pct}%</span> of views come from accounts that
-              look like clinicians.
+              have a clinician-related term in their profile.
             </p>
             <p className="text-sm leading-[1.5] text-ink-2">{m.clinician_share.note}</p>
           </aside>
@@ -168,6 +168,7 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           <Link href={`/desk/myth/${m.id}/studio`} className="btn">
             Make the debunk
           </Link>
+          <Link href={`/desk/impact/${m.id}`} className="underline">View impact</Link>
         </section>
       </div>
     </main>

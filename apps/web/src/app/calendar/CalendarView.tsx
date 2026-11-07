@@ -110,11 +110,11 @@ function Item({ n, it, fixture, onReuse }: { n: number; it: CalendarItem; fixtur
         )}
         <p className="mono text-[0.8125rem] text-ink-2">{it.window}</p>
         <p className="border-t border-rule pt-2.5 font-serif text-[0.9375rem] leading-[1.45]">{it.why}</p>
-        {it.script_available && it.myth_id && (
-          <Link href={`/r/${it.myth_id}`} onClick={() => onReuse(it.myth_id!)} className="btn mt-1 justify-self-start">
+        {it.script_available && it.myth_id ? (
+          <Link href={`/desk/myth/${it.myth_id}/studio?from=calendar`} onClick={() => onReuse(it.myth_id!)} className="btn mt-1 justify-self-start">
             Reuse script
           </Link>
-        )}
+        ) : <p className="text-sm text-ink-2">Script unavailable</p>}
       </article>
     </li>
   );

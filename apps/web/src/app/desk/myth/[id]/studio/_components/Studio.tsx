@@ -31,8 +31,9 @@ const LINE_STYLE: Record<LineStatus, string> = {
   unsupported: "border-harmful-text bg-harmful-fill",
   no_claim: "border-rule bg-paper",
   pending: "border-ink-2 border-dashed bg-paper",
+  failed: "border-harmful-text border-dashed bg-paper",
 };
-const LINE_LABEL: Partial<Record<LineStatus, string>> = { no_claim: "No health claim", pending: "Checking" };
+const LINE_LABEL: Partial<Record<LineStatus, string>> = { no_claim: "No health claim", pending: "Checking", failed: "Check unavailable" };
 const CHECKS: { key: keyof Ticks; label: string }[] = [
   { key: "every_claim_has_source", label: "Every script claim has a source" },
   { key: "quotes_are_exact", label: "Quotes are exact" },
@@ -81,7 +82,7 @@ function Step({ n, done, children }: { n: number; done: boolean; children: React
 }
 
 // Plain view: all behaviour lives in useStudio.
-export function Studio({ mythId }: { mythId: string }) {
+export function Studio({ mythId, title }: { mythId: string; title: string }) {
   const s = useStudio(mythId);
   const { brief, format, hookId, checkFrom, canApprove, published, qa, lines, approved } = s;
   const loading = s.briefLoading;
@@ -93,9 +94,9 @@ export function Studio({ mythId }: { mythId: string }) {
   const done = [
     !!brief,
     !!hookId,
-    !!brief && lines.length > 0 && !lines.some((l) => l.status === "unsupported" || l.status === "pending"),
+    ticks.every_claim_has_source,
     approved,
-    !!qa?.pass,
+    ticks.video_qa_passed,
     !!published,
   ];
 
@@ -108,7 +109,7 @@ export function Studio({ mythId }: { mythId: string }) {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="grid gap-3">
             <h1 className="text-[clamp(2.75rem,1.5rem+3.4vw,4.75rem)] font-extrabold leading-[0.98] tracking-[-0.035em] [font-stretch:90%] [font-variation-settings:'opsz'_96]">
-              Studio
+              Studio · {title}
             </h1>
             <p className="text-lg text-ink-2 md:text-xl">Pick a format and a hook. Every line is re-checked.</p>
           </div>
@@ -146,8 +147,7 @@ export function Studio({ mythId }: { mythId: string }) {
                   aria-pressed={format === f.value}
                   disabled={loading || approved}
                   onClick={() => {
-                    s.setFormat(f.value);
-                    if (brief) s.generateBrief(f.value);
+                    if (format !== f.value) void s.generateBrief(f.value);
                   }}
                   className={`${pill} ${format === f.value ? "bg-ink text-paper" : "bg-paper hover:bg-ink hover:text-paper"}`}
                 >
@@ -155,10 +155,14 @@ export function Studio({ mythId }: { mythId: string }) {
                 </button>
               ))}
             </div>
-            <button disabled={loading || approved} onClick={() => s.generateBrief(format)} className={`${pill} bg-paper`}>
+            <button disabled={loading || approved} onClick={() => s.generateBrief(format, true)} className={`${pill} bg-paper`}>
               {brief ? "Generate again" : "Generate brief"}
             </button>
           </div>
+          <p className="text-ink-2">{
+            { stitch: "Respond to a clip with a stitch opener.", duet: "Respond alongside the original clip.",
+              standalone: "Record a direct-to-camera response.", no_camera: "Use on-screen text without appearing on camera." }[format]
+          }</p>
           {loading && (
             <p className={`${card} text-lg`} role="status">
               Searching sources, drafting and checking claims. This can take up to 45 seconds.
@@ -276,6 +280,9 @@ export function Studio({ mythId }: { mythId: string }) {
                 <span className="rounded-pill border-2 border-harmful-text bg-harmful-fill px-3 py-1 text-harmful-text">Unsupported</span>
                 <FixtureBadge from={checkFrom} />
               </div>
+              {lines.some((line) => line.status === "failed" || line.checkedFrom === "fixture") && (
+                <button className={pill} onClick={s.retryChecks}>Retry line checks</button>
+              )}
               <ol className="grid gap-4">
                 {lines.map((l, i) => {
                   const c = checks[l.id];
@@ -293,7 +300,7 @@ export function Studio({ mythId }: { mythId: string }) {
                             <SupportBadge status={c.status} support={c.support} />
                           </span>
                         )}
-                        {c?.has_claim && checkFrom === "fixture" && <Placeholder />}
+                        {l.checkedFrom === "fixture" && <span className="databadge">Example check</span>}
                       </div>
                       <textarea
                         rows={1}
@@ -339,8 +346,9 @@ export function Studio({ mythId }: { mythId: string }) {
                   key: c.key,
                   label: c.label,
                   checked: ticks[c.key],
-                  disabled: c.key !== "video_qa_passed" && approved,
-                  note: c.key === "video_qa_passed" ? "Ticks itself when QA passes" : undefined,
+                  disabled: approved || c.key === "every_claim_has_source" || c.key === "video_qa_passed",
+                  note: c.key === "video_qa_passed" ? "Set when the attached video passes" :
+                    c.key === "every_claim_has_source" ? "Based on verified line checks" : undefined,
                 }))}
                 onChange={(k, v) => {
                   if (ticks[k as keyof Ticks] !== v) s.toggle(k as keyof Ticks);
@@ -353,13 +361,13 @@ export function Studio({ mythId }: { mythId: string }) {
               )}
               <div className="flex flex-wrap items-center gap-4">
                 <button
-                  disabled={!canApprove}
-                  onClick={s.approve}
+                  disabled={!s.canLock}
+                  onClick={s.lockScript}
                   className={`btn ${approved ? "border-[#1f6b2e] bg-[#1f6b2e] disabled:opacity-100" : ""}`}
                 >
-                  {approved ? "Approved" : "Approve script"}
+                  {approved ? "Script locked" : "Lock script for video QA"}
                 </button>
-                <span className="text-lg font-semibold text-ink-2">AI drafts, you approve.</span>
+                {approved && <button className={pill} onClick={s.unlockScript} disabled={s.publishing}>Edit script</button>}
               </div>
             </div>
           ) : (
@@ -391,7 +399,7 @@ export function Studio({ mythId }: { mythId: string }) {
                   </>,
                   <>Edit and caption in Compound.</>,
                   <>
-                    Export the MP4 to <span className="font-mono text-base">apps/web/public/video/lymphatic-detox.mp4</span>.
+                    Export an MP4 from Compound and attach it below. The limit is 45 seconds and 100 MiB.
                   </>,
                 ].map((body, i) => (
                   <li key={i} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline border-b border-rule pb-4">
@@ -405,24 +413,39 @@ export function Studio({ mythId }: { mythId: string }) {
                 <input
                   type="file"
                   name="video"
-                  accept="video/mp4"
-                  onChange={(e) => s.attachVideo(e.target.files?.[0] ?? null)}
+                  accept="video/mp4,.mp4"
+                  disabled={s.publishing}
+                  onChange={(event) => {
+                    s.attachVideo(event.currentTarget.files?.[0] ?? null);
+                    event.currentTarget.value = "";
+                  }}
                   className="block min-w-0 text-lg file:mr-4 file:min-h-11 file:cursor-pointer file:rounded-pill file:border file:border-solid file:border-ink file:bg-paper file:px-5 file:font-semibold file:text-ink"
                 />
               </label>
-              <button disabled={!s.video || s.qaRunning} onClick={s.runQA} className="btn justify-self-start">
+              {s.video && <p role="status">Attached: {s.video.name}</p>}
+              <button disabled={!s.video || s.qaRunning || s.publishing} onClick={s.runQA} className="btn justify-self-start">
                 {s.qaRunning ? "Checking the video..." : "Run video QA"}
               </button>
               {qa && <QAReportView report={qa} placeholder={s.qaFrom === "fixture"} />}
+              {qa?.pass && !ticks.video_qa_passed && <p role="status">A live QA pass is required to publish.</p>}
+              {s.error && <p role="alert">{s.error}</p>}
+              <label className="grid gap-2">
+                Reviewer name
+                <input value={s.reviewer} onChange={(event) => s.setReviewer(event.target.value)}
+                  disabled={s.finalApproved || s.publishing} className="rounded-2xl border border-ink bg-paper px-4 py-3" />
+              </label>
+              <button disabled={!canApprove || s.publishing} onClick={s.approve} className="btn justify-self-start">
+                {s.finalApproved ? "Approved" : "Approve checked video"}
+              </button>
             </div>
           ) : (
-            <Locked>Approve the script to record and check the video.</Locked>
+            <Locked>Lock the script after review to attach and check the video.</Locked>
           )}
         </Step>
 
         <Step n={6} done={done[5]}>
-          {!approved ? (
-            <Locked>Approve the script to publish the receipts.</Locked>
+          {!s.finalApproved ? (
+            <Locked>Pass video QA and approve the checked video to publish receipts.</Locked>
           ) : published ? (
             <div className={`${card} flex flex-wrap items-center gap-8`}>
               <div className="grid justify-items-start gap-4">

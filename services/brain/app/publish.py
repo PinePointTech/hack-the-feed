@@ -2,9 +2,8 @@
 
 import json
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
 
-from . import evidence, oriane, radar
+from . import evidence, oriane, qa, radar
 from .schemas import PublishRequest, PublishedDebunk, Source
 
 APPROVAL_FLAGS = (
@@ -65,16 +64,6 @@ def verify_sources(request: PublishRequest) -> list[Source]:
     return list(sources.values())
 
 
-def validate_video_url(video_url: str | None) -> None:
-    if video_url is None:
-        return
-    url = urlsplit(video_url)
-    local = video_url.startswith("/") and not url.netloc and not video_url.startswith("//")
-    remote = url.scheme == "https" and url.hostname and not url.username and not url.password
-    if not (local or remote) or "\\" in video_url or any(ord(char) < 32 for char in video_url):
-        raise ValueError("Video URL must be an absolute HTTPS URL or a site-relative path.")
-
-
 def save(request: PublishRequest) -> PublishedDebunk:
     if not request.approval.approved_by.strip() or not all(
         getattr(request.approval, key) for key in APPROVAL_FLAGS
@@ -82,7 +71,7 @@ def save(request: PublishRequest) -> PublishedDebunk:
         raise ValueError("Complete every approval checklist item before publishing.")
     if request.brief.myth_id != request.myth_id:
         raise ValueError("The brief must belong to the myth being published.")
-    validate_video_url(request.video_url)
+    qa.verify_video(request.myth_id, request.brief.script.lines, request.video_url)
     sources = verify_sources(request)
 
     myth = next(item.copy() for item in radar.read_radar()["myths"] if item["id"] == request.myth_id)

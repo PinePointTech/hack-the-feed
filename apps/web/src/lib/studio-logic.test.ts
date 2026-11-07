@@ -16,9 +16,12 @@ test("lineStatus", () => {
   assert.equal(statusFromSupport(0.79), "weak");
 });
 
-test("canApprove needs the four ticks and no unsupported or pending line", () => {
+test("canApprove requires verified coverage and no unchecked or weak line", () => {
   const ok = { every_claim_has_source: true, quotes_are_exact: true, targets_claim_not_person: true, no_minors_or_illness_stories: true, video_qa_passed: false };
-  assert.equal(canApprove(ok, ["supported", "weak", "no_claim"]), true);
+  assert.equal(canApprove(ok, ["supported", "no_claim"]), true);
+  assert.equal(canApprove(ok, ["supported", "weak"]), false);
+  assert.equal(canApprove(ok, ["supported", "failed"]), false);
+  assert.equal(lineStatus(lc({has_claim: false, note: "Not checked (brain offline)"})), "failed");
   assert.equal(canApprove(ok, ["supported", "pending"]), false);
   assert.equal(canApprove(ok, ["supported", "unsupported"]), false);
   assert.equal(canApprove({ ...ok, quotes_are_exact: false }, ["supported"]), false);

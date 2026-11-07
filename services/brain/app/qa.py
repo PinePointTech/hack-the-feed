@@ -5,6 +5,8 @@ import base64
 import hashlib
 import json
 import os
+import re
+import shutil
 import tempfile
 import time
 from pathlib import Path
@@ -21,6 +23,48 @@ from .schemas import CheckLine, CheckRequest, QAIssue, QAReport, ScriptLine
 MAX_UPLOAD = 100 * 1024 * 1024
 MAX_FRAMES = 45
 FRAMES_PER_REQUEST = 4
+
+
+def script_digest(myth_id: str, lines: list[ScriptLine]) -> str:
+    body = [myth_id, [line.model_dump() for line in lines]]
+    return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+
+
+def media_url(myth_id: str, token: str) -> str:
+    return f"/published/{myth_id}/video/{token}.mp4"
+
+
+def media_path(token: str) -> Path:
+    if not re.fullmatch(r"[a-f0-9]{64}", token):
+        raise ValueError("Invalid video identifier.")
+    return oriane.DATA_DIR / "cache" / "qa" / f"{token}.mp4"
+
+
+def verify_video(myth_id: str, lines: list[ScriptLine], url: str | None) -> None:
+    token = (url or "").rsplit("/", 1)[-1].removesuffix(".mp4")
+    try:
+        video = media_path(token)
+        proof = json.loads(video.with_suffix(".approval.json").read_bytes())
+    except (ValueError, FileNotFoundError):
+        raise ValueError("Run video QA on the approved script and upload before publishing.") from None
+    if url != media_url(myth_id, token) or not video.is_file() or proof["script"] != script_digest(myth_id, lines):
+        raise ValueError("The passing video QA result must match the script and video being published.")
+
+
+def save_video(path: Path, token: str, myth_id: str, lines: list[ScriptLine]) -> str:
+    target = media_path(token)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.is_file():
+        with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as file:
+            temporary = Path(file.name)
+            try:
+                file.close()
+                shutil.copyfile(path, temporary)
+                temporary.replace(target)
+            finally:
+                temporary.unlink(missing_ok=True)
+    oriane.write_json(target.with_suffix(".approval.json"), {"script": script_digest(myth_id, lines)})
+    return media_url(myth_id, token)
 
 
 class InvalidVideo(ValueError):
@@ -99,7 +143,7 @@ class VideoQA:
 
     async def run(
         self, client: httpx.AsyncClient, myth_id: str, lines: list[ScriptLine], upload: UploadFile,
-    ) -> QAReport:
+    ) -> tuple[QAReport, str | None]:
         start = time.perf_counter()
         sources = load_excerpts(myth_id)
         digest = hashlib.sha256(json.dumps([
@@ -116,15 +160,17 @@ class VideoQA:
                         raise InvalidVideo("Upload an MP4 under 100 MiB.")
                     output.write(chunk)
                     digest.update(chunk)
-            cache = oriane.DATA_DIR / "cache" / "qa" / f"{digest.hexdigest()}.json"
+            token = digest.hexdigest()
+            cache = oriane.DATA_DIR / "cache" / "qa" / f"{token}.json"
             try:
                 saved = QAReport.model_validate_json(cache.read_bytes())
             except (FileNotFoundError, ValueError):
                 pass
             else:
+                video_url = save_video(path, token, myth_id, lines) if saved.passed else None
                 return saved.model_copy(update={
                     "ran_in": "cached", "duration_ms": round((time.perf_counter() - start) * 1000),
-                })
+                }), video_url
 
             if not (self.key and self.model):
                 raise RuntimeError("Set a GMI inference key and vision model to run video QA")
@@ -135,18 +181,19 @@ class VideoQA:
                 for index in range(0, len(frames), FRAMES_PER_REQUEST)
             ))
 
-        observations = consecutive_texts([text for group in groups for text in group])
-        issues, passed = await self.inspect(client, myth_id, lines, observations)
-        report = QAReport(
-            myth_id=myth_id, frames_checked=len(frames), texts_found=len(observations),
-            issues=issues, **{"pass": passed},
-            models={"vision": gmi_label(self.model), "judge": self.settings.chat_model},
-            ran_in="local", duration_ms=round((time.perf_counter() - start) * 1000),
-        )
-        data = report.model_dump(by_alias=True, exclude_none=True)
-        oriane.write_json(oriane.DATA_DIR / "qa" / f"{myth_id}.json", data)
-        oriane.write_json(cache, data)
-        return report
+            observations = consecutive_texts([text for group in groups for text in group])
+            issues, passed = await self.inspect(client, myth_id, lines, observations)
+            report = QAReport(
+                myth_id=myth_id, frames_checked=len(frames), texts_found=len(observations),
+                issues=issues, **{"pass": passed},
+                models={"vision": gmi_label(self.model), "judge": self.settings.chat_model},
+                ran_in="local", duration_ms=round((time.perf_counter() - start) * 1000),
+            )
+            video_url = save_video(path, token, myth_id, lines) if passed else None
+            data = report.model_dump(by_alias=True, exclude_none=True)
+            oriane.write_json(oriane.DATA_DIR / "qa" / f"{myth_id}.json", data)
+            oriane.write_json(cache, data)
+            return report, video_url
 
     async def inspect(
         self, client: httpx.AsyncClient, myth_id: str, lines: list[ScriptLine],

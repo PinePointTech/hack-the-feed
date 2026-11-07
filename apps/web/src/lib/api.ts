@@ -38,6 +38,22 @@ async function get<T>(url: string, init: RequestInit | undefined, fixture: () =>
     clearTimeout(timer);
   }
 }
+async function live<T>(path: string, init: RequestInit | undefined, ms: number) {
+  const response = await fetch(`${BRAIN}${path}`, {
+    ...init, signal: AbortSignal.timeout(ms), cache: "no-store",
+  });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null);
+    throw new Error(problem?.error?.message ?? `Brain returned HTTP ${response.status}.`);
+  }
+  return { data: (await response.json()) as T, from: "live" as const,
+    videoUrl: response.headers.get("Content-Location") };
+}
+
+export function receiptVideoUrl(url: string) {
+  return /^\/published\/[^/]+\/video\//.test(url) ? `${BRAIN}${url}` : url;
+}
+
 const post = (body: unknown): RequestInit => ({
   method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
 });
@@ -49,13 +65,33 @@ const checkFallback = (req: CheckRequest) => checkFromFixtures(req, fx<CheckResp
 export const api = {
   radar: () => call<Radar>("/radar", undefined, () => fx<Radar>(radarFx), 15000),
   myth: (id: string) => call<MythDetail>(`/myths/${id}`, undefined, () => mythFallback(id), 15000),
-  brief: (req: BriefRequest) => call<Brief>("/brief", post(req), () => fx<Brief>(briefFx), 90000),
+  brief: async (req: BriefRequest): Promise<Sourced<Brief>> => {
+    try {
+      const result = MOCKS ? { data: fx<Brief>(briefFx), from: "fixture" as const }
+        : await live<Brief>("/brief", post(req), 90000);
+      if (result.data.myth_id !== req.myth_id || result.data.script.format !== req.format ||
+          !result.data.sources.length || !result.data.claims.length) {
+        throw new Error("No verified draft is available for this claim and format.");
+      }
+      return result;
+    } catch (error) {
+      if (!req.refresh && req.myth_id === briefFx.myth_id && req.format === briefFx.script.format)
+        return { data: fx<Brief>(briefFx), from: "fixture" };
+      throw error;
+    }
+  },
   check: (req: CheckRequest) => call<CheckResponse>("/check", post(req), () => checkFallback(req), 15000),
-  qa: (form: FormData) => call<QAReport>("/qa", { method: "POST", body: form }, () => fx<QAReport>(qaFx), 120000),
-  publish: (req: PublishRequest) => call<PublishedDebunk>("/publish", post(req), () => fx<PublishedDebunk>(publishedFx), 30000),
+  qa: (form: FormData) => MOCKS
+    ? Promise.resolve({ data: fx<QAReport>(qaFx), from: "fixture" as const, videoUrl: null })
+    : live<QAReport>("/qa", { method: "POST", body: form }, 120000),
+  publish: (req: PublishRequest) => live<PublishedDebunk>("/publish", post(req), 30000),
   impact: (id: string) => call<Impact>(`/impact/${id}`, undefined, () => fx<Impact>(impactFx), 15000),
-  // Public pages: same-origin static files, never the brain. Call from client components.
-  published: (id: string) =>
-    get<PublishedDebunk>(`/published/${encodeURIComponent(id)}.json`, undefined, () => fx<PublishedDebunk>(publishedFx), 15000),
+  published: async (id: string): Promise<Sourced<PublishedDebunk>> => {
+    const path = `/published/${encodeURIComponent(id)}`;
+    if (!MOCKS) {
+      try { return await live<PublishedDebunk>(path, undefined, 6000); } catch {}
+    }
+    return get<PublishedDebunk>(`${path}.json`, undefined, () => fx<PublishedDebunk>(publishedFx), 15000);
+  },
   calendar: () => get<Calendar>("/calendar.json", undefined, () => fx<Calendar>(calendarFx), 15000),
 };
