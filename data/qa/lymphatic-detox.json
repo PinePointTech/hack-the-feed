@@ -1,0 +1,21 @@
+{
+  "myth_id": "lymphatic-detox",
+  "frames_checked": 30,
+  "texts_found": 2,
+  "issues": [
+    {
+      "t_s": 15,
+      "found_text": "Lymphatic drainage burns fat.",
+      "expected_line_id": "l1",
+      "problem": "unsupported_claim",
+      "support": 0.00040000000000000034
+    }
+  ],
+  "pass": false,
+  "models": {
+    "vision": "google/gemini-3.5-flash-lite",
+    "judge": "gpt-6-luna"
+  },
+  "ran_in": "local",
+  "duration_ms": 8278
+}
