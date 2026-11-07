@@ -92,6 +92,14 @@ export function Featured({ myths }: { myths: MythSummary[] }) {
                         {s.title}
                       </a>
                       <span className="mono lp-host">{host(s.url)}</span>
+                      {s.excerpts.slice(0, 2).map((e, i) => (
+                        <blockquote
+                          key={i}
+                          className="m-0 border-l-2 border-rule pl-3 font-serif text-[0.9375rem] leading-normal text-ink-2"
+                        >
+                          &ldquo;{e}&rdquo;
+                        </blockquote>
+                      ))}
                     </li>
                   ))}
                 </ul>

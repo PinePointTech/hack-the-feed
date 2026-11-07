@@ -61,28 +61,8 @@ export function Receipts({ id }: { id: string }) {
           </p>
         </header>
 
-        <figure className="m-0 grid w-full max-w-[320px] gap-2.5">
-          <div className="relative grid aspect-[9/16] place-items-center overflow-hidden rounded-frame bg-ink p-6 text-center text-paper">
-            {d.video_url && videoOk ? (
-              <video
-                controls
-                playsInline
-                src={receiptVideoUrl(d.video_url)}
-                onError={() => setVideoOk(false)}
-                className="absolute inset-0 h-full w-full bg-ink object-contain"
-              />
-            ) : (
-              <p className="text-xl font-bold">Video not ready</p>
-            )}
-          </div>
-          <figcaption className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-semibold text-ink-2">
-            {topic} debunk
-            {d.video_url && videoOk && from === "fixture" && <span className="databadge">placeholder</span>}
-          </figcaption>
-        </figure>
-
-        {/* Phones: verdict before the 9:16 video so a QR scan sees it on the first screen */}
-        <section className="grid gap-2 max-[699px]:-order-1" aria-labelledby="verdict-h">
+        {/* The debunk comes first: verdict, true or false, sources. The video follows them. */}
+        <section className="grid gap-2" aria-labelledby="verdict-h">
           <h2 id="verdict-h" className={LABEL}>
             Verdict
           </h2>
@@ -112,6 +92,26 @@ export function Receipts({ id }: { id: string }) {
             <p className="text-ink-2">No good source found</p>
           )}
         </section>
+
+        <figure className="m-0 grid w-full max-w-[320px] gap-2.5">
+          <div className="relative grid aspect-[9/16] place-items-center overflow-hidden rounded-frame bg-ink p-6 text-center text-paper">
+            {d.video_url && videoOk ? (
+              <video
+                controls
+                playsInline
+                src={receiptVideoUrl(d.video_url)}
+                onError={() => setVideoOk(false)}
+                className="absolute inset-0 h-full w-full bg-ink object-contain"
+              />
+            ) : (
+              <p className="text-xl font-bold">Video not ready</p>
+            )}
+          </div>
+          <figcaption className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-semibold text-ink-2">
+            {topic} debunk
+            {d.video_url && videoOk && from === "fixture" && <span className="databadge">placeholder</span>}
+          </figcaption>
+        </figure>
 
         {d.quoted.length > 0 && (
           <section className="grid gap-3.5">
