@@ -155,3 +155,29 @@ test("loadAudience: success sends Basic auth to the US segmentation endpoint and
     assert.deepEqual(r.stats?.votes, { yes: 2, no: 0, already_knew: 0, total: 2 });
   } finally { globalThis.fetch = real; }
 });
+
+test("loadAudience: an event Amplitude has never received counts as 0, not as an outage", async () => {
+  const real = globalThis.fetch;
+  // Real Amplitude reply when no "Source Clicked" event exists yet in the project.
+  const neverSeen = '{"error": {"http_code": 400, "type": "invalid", "message": "Invalid chart definition", "metadata": {"details": "Invalid Source Clicked"}}}';
+  globalThis.fetch = (async (u: string) =>
+    decodeURIComponent(u).includes("Source") ? new Response(neverSeen, { status: 400 })
+      : Response.json({ data: { series: [[1]], seriesLabels: ["no"], xValues: ["2026-11-06T21:00:00"] } })) as typeof fetch;
+  try {
+    const r = await loadAudience("lymphatic-detox", { NEXT_PUBLIC_AMPLITUDE_API_KEY: "k", AMPLITUDE_SECRET_KEY: "s" }, new Date("2026-11-06T22:00:00Z"));
+    assert.equal(r.error, undefined);
+    assert.equal(r.stats?.source_clicks, 0);
+    assert.equal(r.stats?.votes.no, 1);
+  } finally { globalThis.fetch = real; }
+});
+
+test("loadAudience: other 400s are still an outage", async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => new Response('{"error":{"message":"Unable to create definition from arguments."}}', { status: 400 })) as typeof fetch;
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const r = await loadAudience("lymphatic-detox", { NEXT_PUBLIC_AMPLITUDE_API_KEY: "k", AMPLITUDE_SECRET_KEY: "s" });
+    assert.equal(r.error, AUDIENCE_ERROR);
+  } finally { globalThis.fetch = real; console.warn = warn; }
+});

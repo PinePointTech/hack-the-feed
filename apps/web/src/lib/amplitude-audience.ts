@@ -132,6 +132,8 @@ export async function loadAudience(id: string, env: Env, now = new Date()): Prom
     const res = await Promise.all(
       keys.map(async (k) => {
         const r = await fetch(`${SEGMENTATION_URL}?${q[k]}`, { headers: { Authorization: auth }, signal: AbortSignal.timeout(10_000), cache: "no-store" });
+        // Amplitude refuses to query an event it has never received ("Invalid <event>"): it has happened 0 times.
+        if (r.status === 400 && (await r.text()).includes(`Invalid ${EVENTS[k].event_type}`)) return [k, {} as Segmentation] as const;
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return [k, (await r.json()) as Segmentation] as const;
       }),
