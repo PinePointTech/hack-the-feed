@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creator mode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Azeret+Mono:wght@400..600&display=swap">
+<style>
+/* Tokens and base styles copied from v2.html. */
+:root {
+  --paper: #F2F4F1;
+  --ink: #15171A;
+  --ink-2: #4A5258;
+  --rule: #C9CFCB;
+  --lime: #D5F24B;
+  --harmful-text: #9F1D14;
+  --harmful-fill: #FBE4E0;
+  --false-text: #8A3B00;
+  --false-fill: #FDEBD6;
+  --unproven-text: #3F4A55;
+  --unproven-fill: #E3E7EB;
+  --graticule: color-mix(in srgb, var(--rule) 55%, transparent);
+
+  --sans: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  --serif: "Source Serif 4", Georgia, serif;
+  --mono: "Azeret Mono", ui-monospace, monospace;
+  --gutter: 16px;
+  --frame-r: 26px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
+@media (min-width: 700px) { :root { --gutter: 40px; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--ink-2) var(--paper); }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 500;
+  font-variation-settings: "opsz" 16;
+  font-size: 1rem;
+  line-height: 1.5;
+  caret-color: var(--ink);
+}
+::selection { background: var(--lime); color: var(--ink); }
+h1, h2, h3 { margin: 0; overflow-wrap: anywhere; text-wrap: balance; }
+p { margin: 0; }
+a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wrap { width: 100%; max-width: 1360px; margin-inline: auto; padding-inline: var(--gutter); min-width: 0; }
+.mono { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.kw { font-family: var(--serif); font-style: italic; font-weight: 700; font-variation-settings: normal; letter-spacing: 0; }
+.kw-mark { background-color: var(--lime); padding-inline: .1em; border-radius: .16em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* Shared pills */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 52px; padding: 0 26px; border-radius: 999px;
+  background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
+  font: inherit; font-weight: 700; font-size: 1.0625rem; white-space: nowrap;
+  text-decoration: none; cursor: pointer;
+}
+.btn:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.btn--outline { min-height: 44px; padding: 0 18px; font-size: .9375rem; background: transparent; color: var(--ink); }
+.btn--outline:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.databadge {
+  display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px;
+  border: 1px solid var(--ink-2); color: var(--ink-2);
+  font-family: var(--mono); font-weight: 500; font-size: .75rem; line-height: 1.2; white-space: nowrap;
+}
+.chip {
+  display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px;
+  font-weight: 700; font-size: .8125rem; line-height: 1.5; white-space: nowrap;
+}
+.chip--harmful { color: var(--harmful-text); background: var(--harmful-fill); }
+.chip--false { color: var(--false-text); background: var(--false-fill); }
+.chip--unproven { color: var(--unproven-text); background: var(--unproven-fill); }
+.label { font-family: var(--mono); font-weight: 600; font-size: .75rem; color: var(--ink-2); }
+
+/* AppBar */
+.appbar-wrap { position: sticky; top: 12px; z-index: 10; padding-top: 12px; }
+.appbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 6px 6px 6px 22px; border: 1px solid var(--ink); border-radius: 999px; background: var(--paper);
+}
+.wordmark { font-weight: 800; font-size: 1.375rem; font-variation-settings: "opsz" 48; font-stretch: 92%; letter-spacing: -.02em; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.nav-links { display: none; list-style: none; margin: 0; padding: 0; gap: 4px; }
+.nav-links a, .menu-panel a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px;
+  font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.nav-links a:hover, .menu-panel a:hover, .nav-links a[aria-current="page"] { background: var(--ink); color: var(--paper); }
+.menu { position: relative; }
+.menu summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px;
+  border-radius: 999px; background: var(--ink); color: var(--paper); font-weight: 700; white-space: nowrap;
+}
+.menu summary::-webkit-details-marker { display: none; }
+.menu-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); display: grid; gap: 2px; padding: 6px; min-width: 200px;
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 24px;
+}
+@media (min-width: 700px) { .nav-links { display: flex; } .menu { display: none; } }
+
+/* Page */
+.page-head { display: grid; gap: 14px; padding-top: 48px; padding-bottom: 48px; max-width: 46rem; }
+.headline {
+  font-weight: 800; font-variation-settings: "opsz" 96; font-stretch: 90%;
+  font-size: clamp(2.75rem, 1.5rem + 3.4vw, 4.75rem); line-height: .98; letter-spacing: -.035em;
+}
+.lede { font-size: 1.125rem; color: var(--ink-2); }
+.section { display: grid; gap: 24px; padding-top: 48px; padding-bottom: 56px; border-top: 1px solid var(--ink); }
+.section-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.section-head h2 { font-weight: 800; font-variation-settings: "opsz" 72; font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); line-height: 1.05; letter-spacing: -.025em; }
+
+/* Choose a myth: radio cards, CSS only */
+.picks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.pick { position: relative; min-width: 0; }
+.pick-input {
+  appearance: none; -webkit-appearance: none; margin: 0;
+  position: absolute; top: 18px; right: 18px; z-index: 1; width: 28px; height: 28px;
+  border: 2px solid var(--ink); border-radius: 50%; background: var(--paper); pointer-events: none;
+}
+.pick-input:checked { background: var(--lime); box-shadow: inset 0 0 0 5px var(--paper); }
+.pick-card {
+  min-width: 0; min-height: 132px; display: grid; gap: 12px; align-content: start;
+  padding: 18px 60px 20px 20px; border: 1px solid var(--ink); border-radius: var(--frame-r); background: var(--paper);
+}
+.pick-card h3 { font-weight: 700; font-variation-settings: "opsz" 24; font-size: 1.25rem; line-height: 1.2; letter-spacing: -.01em; }
+.pick-card label { cursor: pointer; }
+.pick-card label::after { content: ""; position: absolute; inset: 0; border-radius: var(--frame-r); }
+.pick-state { display: none; justify-self: start; padding: 2px 10px; border-radius: 999px; background: var(--lime); border: 1px solid var(--ink); font-weight: 800; font-size: .8125rem; }
+.pick-input:checked + .pick-card { outline: 2px solid var(--ink); outline-offset: -3px; }
+.pick-input:checked + .pick-card .pick-state { display: inline-flex; }
+.pick-input:focus-visible + .pick-card { outline: 3px solid var(--ink); outline-offset: 3px; }
+@media (min-width: 900px) { .picks { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Workflow steps */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.step {
+  min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 16px; row-gap: 8px; align-content: start;
+  padding: 20px; border: 1px solid var(--ink); border-radius: var(--frame-r); background: var(--paper);
+}
+.dot {
+  grid-row: span 3; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink);
+  font-family: var(--mono); font-weight: 600; font-size: .75rem;
+}
+.step h3 { font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.1875rem; line-height: 1.25; padding-top: 2px; }
+.step p { color: var(--ink-2); font-size: .9375rem; line-height: 1.45; }
+.step .status { color: var(--ink); }
+.step-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+@media (min-width: 700px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Save */
+.save { display: grid; gap: 8px; max-width: 560px; }
+.save label { font-weight: 700; font-size: 1.0625rem; }
+.field {
+  display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 22px;
+  border: 1px solid var(--ink); border-radius: 999px; background: var(--paper);
+}
+.field:focus-within { outline: 3px solid var(--ink); outline-offset: 3px; }
+.field input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; border: 0; background: transparent; color: var(--ink);
+  font: inherit; font-size: 1rem; outline: none;
+}
+.field input::placeholder { color: var(--ink-2); opacity: 1; }
+.field .btn { min-height: 44px; padding: 0 20px; font-size: 1rem; flex: none; }
+.empty { padding: 20px 22px; border: 1px dashed var(--ink-2); border-radius: 24px; color: var(--ink-2); font-weight: 600; max-width: 560px; }
+
+/* Tools */
+.tools { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; max-width: 46rem; }
+.tools li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding-top: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.tools a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; font-size: 1.0625rem; }
+.tools span { color: var(--ink-2); font-size: .9375rem; }
+
+/* Footer */
+.footer { border-top: 1px solid var(--ink); padding-top: 28px; padding-bottom: 40px; }
+.footer .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.footer p { font-weight: 700; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn { transition: transform 160ms var(--ease); }
+  .btn:active { transform: scale(.97); }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap appbar-wrap">
+  <header class="appbar">
+    <a class="wordmark" href="v3.html">MyBuster</a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a href="calendar.html">Calendar</a></li>
+        <li><a href="creator.html" aria-current="page">Creator mode</a></li>
+      </ul>
+      <details class="menu">
+        <summary>Menu</summary>
+        <div class="menu-panel">
+          <a href="calendar.html">Calendar</a>
+          <a href="creator.html" aria-current="page">Creator mode</a>
+        </div>
+      </details>
+    </nav>
+  </header>
+</div>
+
+<main>
+  <div class="wrap page-head">
+    <h1 class="headline">Creator mode</h1>
+    <p class="lede">Pick a myth, then work through the steps in order. Save the run as a workflow.</p>
+  </div>
+
+  <section class="wrap section" aria-labelledby="choose-h">
+    <div class="section-head">
+      <h2 id="choose-h">Choose a myth</h2>
+      <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+    </div>
+    <fieldset class="picks">
+      <legend class="sr">Myth for this workflow</legend>
+      <div class="pick">
+        <input class="pick-input" type="radio" name="myth" id="pick-lymphatic-detox" value="lymphatic-detox" checked>
+        <div class="pick-card">
+          <h3><label for="pick-lymphatic-detox">Lymphatic drainage</label></h3>
+          <div><span class="chip chip--false">False</span></div>
+          <span class="pick-state" aria-hidden="true">Selected</span>
+        </div>
+      </div>
+      <div class="pick">
+        <input class="pick-input" type="radio" name="myth" id="pick-garlic-tumor" value="garlic-tumor">
+        <div class="pick-card">
+          <h3><label for="pick-garlic-tumor">Garlic and cancer</label></h3>
+          <div><span class="chip chip--harmful">Harmful</span></div>
+          <span class="pick-state" aria-hidden="true">Selected</span>
+        </div>
+      </div>
+      <div class="pick">
+        <input class="pick-input" type="radio" name="myth" id="pick-mouth-taping" value="mouth-taping">
+        <div class="pick-card">
+          <h3><label for="pick-mouth-taping">Mouth taping</label></h3>
+          <div><span class="chip chip--unproven">Unproven</span></div>
+          <span class="pick-state" aria-hidden="true">Selected</span>
+        </div>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="wrap section" aria-labelledby="workflow-h">
+    <div class="section-head">
+      <h2 id="workflow-h">Workflow</h2>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <span class="dot" aria-hidden="true">1</span>
+        <h3>Brief</h3>
+        <p>Sources and verdict for the chosen myth.</p>
+        <p class="status"><span class="label">Status</span> Not started</p>
+        <div class="step-actions">
+          <button class="btn btn--outline" type="button">Open step<span class="sr">: Brief</span></button>
+          <button class="btn btn--outline" type="button">Skip<span class="sr">: Brief</span></button>
+          <button class="btn btn--outline" type="button">Mark done<span class="sr">: Brief</span></button>
+        </div>
+      </li>
+      <li class="step">
+        <span class="dot" aria-hidden="true">2</span>
+        <h3>Studio</h3>
+        <p>Pick a format and a hook, then edit the script.</p>
+        <p class="status"><span class="label">Status</span> Not started</p>
+        <div class="step-actions">
+          <button class="btn btn--outline" type="button">Open step<span class="sr">: Studio</span></button>
+          <button class="btn btn--outline" type="button">Skip<span class="sr">: Studio</span></button>
+          <button class="btn btn--outline" type="button">Mark done<span class="sr">: Studio</span></button>
+        </div>
+      </li>
+      <li class="step">
+        <span class="dot" aria-hidden="true">3</span>
+        <h3>Video</h3>
+        <p>Record, edit and upload.</p>
+        <p class="status"><span class="label">Status</span> Not started</p>
+        <div class="step-actions">
+          <button class="btn btn--outline" type="button">Open step<span class="sr">: Video</span></button>
+          <button class="btn btn--outline" type="button">Skip<span class="sr">: Video</span></button>
+          <button class="btn btn--outline" type="button">Mark done<span class="sr">: Video</span></button>
+        </div>
+      </li>
+      <li class="step">
+        <span class="dot" aria-hidden="true">4</span>
+        <h3>QA</h3>
+        <p>Check on-screen text against the approved script.</p>
+        <p class="status"><span class="label">Status</span> Not started</p>
+        <div class="step-actions">
+          <button class="btn btn--outline" type="button">Open step<span class="sr">: QA</span></button>
+          <button class="btn btn--outline" type="button">Skip<span class="sr">: QA</span></button>
+          <button class="btn btn--outline" type="button">Mark done<span class="sr">: QA</span></button>
+        </div>
+      </li>
+      <li class="step">
+        <span class="dot" aria-hidden="true">5</span>
+        <h3>Publish</h3>
+        <p>Receipts page and approval checklist.</p>
+        <p class="status"><span class="label">Status</span> Not started</p>
+        <div class="step-actions">
+          <button class="btn btn--outline" type="button">Open step<span class="sr">: Publish</span></button>
+          <button class="btn btn--outline" type="button">Skip<span class="sr">: Publish</span></button>
+          <button class="btn btn--outline" type="button">Mark done<span class="sr">: Publish</span></button>
+        </div>
+      </li>
+      <li class="step">
+        <span class="dot" aria-hidden="true">6</span>
+        <h3>Impact</h3>
+        <p>Response reach against myth reach.</p>
+        <p class="status"><span class="label">Status</span> Not started</p>
+        <div class="step-actions">
+          <button class="btn btn--outline" type="button">Open step<span class="sr">: Impact</span></button>
+          <button class="btn btn--outline" type="button">Skip<span class="sr">: Impact</span></button>
+          <button class="btn btn--outline" type="button">Mark done<span class="sr">: Impact</span></button>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="wrap section" aria-labelledby="save-h">
+    <div class="section-head">
+      <h2 id="save-h">Save this <em class="kw">workflow</em></h2>
+    </div>
+    <form class="save" action="#saved" method="get">
+      <label for="workflow-name">Workflow name</label>
+      <div class="field">
+        <input id="workflow-name" name="name" type="text" placeholder="Name this workflow" autocomplete="off">
+        <button class="btn" type="submit">Save workflow</button>
+      </div>
+    </form>
+    <p class="empty" id="saved" role="status">No saved workflows yet.</p>
+  </section>
+
+  <section class="wrap section" aria-labelledby="tools-h">
+    <div class="section-head">
+      <h2 id="tools-h">Tools</h2>
+    </div>
+    <ul class="tools">
+      <li><a href="v3.html#trending">Radar</a><span>Myths ranked by reach, with harm tier and trend.</span></li>
+      <li><a href="myth-videos.html">Myth videos</a><span>Videos about one myth, by stance.</span></li>
+      <li><a href="calendar.html">Calendar</a><span>This week's myths and the watchlist.</span></li>
+    </ul>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>Find the health myth. Get the receipts. Make the debunk.</p>
+    <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+  </div>
+</footer>
+
+</body>
+</html>
