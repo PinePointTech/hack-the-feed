@@ -10,7 +10,7 @@ Owner: Vi. Demo is 2:30 (script in `06-DEMO-SCRIPT.md`). These slides frame it. 
 ## Slides (5)
 1. **The problem.** "Half of U.S. adults under 50 get health advice from influencers or podcasters." Then our Oriane numbers: 1,317 lymphatic drainage videos, 49.5M views in 30 days; clinician-bio accounts got 2.5% of those views and their five biggest posts were promotions.
 2. **Live demo.** Title and the receipts QR only. Switch to the browser.
-3. **How it works.** Oriane (find) → GMI Cloud (OpenAI models label, draft and judge; a vision model reads every frame of our video) → a person approves → Amplitude (measure). One line each. Note: no source, no claim.
+3. **How it works.** Oriane (find) → OpenAI (label, draft, judge) → GMI Cloud (a vision model reads every frame of our video) → a person approves → Amplitude (measure). One line each. Note: no source, no claim.
    Say "OpenAI models on GMI Cloud" only once Kris has merged the `vi/brain-on-gmi` pull request and set `OPENAI_BASE_URL` to GMI. Until then the drafter and judge call OpenAI directly and only video QA runs on GMI, so the slide should say "OpenAI (label, draft, judge) → GMI Cloud (reads every frame of our video)".
 4. **Impact.** North star: response reach over myth reach. Guardrails: exact quotes, target the claim, names only above 100k views or 50k followers, never minors or illness stories, humans approve.
 5. **Business and next.** Who pays, debunk bounties, the public myth calendar, what we'd build next.
