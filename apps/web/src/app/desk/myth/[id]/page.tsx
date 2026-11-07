@@ -11,6 +11,7 @@ import { Stat } from "../../_components/Stat";
 import { Placeholder } from "../../_components/Placeholder";
 import { windowWithYear } from "../../_components/window";
 import { MythOpened } from "./_components/MythOpened";
+import { SuggestDebunk } from "./_components/SuggestDebunk";
 
 const H2 =
   "text-[1.75rem] leading-[1.1] font-extrabold tracking-[-0.02em] [font-variation-settings:'opsz'_48]";
@@ -34,6 +35,9 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const { data: m, from } = await api.myth(id);
   const fixture = from === "fixture";
+  // The published debunk is for one myth. A fallback record with another id is not shown here.
+  const published = await api.published(id);
+  const debunk = published.data.id === id ? published.data : null;
 
   return (
     <main>
@@ -68,6 +72,54 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           </div>
         </header>
       </div>
+
+      {debunk && (
+        <section aria-labelledby="verdict-h" className="wrap grid gap-8 py-14">
+          <div className="grid max-w-[60rem] gap-4">
+            <p className={LABEL}>Verdict</p>
+            <p
+              id="verdict-h"
+              className="max-w-[36em] font-serif text-[clamp(1.375rem,1.1rem+0.9vw,1.75rem)] leading-[1.35]"
+            >
+              {debunk.verdict}
+            </p>
+          </div>
+          {(debunk.what_is_true.length > 0 || debunk.what_is_false.length > 0) && (
+            <div className="grid gap-7 min-[900px]:grid-cols-2">
+              {debunk.what_is_true.length > 0 && (
+                <div className="min-w-0">
+                  <h2 className="border-b border-ink pb-2.5 text-xl font-extrabold">What is true</h2>
+                  <ul className="m-0 list-none p-0">
+                    {debunk.what_is_true.map((t, i) => (
+                      <li key={i} className="border-b border-rule py-3 font-serif text-[1.0625rem] leading-normal">
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {debunk.what_is_false.length > 0 && (
+                <div className="min-w-0">
+                  <h2 className="border-b border-ink pb-2.5 text-xl font-extrabold">What is false</h2>
+                  <ul className="m-0 list-none p-0">
+                    {debunk.what_is_false.map((t, i) => (
+                      <li key={i} className="border-b border-rule py-3 font-serif text-[1.0625rem] leading-normal">
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-4">
+            <Link href={`/r/${debunk.id}`} className="btn">
+              See the receipts
+            </Link>
+            <span className="text-sm text-ink-2">Sources, quotes and the published video.</span>
+          </div>
+        </section>
+      )}
 
       <section
         aria-labelledby="reach-h"
@@ -120,8 +172,9 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           ) : (
             <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 min-[900px]:grid-cols-2">
               {m.videos.map((v) => (
-                <li key={v.oriane_id} className="min-w-0">
+                <li key={v.oriane_id} className="grid min-w-0 gap-3">
                   <QuoteCard video={v} />
+                  <SuggestDebunk mythId={m.id} video={v} />
                 </li>
               ))}
             </ul>
