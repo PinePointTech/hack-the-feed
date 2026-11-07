@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyBuster</title>
+<meta name="description" content="Find the health myth. Get the receipts. Make the debunk.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap">
+<style>
+  /* Direction: field guide. Each myth is a specimen plate you identify before you share it. */
+  /* Type: Source Serif 4 sets headlines and plate names, the way a field guide sets the name of each specimen in a sturdy book serif; its optical sizes keep it crisp from 15px captions to 60px headlines. */
+  /* Type: Libre Franklin sets traits, labels and body. Franklin Gothic is the face of public signage and taxonomy keys, so the guide reads civic and plain instead of twee. */
+  :root {
+    --ground: #eef1f2;        /* cool neutral off-white, not cream */
+    --paper: #fafbfb;         /* plate stock */
+    --print: #dde2e5;         /* unfilled frame */
+    --ink: #14181b;           /* 15.9:1 on ground */
+    --muted: #4b5459;         /* 7.1:1 on ground, 7.6:1 on paper */
+    --rule: #c4cbcf;
+    --rule-strong: #8b9499;
+    --marker: #f5cf1d;        /* field-marker yellow: verdict mark and primary action only */
+    --marker-hover: #e6bd00;
+    --on-marker: #14181b;     /* 12.4:1 on marker */
+
+    --harm-harmful-bg: #fbe1dd; --harm-harmful-ink: #8e1a0f; --harm-harmful-dot: #cf2e1c;
+    --harm-false-bg: #fde6d2;   --harm-false-ink: #823a00;   --harm-false-dot: #e36c0a;
+    --harm-unproven-bg: #e2e6ea; --harm-unproven-ink: #3a4248; --harm-unproven-dot: #78828b;
+
+    --serif: "Source Serif 4", Georgia, serif;
+    --sans: "Libre Franklin", system-ui, sans-serif;
+    --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem; --s8: 4.5rem; --s9: 7rem;
+    --tap: 44px;
+    --focus: 0 0 0 3px var(--ground), 0 0 0 5px var(--ink);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 1.0625rem; line-height: 1.55;
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection { background: var(--ink); color: var(--paper); }
+  h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+  ul, ol { padding: 0; list-style: none; }
+  a { color: inherit; text-underline-offset: 0.22em; text-decoration-thickness: 1px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, summary:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
+  .wrap { width: min(100% - 2rem, 86rem); margin-inline: auto; }
+
+  /* Small label lettering: the guide's running heads and trait names. */
+  .label { font-family: var(--sans); font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .label--muted { color: var(--muted); }
+
+  /* AppBar (same pill as the proof sheet) */
+  .appbar {
+    position: sticky; top: var(--s3); z-index: 2; margin-top: var(--s3);
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+    padding: var(--s2) var(--s2) var(--s2) var(--s5);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 999px;
+    box-shadow: 0 6px 18px -12px rgb(20 24 27 / 0.35);
+  }
+  .wordmark {
+    font-family: var(--serif); font-weight: 700; font-size: 1.375rem; letter-spacing: -0.01em;
+    text-decoration: none; min-height: var(--tap); display: inline-flex; align-items: center;
+  }
+  .nav { display: flex; gap: var(--s1); }
+  .nav a {
+    display: inline-flex; align-items: center; min-height: var(--tap); padding-inline: var(--s4);
+    border-radius: 999px; font-weight: 600; font-size: 0.9375rem; text-decoration: none;
+  }
+  .nav a:hover { background: var(--ground); }
+  .menu { display: none; position: relative; }
+  .menu summary {
+    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s2);
+    min-height: var(--tap); padding-inline: var(--s4);
+    border: 1px solid var(--rule-strong); border-radius: 999px; font-weight: 600; font-size: 0.9375rem;
+  }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu .nav {
+    position: absolute; right: 0; top: calc(100% + var(--s2)); flex-direction: column; min-width: 13rem;
+    padding: var(--s2); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
+    box-shadow: 0 12px 28px -16px rgb(20 24 27 / 0.4);
+  }
+
+  /* Buttons: squared like a guide's index tabs. */
+  .actions { display: flex; flex-wrap: wrap; gap: var(--s3); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 3.25rem; padding-inline: var(--s5); border-radius: 6px;
+    border: 1.5px solid var(--ink); font-weight: 700; font-size: 1.0625rem; text-decoration: none;
+  }
+  .btn:hover { text-decoration: none; }
+  .btn--primary { background: var(--marker); color: var(--on-marker); }
+  .btn--primary:hover { background: var(--marker-hover); }
+  .btn--secondary { background: transparent; }
+  .btn--secondary:hover { background: var(--paper); }
+
+  /* Hero */
+  .hero {
+    display: grid; gap: var(--s6) var(--s7);
+    grid-template-columns: minmax(0, 24rem) 14rem minmax(0, 1fr);
+    align-items: start; padding-block: var(--s7) var(--s9);
+  }
+  .hero__copy { display: grid; gap: var(--s5); padding-top: var(--s2); }
+  h1 {
+    font-family: var(--serif); font-weight: 650; font-size: clamp(2.5rem, 1.6rem + 2.6vw, 3.75rem);
+    line-height: 1.04; letter-spacing: -0.02em; text-wrap: balance;
+  }
+  .lead { font-size: 1.3125rem; line-height: 1.45; color: var(--muted); max-width: 30ch; }
+
+  /* PresenterFrame: the guide's frontispiece, cross-referenced to a plate. */
+  .presenter { display: grid; gap: var(--s2); }
+  .presenter__frame {
+    position: relative; aspect-ratio: 9 / 16; background: var(--print);
+    border: 1px solid var(--rule); border-radius: 6px;
+    display: grid; place-items: center; text-align: center; padding: var(--s5);
+  }
+  .presenter__frame svg { width: 2.75rem; height: 2.75rem; color: var(--muted); }
+  .presenter__state { display: grid; justify-items: center; gap: var(--s3); }
+  .presenter__state p { font-weight: 600; }
+  .ai-label {
+    position: absolute; top: var(--s3); left: var(--s3);
+    padding: 0.2rem var(--s2); background: var(--ink); color: var(--paper); border-radius: 3px;
+    font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.02em;
+  }
+  .caption {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s1) var(--s3);
+    padding-top: var(--s2); border-top: 1px solid var(--ink);
+    font-size: 0.875rem; line-height: 1.35;
+  }
+  .caption b { font-family: var(--serif); font-size: 1rem; font-weight: 700; }
+  .caption span { color: var(--muted); }
+
+  /* The guide page: running head, then plates. */
+  .guide { display: grid; gap: var(--s4); }
+  .runhead {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2);
+    padding-bottom: var(--s2); border-bottom: 2px solid var(--ink);
+  }
+  .runhead h2 { font-family: var(--sans); font-size: 0.875rem; font-weight: 700; letter-spacing: 0.01em; }
+  .plates { display: grid; gap: var(--s3); }
+
+  /* SpecimenPlate */
+  .plate {
+    display: grid; grid-template-columns: 4.25rem minmax(0, 1fr);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 6px;
+  }
+  .plate__no {
+    display: grid; align-content: start; justify-items: center; gap: 0.1rem;
+    padding: var(--s4) var(--s2); border-right: 1px solid var(--rule);
+  }
+  .plate__no .label { font-size: 0.6875rem; color: var(--muted); }
+  .plate__no b { font-family: var(--serif); font-weight: 700; font-size: 2rem; line-height: 1; }
+  .plate__body { display: grid; gap: var(--s3); padding: var(--s4) var(--s5) var(--s4) var(--s4); }
+  .plate__head { display: flex; justify-content: space-between; align-items: start; gap: var(--s3); }
+  .plate h3 {
+    font-family: var(--serif); font-weight: 650; font-size: 1.375rem; line-height: 1.15;
+    letter-spacing: -0.01em; text-wrap: balance;
+  }
+  .traits {
+    display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 var(--s5);
+    border-top: 1px solid var(--rule);
+  }
+  .trait { display: grid; align-content: start; gap: 0.1rem; padding-top: var(--s2); }
+  .trait dt { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .trait dd { font-size: 0.9375rem; line-height: 1.4; }
+  .trait dd .num { font-weight: 700; }
+  .trait dd .sub { display: block; color: var(--muted); font-size: 0.875rem; }
+  /* Specimen label: where it was found, in a ruled box like a collection tag. */
+  .specimen {
+    justify-self: start; display: inline-flex; flex-wrap: wrap; gap: 0 0.4em;
+    padding: 0.2rem var(--s2); border: 1px solid var(--rule-strong); border-radius: 2px;
+    font-size: 0.875rem; line-height: 1.4;
+  }
+  .specimen b { font-weight: 700; }
+
+  /* Verdict mark: the field-marker stroke on an identified plate. */
+  .mark {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3);
+    padding-top: var(--s2); border-top: 1px solid var(--rule);
+  }
+  .mark__tag {
+    padding: 0.15rem var(--s2); background: var(--marker); color: var(--on-marker); border-radius: 2px;
+    font-weight: 800; font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .mark p { font-size: 0.9375rem; font-weight: 600; line-height: 1.4; flex: 1 1 16rem; }
+  .mark a { display: inline-flex; align-items: center; min-height: var(--tap); font-weight: 700; font-size: 0.9375rem; }
+
+  /* HarmChip (same colors as the proof sheet) */
+  .harm {
+    display: inline-flex; align-items: center; gap: 0.4em; flex: none;
+    padding: 0.2em 0.65em; border-radius: 999px;
+    font-weight: 700; font-size: 0.8125rem; line-height: 1.3; white-space: nowrap;
+  }
+  .harm::before { content: ""; width: 0.5em; height: 0.5em; border-radius: 50%; }
+  .harm--harmful { background: var(--harm-harmful-bg); color: var(--harm-harmful-ink); }
+  .harm--harmful::before { background: var(--harm-harmful-dot); }
+  .harm--false { background: var(--harm-false-bg); color: var(--harm-false-ink); }
+  .harm--false::before { background: var(--harm-false-dot); }
+  .harm--unproven { background: var(--harm-unproven-bg); color: var(--harm-unproven-ink); }
+  .harm--unproven::before { background: var(--harm-unproven-dot); }
+
+  /* DataBadge */
+  .data-badge {
+    display: inline-flex; align-items: center; padding: 0.1em 0.6em;
+    border: 1px dashed var(--muted); border-radius: 2px;
+    font-weight: 600; font-size: 0.8125rem; white-space: nowrap;
+  }
+
+  /* Sections */
+  section { padding-block: var(--s9); border-top: 2px solid var(--ink); }
+  h2.title {
+    font-family: var(--serif); font-weight: 650; font-size: clamp(1.875rem, 1.3rem + 1.8vw, 2.75rem);
+    line-height: 1.1; letter-spacing: -0.015em; text-wrap: balance;
+  }
+  h3.sub {
+    font-family: var(--sans); font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase;
+    padding-bottom: var(--s2); border-bottom: 1px solid var(--ink);
+  }
+
+  /* FeaturedDebunk: plate 1 enlarged as a text page facing its frame. */
+  .featured { display: grid; grid-template-columns: 18rem minmax(0, 40rem); gap: var(--s7); justify-content: center; align-items: start; }
+  .featured__head { grid-column: 1 / -1; display: grid; gap: var(--s3); padding-left: calc(18rem + var(--s7)); }
+  .featured__meta { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .featured__text { display: grid; gap: var(--s6); }
+  .verdict {
+    display: grid; gap: var(--s3); padding: var(--s5);
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 6px;
+  }
+  .verdict .mark__tag { justify-self: start; }
+  .verdict p { font-family: var(--serif); font-size: 1.3125rem; line-height: 1.45; font-weight: 500; }
+  .verdict a { justify-self: start; display: inline-flex; align-items: center; min-height: var(--tap); font-weight: 700; }
+  .ledger { display: grid; gap: var(--s1); }
+  .ledger li { padding-block: var(--s3); border-bottom: 1px solid var(--rule); max-width: 65ch; }
+  .sources li { display: grid; gap: var(--s1); }
+  .sources .publisher { font-weight: 700; font-size: 0.9375rem; }
+  .sources a { display: inline-flex; min-height: var(--tap); align-items: center; }
+
+  /* CreatorLoop: the guide's key, read in order. */
+  .loop__head { display: grid; gap: var(--s3); max-width: 44rem; margin-bottom: var(--s7); }
+  .loop__head p { color: var(--muted); }
+  .loop { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s7); counter-reset: step; }
+  .loop li {
+    display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); column-gap: var(--s3); align-content: start;
+    padding-block: var(--s4); border-top: 1px solid var(--rule); counter-increment: step;
+  }
+  .loop li::before {
+    content: counter(step); grid-row: span 2;
+    font-family: var(--serif); font-weight: 700; font-size: 1.5rem; line-height: 1.1;
+  }
+  .loop strong { font-family: var(--serif); font-weight: 700; font-size: 1.25rem; }
+  .loop span { color: var(--muted); }
+
+  /* Footer */
+  footer { border-top: 2px solid var(--ink); padding-block: var(--s7); }
+  .footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s4); }
+  .footer p { font-family: var(--serif); font-weight: 700; font-size: 1.25rem; }
+
+  /* Medium: copy on top, frame and plates below. */
+  @media (max-width: 75rem) {
+    .hero { grid-template-columns: 14rem minmax(0, 1fr); }
+    .hero__copy { grid-column: 1 / -1; }
+    .lead { max-width: 44ch; }
+    .featured { grid-template-columns: 14rem minmax(0, 1fr); }
+    .featured__head { padding-left: 0; }
+  }
+
+  /* Phone */
+  @media (max-width: 47.5rem) {
+    .appbar > .nav { display: none; }
+    .menu { display: block; }
+    .appbar { padding-left: var(--s4); }
+    .hero { grid-template-columns: minmax(0, 1fr); gap: var(--s6); padding-block: var(--s6) var(--s8); }
+    .hero .presenter { width: min(100%, 12.5rem); justify-self: center; }
+    .btn { flex: 1 1 100%; }
+    .plate { grid-template-columns: minmax(0, 1fr); }
+    .plate__no {
+      grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s2);
+      padding: var(--s2) var(--s4); border-right: 0; border-bottom: 1px solid var(--rule);
+    }
+    .plate__no b { font-size: 1.25rem; }
+    .plate__body { padding: var(--s3) var(--s4) var(--s4); }
+    .plate__head { flex-direction: column; gap: var(--s2); }
+    .traits { grid-template-columns: minmax(0, 1fr); }
+    .featured { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+    .featured .presenter { width: min(100%, 14rem); }
+    .loop { grid-template-columns: minmax(0, 1fr); }
+    section { padding-block: var(--s8); }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn, .nav a { transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="appbar">
+    <a class="wordmark" href="/">MyBuster</a>
+    <nav class="nav" aria-label="Main">
+      <a href="/calendar">This week</a>
+      <a href="/calendar">Calendar</a>
+      <a href="/desk">Creator mode</a>
+    </nav>
+    <details class="menu">
+      <summary>
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M2 5h14M2 9h14M2 13h14"/></svg>
+        Menu
+      </summary>
+      <nav class="nav" aria-label="Main">
+        <a href="/calendar">This week</a>
+        <a href="/calendar">Calendar</a>
+        <a href="/desk">Creator mode</a>
+      </nav>
+    </details>
+  </header>
+</div>
+
+<main>
+  <div class="wrap hero">
+    <div class="hero__copy">
+      <h1>Find the health myth. Get the receipts. Make the debunk.</h1>
+      <p class="lead">Check a health claim against its sources before you share it.</p>
+      <div class="actions">
+        <a class="btn btn--primary" href="/calendar">See this week's myths</a>
+        <a class="btn btn--secondary" href="/desk">Creator mode</a>
+      </div>
+    </div>
+
+    <figure class="presenter">
+      <div class="presenter__frame">
+        <span class="ai-label">AI presenter</span>
+        <div class="presenter__state">
+          <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="9" width="34" height="26" rx="7"/><path d="M19 17v10l8-5z"/></svg>
+          <p>Video not ready</p>
+        </div>
+      </div>
+      <figcaption class="caption"><b>Plate 1</b><span>Lymphatic drainage debunk</span></figcaption>
+    </figure>
+
+    <div class="guide">
+      <div class="runhead">
+        <h2 id="plates-title">This week's myths, Oct 7 to Nov 6, 2026</h2>
+        <span class="data-badge">Fixture data</span>
+      </div>
+      <ol class="plates" aria-labelledby="plates-title">
+        <li class="plate">
+          <div class="plate__no"><span class="label">Plate</span><b>1</b></div>
+          <div class="plate__body">
+            <div class="plate__head">
+              <h3>Lymphatic drainage detoxes you and melts fat</h3>
+              <span class="harm harm--false">False</span>
+            </div>
+            <span class="specimen"><b>Found in</b> transcript, caption or on-screen text</span>
+            <dl class="traits">
+              <div class="trait"><dt>Claim</dt><dd>Pulls toxins out of the body and causes fat or weight loss.</dd></div>
+              <div class="trait"><dt>Reach</dt><dd><span class="num">49,537,321</span> topic views, Oct 7 to Nov 6, 2026<span class="sub">Cooling, video count −22% vs Sep 7 to Oct 6, 2026</span></dd></div>
+            </dl>
+            <div class="mark">
+              <span class="mark__tag">Verdict</span>
+              <p>There's no good evidence showing that this is true.</p>
+              <a href="/r/lymphatic-detox">Open the receipts</a>
+            </div>
+          </div>
+        </li>
+        <li class="plate">
+          <div class="plate__no"><span class="label">Plate</span><b>2</b></div>
+          <div class="plate__body">
+            <div class="plate__head">
+              <h3>Garlic paste destroys tumors</h3>
+              <span class="harm harm--harmful">Harmful</span>
+            </div>
+            <span class="specimen"><b>Found in</b> transcript or caption</span>
+            <dl class="traits">
+              <div class="trait"><dt>Why harmful</dt><dd>It can push people away from real cancer care.</dd></div>
+              <div class="trait"><dt>Reach</dt><dd><span class="num">5,768,385</span> topic views, Oct 7 to Nov 6, 2026<span class="sub">Trend unknown</span></dd></div>
+            </dl>
+          </div>
+        </li>
+        <li class="plate">
+          <div class="plate__no"><span class="label">Plate</span><b>3</b></div>
+          <div class="plate__body">
+            <div class="plate__head">
+              <h3>Mouth tape works, even for your jawline</h3>
+              <span class="harm harm--unproven">Unproven</span>
+            </div>
+            <span class="specimen"><b>Found in</b> transcript, caption or on-screen text</span>
+            <dl class="traits">
+              <div class="trait"><dt>Why unproven</dt><dd>Clinical benefit still needs study.</dd></div>
+              <div class="trait"><dt>Reach</dt><dd><span class="num">8,304,973</span> topic views, Oct 7 to Nov 6, 2026<span class="sub">Trend unknown</span></dd></div>
+            </dl>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- FeaturedDebunk -->
+  <section aria-labelledby="featured-title">
+    <div class="wrap featured">
+      <div class="featured__head">
+        <div class="featured__meta">
+          <span class="label">Plate 1, enlarged</span>
+          <span class="harm harm--false">False</span>
+          <span class="data-badge">Fixture data</span>
+        </div>
+        <h2 id="featured-title" class="title">Lymphatic drainage detoxes you and melts fat</h2>
+      </div>
+
+      <figure class="presenter">
+        <div class="presenter__frame">
+          <span class="ai-label">AI presenter</span>
+          <div class="presenter__state">
+            <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="9" width="34" height="26" rx="7"/><path d="M19 17v10l8-5z"/></svg>
+            <p>Video not ready</p>
+          </div>
+        </div>
+        <figcaption class="caption"><b>Plate 1</b><span>Lymphatic drainage debunk</span></figcaption>
+      </figure>
+
+      <div class="featured__text">
+        <div class="verdict">
+          <span class="mark__tag">Verdict</span>
+          <p>There's no good evidence that lymphatic drainage detoxes you or causes weight loss. It can reduce swelling for a while, and it plays a real role in treating lymphedema.</p>
+          <a href="/r/lymphatic-detox">Open the receipts</a>
+        </div>
+
+        <div class="ledger">
+          <h3 class="sub">What is true</h3>
+          <ul>
+            <li>It can reduce swelling and give a temporary slimmer, tighter look (UCLA Health).</li>
+            <li>It plays a critical role in treating lymphedema (UCLA Health).</li>
+          </ul>
+        </div>
+
+        <div class="ledger">
+          <h3 class="sub">What is false</h3>
+          <ul>
+            <li>That it causes weight loss. There is no evidence for that (UCLA Health, National Geographic).</li>
+            <li>That it gets rid of toxins. Those claims are unfounded (National Geographic).</li>
+          </ul>
+        </div>
+
+        <div class="ledger sources">
+          <h3 class="sub">Sources</h3>
+          <ul>
+            <li>
+              <span class="publisher">UCLA Health</span>
+              <a href="https://www.uclahealth.org/news/article/lymphatic-drainage-massage-separating-fact-fiction">Lymphatic drainage massage - separating fact from fiction</a>
+            </li>
+            <li>
+              <span class="publisher">National Geographic</span>
+              <a href="https://nationalgeographic.com/health/article/lymphatic-drainage-massage-therapy-wellness">What lymphatic drainage massage actually does for your body</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CreatorLoop -->
+  <section aria-labelledby="loop-title">
+    <div class="wrap">
+      <div class="loop__head">
+        <h2 id="loop-title" class="title">Creator mode, from radar to impact</h2>
+        <p>For people who make health content. AI drafts, people approve.</p>
+      </div>
+      <ol class="loop">
+        <li><strong>Radar</strong><span>Myths ranked by reach, with harm tier and trend against the previous window.</span></li>
+        <li><strong>Myth page</strong><span>Exact quotes with timestamps and links, and the voices already debunking it.</span></li>
+        <li><strong>Brief</strong><span>Verdict, what is true, what is false, and sources with verbatim excerpts.</span></li>
+        <li><strong>Studio</strong><span>Pick a format and a hook, edit the script, and every line is checked again.</span></li>
+        <li><strong>Video</strong><span>Record, caption and post. Vision QA flags on-screen text not in the approved script.</span></li>
+        <li><strong>Receipts</strong><span>A public page with the quote card, verdict, sources and a vote.</span></li>
+        <li><strong>Calendar</strong><span>This week's myths plus a watchlist, one week ahead.</span></li>
+        <li><strong>Impact</strong><span>Response reach against myth reach, and time from spike to first response.</span></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer">
+    <p>Find the health myth. Get the receipts. Make the debunk.</p>
+    <span class="data-badge">Fixture data</span>
+  </div>
+</footer>
+
+</body>
+</html>

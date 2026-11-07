@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyBuster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Azeret+Mono:wght@400..600&display=swap">
+<style>
+/* Type pairing: Bricolage Grotesque carries the playful voice (quirky optical sizes, narrow width for big headlines);
+   Source Serif 4 bold italic marks the one keyword and sets the analysis, so the evidence reads like reading, not UI;
+   Azeret Mono is kept for numbers, windows and labels, where tabular figures earn it. */
+:root {
+  --paper: #F2F4F1;
+  --ink: #15171A;
+  --ink-2: #4A5258;
+  --rule: #C9CFCB;
+  --lime: #D5F24B;
+  --harmful-text: #9F1D14;
+  --harmful-fill: #FBE4E0;
+  --false-text: #8A3B00;
+  --false-fill: #FDEBD6;
+  /* Open spec conflict: "unproven" is gray here (Linear web spec) vs amber (docs/WEB-APP.md). Gray until Vi decides. */
+  --unproven-text: #3F4A55;
+  --unproven-fill: #E3E7EB;
+  --graticule: color-mix(in srgb, var(--rule) 55%, transparent);
+
+  --sans: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  --serif: "Source Serif 4", Georgia, serif;
+  --mono: "Azeret Mono", ui-monospace, monospace;
+  --gutter: 16px;
+  --frame-r: 26px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
+@media (min-width: 700px) { :root { --gutter: 40px; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--ink-2) var(--paper); }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 500;
+  font-variation-settings: "opsz" 16;
+  font-size: 1rem;
+  line-height: 1.5;
+  caret-color: var(--ink);
+}
+::selection { background: var(--lime); color: var(--ink); }
+img, svg { display: block; max-width: 100%; }
+h1, h2, h3 { margin: 0; overflow-wrap: anywhere; text-wrap: balance; }
+p { margin: 0; }
+a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wrap { width: 100%; max-width: 1360px; margin-inline: auto; padding-inline: var(--gutter); min-width: 0; }
+.mono { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.kw { font-family: var(--serif); font-style: italic; font-weight: 700; font-variation-settings: normal; letter-spacing: 0; }
+.kw-mark { background-color: var(--lime); padding-inline: .1em; border-radius: .16em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* Shared pills */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 52px; padding: 0 26px; border-radius: 999px;
+  background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
+  font: inherit; font-weight: 700; font-size: 1.0625rem; white-space: nowrap;
+  text-decoration: none; cursor: pointer;
+}
+.btn:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.databadge {
+  display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px;
+  border: 1px solid var(--ink-2); color: var(--ink-2);
+  font-family: var(--mono); font-weight: 500; font-size: .75rem; line-height: 1.2; white-space: nowrap;
+}
+.chip {
+  display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px;
+  font-weight: 700; font-size: .8125rem; line-height: 1.5; white-space: nowrap;
+}
+.chip--harmful { color: var(--harmful-text); background: var(--harmful-fill); }
+.chip--false { color: var(--false-text); background: var(--false-fill); }
+.chip--unproven { color: var(--unproven-text); background: var(--unproven-fill); }
+.trend {
+  display: inline-flex; align-items: center; padding: 1px 10px; border-radius: 999px;
+  border: 1px solid var(--ink); font-family: var(--mono); font-weight: 600; font-size: .75rem; line-height: 1.5; white-space: nowrap;
+}
+
+/* AppBar */
+.appbar-wrap { position: sticky; top: 12px; z-index: 10; padding-top: 12px; }
+.appbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 6px 6px 6px 22px; border: 1px solid var(--ink); border-radius: 999px; background: var(--paper);
+}
+.wordmark { font-weight: 800; font-size: 1.375rem; font-variation-settings: "opsz" 48; font-stretch: 92%; letter-spacing: -.02em; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.nav-links { display: none; list-style: none; margin: 0; padding: 0; gap: 4px; }
+.nav-links a, .menu-panel a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px;
+  font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.nav-links a:hover, .menu-panel a:hover { background: var(--ink); color: var(--paper); }
+.menu { position: relative; }
+.menu summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px;
+  border-radius: 999px; background: var(--ink); color: var(--paper); font-weight: 700; white-space: nowrap;
+}
+.menu summary::-webkit-details-marker { display: none; }
+.menu-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); display: grid; gap: 2px; padding: 6px; min-width: 200px;
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 24px;
+}
+@media (min-width: 700px) { .nav-links { display: flex; } .menu { display: none; } }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; padding-top: 40px; padding-bottom: 72px; }
+.hero-copy { min-width: 0; display: grid; gap: 28px; align-content: start; }
+.headline {
+  font-weight: 800; font-variation-settings: "opsz" 96; font-stretch: 90%;
+  font-size: clamp(2.75rem, 1.5rem + 3.4vw, 4.75rem); line-height: .98; letter-spacing: -.035em;
+}
+.headline .kw { letter-spacing: -.01em; }
+.hero-actions { display: grid; gap: 22px; justify-items: start; }
+.search { width: 100%; max-width: 560px; display: grid; gap: 8px; }
+.search label { font-weight: 700; font-size: 1.0625rem; }
+.field {
+  display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 22px;
+  border: 1px solid var(--ink); border-radius: 999px; background: var(--paper);
+}
+.field:focus-within { outline: 3px solid var(--ink); outline-offset: 3px; }
+.field input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; border: 0; background: transparent; color: var(--ink);
+  font: inherit; font-size: 1rem; outline: none;
+}
+.field input::placeholder { color: var(--ink-2); opacity: 1; }
+.field .btn { min-height: 44px; padding: 0 20px; font-size: 1rem; flex: none; }
+.search-state { display: grid; gap: 10px; max-width: 560px; }
+.search-msg { font-weight: 600; color: var(--ink); }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.quick a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.quick a:hover { background: var(--ink); color: var(--paper); }
+.result { max-width: 560px; }
+
+/* Trending feed (MythFeedItem contact sheet) */
+.feed { min-width: 0; display: grid; gap: 20px; align-content: start; }
+.feed-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; padding-bottom: 14px; border-bottom: 1px solid var(--ink); }
+.feed-head h2 { font-weight: 800; font-variation-settings: "opsz" 48; font-size: 1.75rem; letter-spacing: -.02em; line-height: 1.1; }
+.feed-head .window { color: var(--ink-2); font-size: .875rem; }
+.frames { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; list-style: none; margin: 0; padding: 0; }
+.frame {
+  position: relative; min-width: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr);
+  border: 1px solid var(--ink); border-radius: var(--frame-r); background: var(--paper); overflow: hidden;
+  scroll-margin-top: 110px;
+}
+.frame:target { outline: 3px solid var(--ink); outline-offset: 4px; }
+.poster { display: grid; place-items: start center; padding-top: 16px; padding-bottom: 16px; font-family: var(--mono); font-weight: 600; font-size: 1.75rem; line-height: 1; }
+.poster--false { background: var(--false-fill); color: var(--false-text); }
+.poster--harmful { background: var(--harmful-fill); color: var(--harmful-text); }
+.poster--unproven { background: var(--unproven-fill); color: var(--unproven-text); }
+.frame-body { min-width: 0; display: grid; gap: 10px; align-content: start; padding: 16px 18px 18px; }
+.frame-title { font-weight: 700; font-variation-settings: "opsz" 24; font-size: 1.125rem; line-height: 1.2; letter-spacing: -.01em; }
+.frame-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.views { display: grid; gap: 0; }
+.views .num { font-size: 1.25rem; font-weight: 600; line-height: 1.3; }
+.views .win { font-size: .8125rem; color: var(--ink-2); }
+.match { font-size: .8125rem; line-height: 1.45; color: var(--ink-2); padding-top: 10px; border-top: 1px solid var(--rule); }
+.sticker {
+  position: absolute; top: 10px; right: 12px; z-index: 1; transform: rotate(-2deg);
+  padding: 4px 12px; border-radius: 999px; background: var(--lime); color: var(--ink);
+  font-weight: 800; font-size: .875rem; line-height: 1.3; border: 1px solid var(--ink);
+}
+.frame--hot .frame-body { padding-top: 50px; }
+.skeleton .frame-body span { display: block; height: 14px; border-radius: 999px; background: var(--rule); }
+.feed-state-note { color: var(--ink-2); font-size: .875rem; }
+
+@media (min-width: 700px) {
+  .frames { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+  .frames > .frame { grid-template-columns: minmax(0, 1fr); }
+  .frames > .frame .poster { aspect-ratio: 4 / 3; place-items: center; font-size: 3.25rem; }
+  .frames > li:nth-child(2) { margin-top: 56px; }
+  .frames > li:nth-child(3) { margin-top: 24px; }
+  .sticker { top: 14px; left: 14px; right: auto; }
+  .frame--hot .frame-body { padding-top: 16px; }
+}
+@media (min-width: 1100px) {
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 56px; padding-top: 64px; }
+}
+
+/* FeaturedDebunk */
+.featured { padding-top: 72px; padding-bottom: 88px; border-top: 1px solid var(--ink); }
+.stack { max-width: 46rem; margin-inline: auto; display: grid; gap: 32px; min-width: 0; }
+.stack-head { display: grid; gap: 14px; }
+.section-h { font-weight: 800; font-variation-settings: "opsz" 96; font-stretch: 92%; font-size: clamp(2rem, 1.3rem + 2.4vw, 3.25rem); line-height: 1.02; letter-spacing: -.03em; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.presenter { margin: 0; width: min(100%, 320px); display: grid; gap: 10px; }
+.screen {
+  position: relative; aspect-ratio: 9 / 16; border-radius: var(--frame-r); background: var(--ink); color: var(--paper);
+  display: grid; place-items: center; padding: 24px; text-align: center;
+}
+.ai-label {
+  position: absolute; top: 14px; left: 14px; padding: 3px 12px; border-radius: 999px;
+  background: var(--paper); color: var(--ink); font-weight: 700; font-size: .8125rem;
+}
+.not-ready { font-weight: 700; font-size: 1.25rem; }
+.presenter figcaption { font-weight: 600; color: var(--ink-2); font-size: .9375rem; }
+.label { font-family: var(--mono); font-weight: 600; font-size: .75rem; color: var(--ink-2); }
+.verdict { display: grid; gap: 8px; }
+.verdict p { font-family: var(--serif); font-weight: 400; font-size: clamp(1.375rem, 1.1rem + .9vw, 1.75rem); line-height: 1.35; max-width: 36em; }
+.facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.facts h3, .sources h3 { font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.25rem; letter-spacing: -.01em; padding-bottom: 10px; border-bottom: 1px solid var(--ink); }
+.facts ul { list-style: none; margin: 0; padding: 0; }
+.facts li { font-family: var(--serif); font-size: 1.0625rem; line-height: 1.5; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.sources { display: grid; gap: 14px; }
+.source-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; list-style: none; margin: 0; padding: 0; }
+.source { min-width: 0; display: grid; gap: 6px; align-content: start; padding: 18px 20px; border: 1px solid var(--ink); border-radius: 24px; }
+.source a { display: block; min-height: 44px; padding-top: 4px; padding-bottom: 4px; font-family: var(--serif); font-weight: 600; font-size: 1.125rem; line-height: 1.35; overflow-wrap: anywhere; }
+.source .host { font-family: var(--mono); font-size: .75rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.receipts-link { justify-self: start; }
+@media (min-width: 900px) {
+  .facts, .source-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Signal band */
+.band {
+  border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+  padding-top: 72px; padding-bottom: 80px;
+  background-color: var(--paper);
+  background-image:
+    repeating-linear-gradient(0deg, var(--graticule) 0 1px, transparent 1px 32px),
+    repeating-linear-gradient(90deg, var(--graticule) 0 1px, transparent 1px 32px);
+}
+.band-inner { display: grid; gap: 40px; }
+.band-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.band-head h2 { font-weight: 800; font-variation-settings: "opsz" 72; font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); line-height: 1.05; letter-spacing: -.025em; }
+.trace { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.trace-label { font-weight: 800; font-size: 1.0625rem; padding: 4px 14px; border-radius: 999px; background: var(--paper); border: 1px solid var(--ink); white-space: nowrap; }
+.trace-line { position: relative; height: 28px; min-width: 0; }
+.trace-line .dash { position: absolute; left: 0; top: 13px; width: 38%; border-top: 2px dashed var(--ink); }
+.trace-line .solid { position: absolute; left: 52%; right: 14px; top: 13px; border-top: 2px solid var(--ink); }
+.trace-line .lock { position: absolute; right: 0; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: var(--lime); border: 2px solid var(--ink); }
+.readouts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 0; }
+.readout { min-width: 0; display: grid; gap: 4px; padding: 20px 22px; background: var(--paper); border: 1px solid var(--ink); border-radius: 24px; }
+.readout dt { font-weight: 700; font-size: .9375rem; }
+.readout dd { margin: 0; display: grid; gap: 2px; }
+.readout .big { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; font-size: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem); line-height: 1.15; overflow-wrap: anywhere; }
+.readout .sub { font-family: var(--mono); font-weight: 500; font-size: .8125rem; color: var(--ink-2); }
+@media (min-width: 900px) { .readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* CreatorLoop */
+.creator { padding-top: 88px; padding-bottom: 96px; display: grid; gap: 40px; }
+.creator-head { display: grid; gap: 12px; max-width: 44rem; }
+.creator-head p { font-size: 1.125rem; color: var(--ink-2); }
+.route { --gap: 40px; position: relative; list-style: none; margin: 0; padding: 0; display: grid; gap: 28px; }
+.route::before { content: ""; position: absolute; left: 13px; top: 14px; bottom: 14px; border-left: 2px dashed var(--ink); }
+.stop { position: relative; min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 16px; row-gap: 4px; }
+.dot {
+  position: relative; z-index: 1; grid-row: span 2; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink);
+  font-family: var(--mono); font-weight: 600; font-size: .75rem;
+}
+.stop h3 { font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.1875rem; line-height: 1.25; padding-top: 2px; }
+.stop p { color: var(--ink-2); font-size: .9375rem; line-height: 1.45; max-width: 26ch; }
+.creator .btn { justify-self: start; }
+@media (min-width: 900px) {
+  .route { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 1fr; column-gap: 28px; row-gap: var(--gap); }
+  .route::before {
+    left: 14px; right: 0; top: 13px; bottom: auto; height: calc(50% + var(--gap) / 2 + 2px);
+    border: 2px dashed var(--ink); border-left: 0; border-radius: 0 56px 56px 0;
+  }
+  .stop { grid-template-columns: minmax(0, 1fr); row-gap: 10px; align-content: start; }
+  .dot { grid-row: auto; }
+  .stop:nth-child(-n+4) { grid-row: 1; }
+  .stop:nth-child(5) { grid-row: 2; grid-column: 4; }
+  .stop:nth-child(6) { grid-row: 2; grid-column: 3; }
+  .stop:nth-child(7) { grid-row: 2; grid-column: 2; }
+  .stop:nth-child(8) { grid-row: 2; grid-column: 1; }
+  .stop h3, .stop p { padding-right: 40px; }
+}
+
+/* Footer */
+.footer { border-top: 1px solid var(--ink); padding-top: 28px; padding-bottom: 40px; }
+.footer .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.footer p { font-weight: 700; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .frame { transition: transform 220ms var(--ease); }
+  .frame:hover { transform: translateY(-4px); }
+  .btn, .quick a { transition: transform 160ms var(--ease), opacity 160ms var(--ease); }
+  .btn:active, .quick a:active { transform: scale(.97); }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap appbar-wrap">
+  <header class="appbar">
+    <a class="wordmark" href="/">MyBuster</a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a href="/calendar">Calendar</a></li>
+        <li><a href="/desk">Creator mode</a></li>
+      </ul>
+      <details class="menu">
+        <summary>Menu</summary>
+        <div class="menu-panel">
+          <a href="/calendar">Calendar</a>
+          <a href="/desk">Creator mode</a>
+        </div>
+      </details>
+    </nav>
+  </header>
+</div>
+
+<main>
+  <div class="wrap hero">
+    <section class="hero-copy" aria-labelledby="hero-h">
+      <h1 id="hero-h" class="headline">Find the health myth. Get the <em class="kw kw-mark">receipts</em>. Make the debunk.</h1>
+      <div class="hero-actions">
+        <a class="btn" href="/calendar">See this week's myths</a>
+
+        <form class="search" role="search" action="#trending" method="get">
+          <label for="claim">Check a health claim</label>
+          <div class="field">
+            <input id="claim" name="q" type="search" placeholder="Type a claim, like lymphatic drainage burns fat" autocomplete="off">
+            <button class="btn" type="submit">Check it</button>
+          </div>
+        </form>
+
+        <div class="search-state" role="status">
+          <div hidden></div>
+          <p class="search-msg">We haven't checked this claim yet. Try one of these.</p>
+          <div class="search-msg row" hidden>
+            <span>We couldn't reach the feed. Showing saved myths.</span>
+            <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+          </div>
+          <article class="frame result" hidden aria-labelledby="result-title">
+            <div class="poster poster--false" aria-hidden="true">01</div>
+            <div class="frame-body">
+              <h2 id="result-title" class="frame-title">Lymphatic drainage detoxes you and melts fat</h2>
+              <div class="frame-tags"><span class="chip chip--false">False</span><span class="trend">Cooling −22%</span></div>
+              <p class="views"><span class="num mono">49,537,321</span><span class="win mono">topic views, Oct 7 to Nov 6, 2026</span></p>
+            </div>
+          </article>
+          <ul class="quick" aria-label="Myths on the radar">
+            <li><a href="#myth-lymphatic-detox">Lymphatic drainage</a></li>
+            <li><a href="#myth-garlic-tumor">Garlic and cancer</a></li>
+            <li><a href="#myth-mouth-taping">Mouth taping</a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="feed" id="trending" aria-labelledby="feed-h">
+      <div class="feed-head">
+        <h2 id="feed-h">Trending this week</h2>
+        <span class="window mono">Oct 7 to Nov 6, 2026</span>
+        <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+      </div>
+
+      <div class="skeleton" hidden>
+        <p class="feed-state-note">Loading trending myths</p>
+        <ul class="frames" aria-hidden="true">
+          <li class="frame"><div class="poster poster--unproven"></div><div class="frame-body"><span></span><span></span></div></li>
+          <li class="frame"><div class="poster poster--unproven"></div><div class="frame-body"><span></span><span></span></div></li>
+          <li class="frame"><div class="poster poster--unproven"></div><div class="frame-body"><span></span><span></span></div></li>
+        </ul>
+      </div>
+
+      <p class="feed-state-note" hidden>You don't need to sign in to see trending myths.</p>
+
+      <article class="frame" hidden aria-label="Partial data example">
+        <div class="poster poster--unproven" aria-hidden="true">03</div>
+        <div class="frame-body">
+          <h3 class="frame-title">Mouth tape works, even for your jawline</h3>
+          <div class="frame-tags"><span class="chip chip--unproven">Unproven</span><span class="trend">Pending</span></div>
+          <p class="views"><span class="num">Pending</span><span class="win mono">topic views, Oct 7 to Nov 6, 2026</span></p>
+        </div>
+      </article>
+
+      <ol class="frames">
+        <li class="frame frame--hot" id="myth-lymphatic-detox">
+          <span class="sticker">Trending</span>
+          <div class="poster poster--false" aria-hidden="true">01</div>
+          <div class="frame-body">
+            <h3 class="frame-title">Lymphatic drainage detoxes you and melts fat</h3>
+            <div class="frame-tags"><span class="chip chip--false">False</span><span class="trend">Cooling −22%</span></div>
+            <p class="views"><span class="num mono">49,537,321</span><span class="win mono">topic views, Oct 7 to Nov 6, 2026</span></p>
+            <p class="match">Topic: exact phrase "lymphatic drainage" in transcript, caption or on-screen text. Claim: a separate fuzzy search for "lymphatic detox", "lymphatic toxins", "lymphatic debloat", "lymphatic weight loss" or "lymphatic flush" in transcript or caption, so it is not a strict subset of the topic.</p>
+          </div>
+        </li>
+        <li class="frame" id="myth-garlic-tumor">
+          <div class="poster poster--harmful" aria-hidden="true">02</div>
+          <div class="frame-body">
+            <h3 class="frame-title">Garlic paste destroys tumors</h3>
+            <div class="frame-tags"><span class="chip chip--harmful">Harmful</span><span class="trend">Trend unknown</span></div>
+            <p class="views"><span class="num mono">5,768,385</span><span class="win mono">topic views, Oct 7 to Nov 6, 2026</span></p>
+            <p class="match">Exact word "garlic" plus "tumor", "tumors" or "cancer" in transcript or caption. Many matches are unrelated (recipes, research on body odor), so stance labels decide what counts as promotion.</p>
+          </div>
+        </li>
+        <li class="frame" id="myth-mouth-taping">
+          <div class="poster poster--unproven" aria-hidden="true">03</div>
+          <div class="frame-body">
+            <h3 class="frame-title">Mouth tape works, even for your jawline</h3>
+            <div class="frame-tags"><span class="chip chip--unproven">Unproven</span><span class="trend">Trend unknown</span></div>
+            <p class="views"><span class="num mono">8,304,973</span><span class="win mono">topic views, Oct 7 to Nov 6, 2026</span></p>
+            <p class="match">Exact phrases "mouth taping", "mouth tape", "tape my mouth" or "taping my mouth" in transcript, caption or on-screen text. Transcript only: 65 videos, 2,929,555 views. Many are jokes or ads, so stance labels matter.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="featured" id="featured" aria-labelledby="featured-h">
+    <div class="wrap">
+      <div class="stack">
+        <div class="stack-head">
+          <h2 id="featured-h" class="section-h">Lymphatic drainage <em class="kw">detoxes</em> you and melts fat</h2>
+          <div class="row">
+            <span class="chip chip--false">False</span>
+            <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+          </div>
+        </div>
+
+        <figure class="presenter">
+          <div class="screen">
+            <span class="ai-label">AI presenter</span>
+            <p class="not-ready">Video not ready</p>
+          </div>
+          <figcaption>Lymphatic drainage debunk</figcaption>
+        </figure>
+
+        <div class="verdict">
+          <span class="label">Verdict</span>
+          <p>There's no good evidence that lymphatic drainage detoxes you or causes weight loss. It can reduce swelling for a while, and it plays a real role in treating lymphedema.</p>
+        </div>
+
+        <div class="facts">
+          <div>
+            <h3>What is true</h3>
+            <ul>
+              <li>It can reduce swelling and give a temporary slimmer, tighter look (UCLA Health).</li>
+              <li>It plays a critical role in treating lymphedema (UCLA Health).</li>
+            </ul>
+          </div>
+          <div>
+            <h3>What is false</h3>
+            <ul>
+              <li>That it causes weight loss. There is no evidence for that (UCLA Health, National Geographic).</li>
+              <li>That it gets rid of toxins. Those claims are unfounded (National Geographic).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="sources">
+          <h3>Sources</h3>
+          <ul class="source-list">
+            <li class="source">
+              <span class="label">UCLA Health</span>
+              <a href="https://www.uclahealth.org/news/article/lymphatic-drainage-massage-separating-fact-fiction">Lymphatic drainage massage - separating fact from fiction</a>
+              <span class="host">uclahealth.org</span>
+            </li>
+            <li class="source">
+              <span class="label">National Geographic</span>
+              <a href="https://nationalgeographic.com/health/article/lymphatic-drainage-massage-therapy-wellness">What lymphatic drainage massage actually does for your body</a>
+              <span class="host">nationalgeographic.com</span>
+            </li>
+          </ul>
+        </div>
+
+        <a class="btn receipts-link" href="/r/lymphatic-detox">Read the receipts</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="band-h">
+    <div class="wrap band-inner">
+      <div class="band-head">
+        <h2 id="band-h">What the feed shows, and what the <em class="kw">sources</em> say</h2>
+        <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+      </div>
+
+      <div class="trace" role="img" aria-label="The claim line is dashed and stops short: it has no source. The sources line is solid and locks at the right.">
+        <span class="trace-label">Claim</span>
+        <span class="trace-line" aria-hidden="true"><span class="dash"></span><span class="solid"></span><span class="lock"></span></span>
+        <span class="trace-label">Sources</span>
+      </div>
+
+      <dl class="readouts">
+        <div class="readout">
+          <dt>Topic views</dt>
+          <dd><span class="big">49,537,321</span><span class="sub">Oct 7 to Nov 6, 2026</span></dd>
+        </div>
+        <div class="readout">
+          <dt>Trend</dt>
+          <dd><span class="big">Cooling −22%</span><span class="sub">video count vs Sep 7 to Oct 6, 2026</span></dd>
+        </div>
+        <div class="readout">
+          <dt>Sources</dt>
+          <dd><span class="big">2</span><span class="sub">UCLA Health, National Geographic</span></dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="wrap creator" aria-labelledby="creator-h">
+    <div class="creator-head">
+      <h2 id="creator-h" class="section-h">Make a <em class="kw">debunk</em>, step by step</h2>
+      <p>For creators and health clinicians. AI drafts, people approve.</p>
+    </div>
+    <ol class="route">
+      <li class="stop"><span class="dot" aria-hidden="true">1</span><h3>Radar</h3><p>Myths ranked by reach, with harm tier and trend.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">2</span><h3>Myth page</h3><p>Exact quotes with timestamps and links.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">3</span><h3>Brief</h3><p>Verdict, what is true, what is false, sources.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">4</span><h3>Studio</h3><p>Pick a format and a hook. Every line is re-checked.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">5</span><h3>Video</h3><p>Record, edit, caption. On-screen text is checked.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">6</span><h3>Receipts</h3><p>A public page with the verdict and sources.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">7</span><h3>Calendar</h3><p>This week's myths, one week ahead.</p></li>
+      <li class="stop"><span class="dot" aria-hidden="true">8</span><h3>Impact</h3><p>Response reach against myth reach.</p></li>
+    </ol>
+    <a class="btn" href="/desk">Open Creator mode</a>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>Find the health myth. Get the receipts. Make the debunk.</p>
+    <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+  </div>
+</footer>
+
+</body>
+</html>

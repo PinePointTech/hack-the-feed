@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyBuster</title>
+<meta name="description" content="Find the health myth. Get the receipts. Make the debunk.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Type: Instrument Sans for headlines and body, a crisp panel-label grotesk with a width axis that reads like silkscreened front-panel lettering without costume.
+     Martian Mono for numeric readouts only, a squared monospaced face whose figures line up like a scope's measurement row. Never used for body copy. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wdth,wght@75..100,400..700&family=Martian+Mono:wdth,wght@87.5,400..600&display=swap">
+<style>
+  /* Direction: signal bench.
+     Translation: a challenger world taken from dark CRT glass to a light ground.
+     Green phosphor on black becomes deep signal-blue ink on off-white instrument paper.
+     The phosphor glow becomes a short, soft ink bleed under the live trace only.
+     The bezel's black plastic becomes a pale warm-gray panel with printed labels. */
+  :root {
+    --ground: #f2f3ef;        /* bench paper */
+    --panel: #fbfbf8;         /* scope screen */
+    --bezel: #e4e6e0;         /* front panel */
+    --ink: #131518;           /* 16.6:1 on ground */
+    --ink-muted: #4a5056;     /* 7.4:1 on ground, 7.9:1 on panel */
+    --rule: #c8cbc4;
+    --rule-strong: #8d928b;
+    --grat: #d3d6cf;          /* graticule lines */
+    --grat-axis: #aeb2aa;
+    --signal: #1a3ea6;        /* live trace and the primary action only; white on it 8.9:1 */
+    --signal-hover: #132f80;
+    --on-signal: #ffffff;
+    --drift: #6d737a;         /* free-running claim trace, 4.7:1 on panel */
+
+    /* Harm chips, same values as the proof sheet. */
+    --harm-harmful-bg: #fbe1dd; --harm-harmful-ink: #8e1a0f; --harm-harmful-dot: #cf2e1c;
+    --harm-false-bg: #fde6d2;   --harm-false-ink: #823a00;   --harm-false-dot: #e36c0a;
+    --harm-unproven-bg: #e2e6ea; --harm-unproven-ink: #3a4248; --harm-unproven-dot: #78828b;
+
+    --font-text: "Instrument Sans", system-ui, sans-serif;
+    --font-num: "Martian Mono", ui-monospace, monospace;
+
+    --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem; --s8: 4.5rem; --s9: 7rem;
+    --r-panel: 14px; --r-screen: 6px; --r-pill: 999px;
+    --tap: 44px;
+    --focus: 0 0 0 3px var(--ground), 0 0 0 6px var(--signal);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--rule-strong) var(--ground); }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--font-text); font-size: 1.125rem; line-height: 1.55;
+  }
+  ::selection { background: var(--signal); color: var(--on-signal); }
+  h1, h2, h3, p, ul, ol, figure { margin: 0; }
+  ul, ol { padding: 0; list-style: none; }
+  a { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+  a:focus-visible, summary:focus-visible { outline: none; box-shadow: var(--focus); }
+  .wrap { width: min(100% - 2 * var(--s4), 86rem); margin-inline: auto; }
+  .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: -0.01em; }
+  /* Printed panel lettering: small, condensed, set in the text face. */
+  .label { font-stretch: 80%; font-weight: 600; font-size: 0.8125rem; letter-spacing: 0.03em; color: var(--ink-muted); }
+
+  /* AppBar, same pill as the proof sheet. */
+  .appbar {
+    position: sticky; top: var(--s3); z-index: 2; margin-top: var(--s3);
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+    padding: var(--s2) var(--s2) var(--s2) var(--s5);
+    background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-pill);
+    box-shadow: 0 6px 18px -12px rgb(19 21 24 / 0.35);
+  }
+  .wordmark { font-stretch: 85%; font-weight: 700; font-size: 1.375rem; letter-spacing: -0.01em; text-decoration: none; min-height: var(--tap); display: inline-flex; align-items: center; }
+  .nav { display: flex; gap: var(--s1); }
+  .nav a { display: inline-flex; align-items: center; min-height: var(--tap); padding-inline: var(--s4); border-radius: var(--r-pill); font-weight: 600; font-size: 0.9375rem; text-decoration: none; }
+  .nav a:hover { background: var(--ground); }
+  .menu { display: none; position: relative; }
+  .menu summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); padding-inline: var(--s4); border: 1px solid var(--rule); border-radius: var(--r-pill); font-weight: 600; font-size: 0.9375rem; }
+  .menu summary::-webkit-details-marker { display: none; }
+  .menu .nav { position: absolute; right: 0; top: calc(100% + var(--s2)); flex-direction: column; min-width: 13rem; padding: var(--s2); background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-panel); box-shadow: 0 12px 28px -16px rgb(19 21 24 / 0.4); }
+
+  /* Buttons */
+  .actions { display: flex; flex-wrap: wrap; gap: var(--s3); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 3.25rem; padding-inline: var(--s5); border-radius: var(--r-pill); border: 1.5px solid var(--ink); font-weight: 600; font-size: 1.0625rem; text-decoration: none; }
+  .btn--primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); }
+  .btn--primary:hover { background: var(--signal-hover); border-color: var(--signal-hover); }
+  .btn--secondary { background: transparent; }
+  .btn--secondary:hover { background: var(--panel); }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: minmax(0, 25rem) minmax(0, 1fr); gap: var(--s7); align-items: start; padding-block: var(--s5) var(--s8); }
+  .hero__copy { display: grid; gap: var(--s5); padding-top: var(--s6); }
+  h1 { font-stretch: 88%; font-weight: 700; font-size: clamp(2.5rem, 1.55rem + 2.9vw, 4rem); line-height: 1.03; letter-spacing: -0.03em; text-wrap: balance; }
+  .lead { font-size: 1.3125rem; color: var(--ink-muted); max-width: 30ch; }
+
+  /* Scope: the front panel that carries channel one, the graticule, the knobs and the readout row. */
+  .scope { background: var(--bezel); border: 1px solid var(--rule); border-radius: var(--r-panel); padding: var(--s4); display: grid; gap: var(--s4); box-shadow: 0 18px 40px -30px rgb(19 21 24 / 0.45); }
+  .scope__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); padding-inline: var(--s1); }
+  .scope__bar h2 { font-stretch: 85%; font-weight: 700; font-size: 0.9375rem; letter-spacing: 0.01em; }
+  .scope__deck { display: grid; grid-template-columns: 10rem minmax(0, 24rem) minmax(0, 1fr); gap: var(--s4); align-items: start; }
+
+  /* Channel one: the presenter frame. */
+  .presenter { display: grid; gap: var(--s2); }
+  .presenter__frame {
+    position: relative; aspect-ratio: 9 / 16; background: var(--panel);
+    border: 1px solid var(--rule-strong); border-radius: var(--r-screen);
+    display: grid; place-items: center; text-align: center; padding: var(--s4);
+  }
+  .presenter__frame svg { width: 2.5rem; height: 2.5rem; color: var(--ink-muted); }
+  .presenter__state { display: grid; justify-items: center; gap: var(--s2); }
+  .presenter__state p { font-weight: 600; font-size: 1rem; line-height: 1.3; }
+  .ai-label { position: absolute; top: var(--s2); left: var(--s2); padding: 0.1rem var(--s2); background: var(--ink); color: var(--panel); border-radius: 4px; font-stretch: 85%; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.02em; }
+  .ch { display: flex; align-items: center; gap: var(--s2); }
+  .ch__dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 2px solid var(--ink); }
+
+  /* Graticule: ten divisions each way, square. */
+  .screen { display: grid; gap: var(--s2); }
+  .grat { position: relative; aspect-ratio: 1; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: var(--r-screen); overflow: hidden; }
+  .grat svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .trace--lock { filter: drop-shadow(0 1.5px 1.5px rgb(26 62 166 / 0.28)); }
+  .legend { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--rule); font-size: 0.875rem; color: var(--ink-muted); line-height: 1.4; }
+  .legend span { display: inline-flex; align-items: center; gap: var(--s2); }
+  .legend i { width: 1.25rem; height: 0; border-top: 2px solid var(--signal); }
+  .legend i.free { border-top: 2px dashed var(--drift); }
+
+  /* Knobs: static detented dials with printed settings. */
+  .knobs { display: grid; gap: var(--s4); }
+  .knob { display: grid; grid-template-columns: 5.25rem minmax(0, 1fr); gap: var(--s3); align-items: center; }
+  .knob svg { width: 100%; height: auto; display: block; }
+  .knob__text { display: grid; gap: 0.125rem; }
+  .knob__name { font-stretch: 80%; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.03em; }
+  .knob__val { font-weight: 600; font-size: 0.9375rem; line-height: 1.35; }
+  .knob__val .num { font-size: 0.8125rem; }
+
+  /* Readout row */
+  .readouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--panel); border: 1px solid var(--rule-strong); border-radius: var(--r-screen); }
+  .readout { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s4); }
+  .readout + .readout { border-left: 1px solid var(--rule); }
+  .readout__head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+  .readout__head .num { font-size: 0.8125rem; color: var(--ink-muted); }
+  .readout h3 { font-stretch: 88%; font-weight: 700; font-size: 1.125rem; line-height: 1.2; text-wrap: balance; min-height: 2.4em; }
+  .readout__value { font-size: 1.375rem; line-height: 1.2; }
+  .readout__label { font-size: 0.875rem; color: var(--ink-muted); line-height: 1.35; }
+  .run { display: inline-flex; align-items: center; gap: var(--s2); font-size: 0.8125rem; font-weight: 600; color: var(--ink-muted); }
+  .run svg { width: 1.75rem; height: 0.75rem; }
+
+  /* HarmChip, same colors as the proof sheet. */
+  .harm { display: inline-flex; align-items: center; gap: 0.4em; padding: 0.2em 0.65em; border-radius: var(--r-pill); font-weight: 700; font-size: 0.8125rem; line-height: 1.3; white-space: nowrap; }
+  .harm::before { content: ""; width: 0.5em; height: 0.5em; border-radius: 50%; }
+  .harm--harmful { background: var(--harm-harmful-bg); color: var(--harm-harmful-ink); }
+  .harm--harmful::before { background: var(--harm-harmful-dot); }
+  .harm--false { background: var(--harm-false-bg); color: var(--harm-false-ink); }
+  .harm--false::before { background: var(--harm-false-dot); }
+  .harm--unproven { background: var(--harm-unproven-bg); color: var(--harm-unproven-ink); }
+  .harm--unproven::before { background: var(--harm-unproven-dot); }
+
+  /* TrendBadge */
+  .trend { align-self: flex-start; display: inline-flex; gap: 0.35em; align-items: baseline; padding: 0.1em 0.55em; border: 1px solid var(--rule-strong); border-radius: 4px; font-size: 0.875rem; font-weight: 600; }
+  .trend__window { font-size: 0.8125rem; color: var(--ink-muted); line-height: 1.35; }
+
+  /* DataBadge */
+  .data-badge { display: inline-flex; align-items: center; padding: 0.1em 0.6em; border: 1px dashed var(--ink-muted); border-radius: 4px; font-stretch: 85%; font-weight: 600; font-size: 0.8125rem; white-space: nowrap; }
+
+  /* Verdict, on the locked readout. */
+  .verdict-line { display: grid; gap: var(--s2); margin-top: auto; padding-top: var(--s3); border-top: 1px solid var(--rule); }
+  .tag { justify-self: start; padding: 0.1em 0.55em; background: var(--ink); color: var(--panel); border-radius: 4px; font-stretch: 85%; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.02em; }
+  .verdict-line p { font-size: 0.9375rem; line-height: 1.4; font-weight: 600; }
+  .verdict-line a, .verdict a { display: inline-flex; align-items: center; min-height: var(--tap); font-weight: 600; font-size: 0.9375rem; justify-self: start; }
+
+  /* Sections */
+  section { padding-block: var(--s9); border-top: 1px solid var(--rule); }
+  h2.big { font-stretch: 88%; font-weight: 700; font-size: clamp(1.875rem, 1.3rem + 1.8vw, 2.75rem); line-height: 1.08; letter-spacing: -0.025em; text-wrap: balance; }
+  h3.sub { font-stretch: 88%; font-weight: 700; font-size: 1.375rem; line-height: 1.2; }
+
+  /* FeaturedDebunk: one channel, enlarged, with the trigger locked on Sources. */
+  .featured { display: grid; grid-template-columns: 17rem minmax(0, 44rem); gap: var(--s7); justify-content: center; align-items: start; }
+  .featured__body { display: grid; gap: var(--s6); }
+  .featured__head { display: grid; gap: var(--s3); }
+  .featured__meta { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .verdict { display: grid; gap: var(--s3); padding: var(--s5); background: var(--panel); border: 1px solid var(--rule-strong); border-radius: var(--r-screen); position: relative; overflow: hidden; }
+  .verdict__lock { width: 100%; height: 1.75rem; display: block; }
+  .verdict p { font-size: 1.3125rem; line-height: 1.45; font-weight: 500; }
+  .ledger { display: grid; gap: var(--s3); }
+  .ledger li { padding-block: var(--s3); border-top: 1px solid var(--rule); max-width: 65ch; }
+  .sources li { display: grid; gap: var(--s1); }
+  .sources .publisher { font-stretch: 85%; font-weight: 700; font-size: 0.9375rem; }
+  .sources a { font-weight: 500; }
+
+  /* CreatorLoop: the time base, eight divisions left to right. */
+  .loop__head { display: grid; gap: var(--s3); max-width: 44rem; margin-bottom: var(--s7); }
+  .loop__head p { color: var(--ink-muted); }
+  .loop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); counter-reset: step; border-top: 2px solid var(--ink); }
+  .loop li { position: relative; display: grid; gap: var(--s2); align-content: start; padding: var(--s4) var(--s5) var(--s6) 0; counter-increment: step; }
+  .loop li::before { content: counter(step, decimal-leading-zero); font-family: var(--font-num); font-size: 0.8125rem; color: var(--ink-muted); }
+  .loop li::after { content: ""; position: absolute; top: -2px; left: 0; width: 2px; height: 0.75rem; background: var(--ink); }
+  .loop strong { font-stretch: 88%; font-weight: 700; font-size: 1.1875rem; }
+  .loop span { color: var(--ink-muted); }
+
+  footer { border-top: 1px solid var(--rule); padding-block: var(--s7); }
+  .footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s4); }
+  .footer p { font-stretch: 88%; font-weight: 700; font-size: 1.25rem; }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Medium: copy on top, scope below. */
+  @media (max-width: 75rem) {
+    .hero { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+    .hero__copy { padding-top: 0; }
+    .lead { max-width: 44ch; }
+    .loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  /* Phone: the graticule stays square at full width, channel one and the knobs sit beside each other, readouts drop below. */
+  @media (max-width: 47.5rem) {
+    .appbar > .nav { display: none; }
+    .menu { display: block; }
+    .appbar { padding-left: var(--s4); }
+    .hero { padding-block: var(--s6) var(--s8); }
+    .btn { flex: 1 1 100%; }
+    .scope { padding: var(--s3); gap: var(--s3); }
+    .scope__deck { grid-template-columns: 8.5rem minmax(0, 1fr); gap: var(--s3); }
+    .screen { grid-column: 1 / -1; grid-row: 1; }
+    .knob { grid-template-columns: minmax(0, 1fr); gap: var(--s1); }
+    .knob svg { width: 4.25rem; }
+    .readouts { grid-template-columns: minmax(0, 1fr); }
+    .readout + .readout { border-left: 0; border-top: 1px solid var(--rule); }
+    .readout h3 { min-height: 0; }
+    .featured { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+    .featured .presenter { width: min(100%, 14rem); }
+    .loop { grid-template-columns: minmax(0, 1fr); }
+    section { padding-block: var(--s8); }
+  }
+
+  /* The one authored moment: the unsourced claim trace drifts, the sourced trace holds still. */
+  @media (prefers-reduced-motion: no-preference) {
+    .drift { animation: drift 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate; }
+    .drift--b { animation-duration: 3.6s; animation-delay: -1.2s; }
+    @keyframes drift { from { transform: translateX(-3px); } to { transform: translateX(5px); } }
+    .btn, .nav a { transition: background-color 160ms ease-out, border-color 160ms ease-out; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="appbar">
+    <a class="wordmark" href="/">MyBuster</a>
+    <nav class="nav" aria-label="Main">
+      <a href="/calendar">This week</a>
+      <a href="/calendar">Calendar</a>
+      <a href="/desk">Creator mode</a>
+    </nav>
+    <details class="menu">
+      <summary>
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M2 5h14M2 9h14M2 13h14"/></svg>
+        Menu
+      </summary>
+      <nav class="nav" aria-label="Main">
+        <a href="/calendar">This week</a>
+        <a href="/calendar">Calendar</a>
+        <a href="/desk">Creator mode</a>
+      </nav>
+    </details>
+  </header>
+</div>
+
+<main>
+  <div class="wrap hero">
+    <div class="hero__copy">
+      <h1>Find the health myth. Get the receipts. Make the debunk.</h1>
+      <p class="lead">Check a health claim against its sources before you share it.</p>
+      <div class="actions">
+        <a class="btn btn--primary" href="/calendar">See this week's myths</a>
+        <a class="btn btn--secondary" href="/desk">Creator mode</a>
+      </div>
+    </div>
+
+    <div class="scope" aria-labelledby="scope-title">
+      <div class="scope__bar">
+        <h2 id="scope-title">This week's myths, Oct 7 to Nov 6, 2026</h2>
+        <span class="data-badge">Fixture data</span>
+      </div>
+
+      <div class="scope__deck">
+        <figure class="presenter">
+          <figcaption class="ch label"><span class="ch__dot" aria-hidden="true"></span>Channel 1</figcaption>
+          <div class="presenter__frame">
+            <span class="ai-label">AI presenter</span>
+            <div class="presenter__state">
+              <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="9" width="34" height="26" rx="7"/><path d="M19 17v10l8-5z"/></svg>
+              <p>Video not ready</p>
+            </div>
+          </div>
+          <span class="label">Lymphatic drainage debunk</span>
+        </figure>
+
+        <div class="screen">
+          <div class="grat" role="img" aria-label="Lymphatic drainage claim. The claim trace drifts free because no source triggers it. The debunk trace locks with the trigger set to Sources.">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <g stroke="var(--grat)" stroke-width="0.25" vector-effect="non-scaling-stroke">
+                <path d="M10 0V100M20 0V100M30 0V100M40 0V100M60 0V100M70 0V100M80 0V100M90 0V100M0 10H100M0 20H100M0 30H100M0 40H100M0 60H100M0 70H100M0 80H100M0 90H100" vector-effect="non-scaling-stroke"/>
+              </g>
+              <g stroke="var(--grat-axis)" stroke-width="1" vector-effect="non-scaling-stroke">
+                <path d="M50 0V100M0 50H100" vector-effect="non-scaling-stroke"/>
+                <path d="M2 49V51M4 49V51M6 49V51M8 49V51M12 49V51M14 49V51M16 49V51M18 49V51M22 49V51M24 49V51M26 49V51M28 49V51M32 49V51M34 49V51M36 49V51M38 49V51M42 49V51M44 49V51M46 49V51M48 49V51M52 49V51M54 49V51M56 49V51M58 49V51M62 49V51M64 49V51M66 49V51M68 49V51M72 49V51M74 49V51M76 49V51M78 49V51M82 49V51M84 49V51M86 49V51M88 49V51M92 49V51M94 49V51M96 49V51M98 49V51M49 2H51M49 4H51M49 6H51M49 8H51M49 12H51M49 14H51M49 16H51M49 18H51M49 22H51M49 24H51M49 26H51M49 28H51M49 32H51M49 34H51M49 36H51M49 38H51M49 42H51M49 44H51M49 46H51M49 48H51M49 52H51M49 54H51M49 56H51M49 58H51M49 62H51M49 64H51M49 66H51M49 68H51M49 72H51M49 74H51M49 76H51M49 78H51M49 82H51M49 84H51M49 86H51M49 88H51M49 92H51M49 94H51M49 96H51M49 98H51" vector-effect="non-scaling-stroke"/>
+              </g>
+              <!-- Claim trace, free running: no trigger, so successive sweeps never line up. -->
+              <g fill="none" stroke="var(--drift)" stroke-width="1.5" stroke-linejoin="round" vector-effect="non-scaling-stroke">
+                <path class="drift" opacity="0.9" d="M0 30 L6 22 L11 34 L17 18 L22 31 L28 14 L33 29 L39 20 L45 36 L50 16 L56 27 L61 12 L67 33 L72 19 L78 30 L83 15 L89 28 L94 21 L100 33" vector-effect="non-scaling-stroke"/>
+                <path class="drift drift--b" opacity="0.45" d="M0 24 L5 33 L10 19 L16 30 L21 15 L27 32 L32 21 L38 35 L44 17 L49 29 L55 13 L60 31 L66 22 L71 34 L77 16 L82 29 L88 18 L93 32 L100 20" vector-effect="non-scaling-stroke"/>
+                <path class="drift" opacity="0.25" d="M0 35 L4 21 L9 29 L15 13 L20 27 L26 19 L31 36 L37 15 L43 28 L48 22 L54 35 L59 17 L65 26 L70 13 L76 31 L81 24 L87 35 L92 16 L100 27" vector-effect="non-scaling-stroke"/>
+              </g>
+              <!-- Trigger level marker, set to Sources. -->
+              <g fill="var(--signal)"><path d="M0 70 L3.2 72 L0 74 Z"/></g>
+              <path d="M0 72H100" stroke="var(--signal)" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.5" vector-effect="non-scaling-stroke"/>
+              <!-- Debunk trace, triggered on Sources: every sweep lands on the same line. -->
+              <path class="trace--lock" fill="none" stroke="var(--signal)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"
+                d="M0 72 C5 72 5 62 10 62 C15 62 15 82 20 82 C25 82 25 62 30 62 C35 62 35 82 40 82 C45 82 45 62 50 62 C55 62 55 82 60 82 C65 82 65 62 70 62 C75 62 75 82 80 82 C85 82 85 62 90 62 C95 62 95 72 100 72"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="knobs">
+          <div class="knob">
+            <svg viewBox="0 0 84 84" aria-hidden="true">
+              <g stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round">
+                <path d="M17 67 L13 71"/><path d="M10 42 L5 42"/><path d="M17 17 L13 13"/><path d="M42 10 L42 5"/><path d="M67 17 L71 13"/><path d="M74 42 L79 42"/><path d="M67 67 L71 71"/>
+              </g>
+              <circle cx="42" cy="42" r="26" fill="var(--panel)" stroke="var(--rule-strong)" stroke-width="1.5"/>
+              <circle cx="42" cy="42" r="19" fill="var(--bezel)" stroke="var(--rule-strong)"/>
+              <path d="M42 42 L58 26" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <div class="knob__text">
+              <span class="knob__name">Time window</span>
+              <span class="knob__val">Oct 7 to Nov 6, 2026</span>
+            </div>
+          </div>
+          <div class="knob">
+            <svg viewBox="0 0 84 84" aria-hidden="true">
+              <g stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round">
+                <path d="M17 67 L13 71"/><path d="M42 10 L42 5"/><path d="M67 67 L71 71"/>
+              </g>
+              <circle cx="42" cy="42" r="26" fill="var(--panel)" stroke="var(--rule-strong)" stroke-width="1.5"/>
+              <circle cx="42" cy="42" r="19" fill="var(--bezel)" stroke="var(--rule-strong)"/>
+              <path d="M42 42 L58 58" stroke="var(--signal)" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <div class="knob__text">
+              <span class="knob__name">Trigger</span>
+              <span class="knob__val">Sources</span>
+            </div>
+          </div>
+          <div class="legend">
+            <span><i class="free" aria-hidden="true"></i>Claim, no source, free run</span>
+            <span><i aria-hidden="true"></i>Debunk, trigger on Sources, locked</span>
+          </div>
+        </div>
+      </div>
+
+      <ol class="readouts">
+        <li class="readout">
+          <div class="readout__head">
+            <span class="num">01</span>
+            <span class="harm harm--false">False</span>
+          </div>
+          <h3>Lymphatic drainage detoxes you and melts fat</h3>
+          <span class="run"><svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6 C4 6 4 2 7 2 C10 2 10 10 13 10 C16 10 16 2 19 2 C22 2 22 10 25 10 C26 10 27 8 27 6" fill="none" stroke="var(--signal)" stroke-width="2" stroke-linecap="round"/></svg>Locked</span>
+          <span class="readout__value num">49,537,321</span>
+          <span class="readout__label">topic views, Oct 7 to Nov 6, 2026</span>
+          <span class="trend">Cooling <span class="num">−22%</span></span>
+          <span class="trend__window">video count vs Sep 7 to Oct 6, 2026</span>
+          <div class="verdict-line">
+            <span class="tag">Verdict</span>
+            <p>There's no good evidence showing that this is true.</p>
+            <a href="/r/lymphatic-detox">Open the receipts</a>
+          </div>
+        </li>
+        <li class="readout">
+          <div class="readout__head">
+            <span class="num">02</span>
+            <span class="harm harm--harmful">Harmful</span>
+          </div>
+          <h3>Garlic paste destroys tumors</h3>
+          <span class="run"><svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 8 L5 3 L9 9 L13 2 L17 8 L21 4 L27 9" fill="none" stroke="var(--drift)" stroke-width="1.5" stroke-dasharray="3 2" stroke-linejoin="round"/></svg>No brief yet</span>
+          <span class="readout__value num">5,768,385</span>
+          <span class="readout__label">topic views, Oct 7 to Nov 6, 2026</span>
+          <span class="trend">Unknown</span>
+        </li>
+        <li class="readout">
+          <div class="readout__head">
+            <span class="num">03</span>
+            <span class="harm harm--unproven">Unproven</span>
+          </div>
+          <h3>Mouth tape works, even for your jawline</h3>
+          <span class="run"><svg viewBox="0 0 28 12" aria-hidden="true"><path d="M1 8 L5 3 L9 9 L13 2 L17 8 L21 4 L27 9" fill="none" stroke="var(--drift)" stroke-width="1.5" stroke-dasharray="3 2" stroke-linejoin="round"/></svg>No brief yet</span>
+          <span class="readout__value num">8,304,973</span>
+          <span class="readout__label">topic views, Oct 7 to Nov 6, 2026</span>
+          <span class="trend">Unknown</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- FeaturedDebunk -->
+  <section aria-labelledby="featured-title">
+    <div class="wrap featured">
+      <figure class="presenter">
+        <figcaption class="ch label"><span class="ch__dot" aria-hidden="true"></span>Channel 1</figcaption>
+        <div class="presenter__frame">
+          <span class="ai-label">AI presenter</span>
+          <div class="presenter__state">
+            <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="9" width="34" height="26" rx="7"/><path d="M19 17v10l8-5z"/></svg>
+            <p>Video not ready</p>
+          </div>
+        </div>
+      </figure>
+
+      <div class="featured__body">
+        <div class="featured__head">
+          <div class="featured__meta">
+            <span class="num label">01</span>
+            <span class="harm harm--false">False</span>
+            <span class="data-badge">Fixture data</span>
+          </div>
+          <h2 id="featured-title" class="big">Lymphatic drainage detoxes you and melts fat</h2>
+        </div>
+
+        <div class="verdict">
+          <svg class="verdict__lock" viewBox="0 0 400 28" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 14 C20 14 20 4 40 4 C60 4 60 24 80 24 C100 24 100 4 120 4 C140 4 140 24 160 24 C180 24 180 4 200 4 C220 4 220 24 240 24 C260 24 260 4 280 4 C300 4 300 24 320 24 C340 24 340 4 360 4 C380 4 380 14 400 14" fill="none" stroke="var(--signal)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+          </svg>
+          <span class="tag">Verdict</span>
+          <p>There's no good evidence that lymphatic drainage detoxes you or causes weight loss. It can reduce swelling for a while, and it plays a real role in treating lymphedema.</p>
+          <a href="/r/lymphatic-detox">Open the receipts</a>
+        </div>
+
+        <div class="ledger">
+          <h3 class="sub">What is true</h3>
+          <ul>
+            <li>It can reduce swelling and give a temporary slimmer, tighter look (UCLA Health).</li>
+            <li>It plays a critical role in treating lymphedema (UCLA Health).</li>
+          </ul>
+        </div>
+
+        <div class="ledger">
+          <h3 class="sub">What is false</h3>
+          <ul>
+            <li>That it causes weight loss. There is no evidence for that (UCLA Health, National Geographic).</li>
+            <li>That it gets rid of toxins. Those claims are unfounded (National Geographic).</li>
+          </ul>
+        </div>
+
+        <div class="ledger sources">
+          <h3 class="sub">Sources</h3>
+          <ul>
+            <li>
+              <span class="publisher">UCLA Health</span>
+              <a href="https://www.uclahealth.org/news/article/lymphatic-drainage-massage-separating-fact-fiction">Lymphatic drainage massage - separating fact from fiction</a>
+            </li>
+            <li>
+              <span class="publisher">National Geographic</span>
+              <a href="https://nationalgeographic.com/health/article/lymphatic-drainage-massage-therapy-wellness">What lymphatic drainage massage actually does for your body</a>
+            </li>
+          </ul>
+          <template id="source-empty"><li>No good source found</li></template>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CreatorLoop -->
+  <section aria-labelledby="loop-title">
+    <div class="wrap">
+      <div class="loop__head">
+        <h2 id="loop-title" class="big">Creator mode, from radar to impact</h2>
+        <p>For people who make health content. AI drafts, people approve.</p>
+      </div>
+      <ol class="loop">
+        <li><strong>Radar</strong><span>Myths ranked by reach, with harm tier and trend against the previous window.</span></li>
+        <li><strong>Myth page</strong><span>Exact quotes with timestamps and links, and the voices already debunking it.</span></li>
+        <li><strong>Brief</strong><span>Verdict, what is true, what is false, and sources with verbatim excerpts.</span></li>
+        <li><strong>Studio</strong><span>Pick a format and a hook, edit the script, and every line is checked again.</span></li>
+        <li><strong>Video</strong><span>Record, caption and post. Vision QA flags on-screen text not in the approved script.</span></li>
+        <li><strong>Receipts</strong><span>A public page with the quote card, verdict, sources and a vote.</span></li>
+        <li><strong>Calendar</strong><span>This week's myths plus a watchlist, one week ahead.</span></li>
+        <li><strong>Impact</strong><span>Response reach against myth reach, and time from spike to first response.</span></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer">
+    <p>Find the health myth. Get the receipts. Make the debunk.</p>
+    <span class="data-badge">Fixture data</span>
+  </div>
+</footer>
+
+</body>
+</html>

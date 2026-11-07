@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyBuster calendar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Azeret+Mono:wght@400..600&display=swap">
+<style>
+/* Tokens and base styles copied from v2.html. */
+:root {
+  --paper: #F2F4F1;
+  --ink: #15171A;
+  --ink-2: #4A5258;
+  --rule: #C9CFCB;
+  --lime: #D5F24B;
+  --marker: color-mix(in srgb, var(--lime) 62%, transparent);
+  --harmful-text: #9F1D14;
+  --harmful-fill: #FBE4E0;
+  --false-text: #8A3B00;
+  --false-fill: #FDEBD6;
+  --unproven-text: #3F4A55;
+  --unproven-fill: #E3E7EB;
+  --graticule: color-mix(in srgb, var(--rule) 55%, transparent);
+
+  --sans: "Bricolage Grotesque", ui-sans-serif, sans-serif;
+  --serif: "Source Serif 4", Georgia, serif;
+  --mono: "Azeret Mono", ui-monospace, monospace;
+  --gutter: 16px;
+  --frame-r: 26px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
+@media (min-width: 700px) { :root { --gutter: 40px; } }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--ink-2) var(--paper); }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 500;
+  font-variation-settings: "opsz" 16;
+  font-size: 1rem;
+  line-height: 1.5;
+  caret-color: var(--ink);
+}
+::selection { background: var(--lime); color: var(--ink); }
+img, svg { display: block; max-width: 100%; }
+h1, h2, h3 { margin: 0; overflow-wrap: anywhere; text-wrap: balance; }
+p { margin: 0; }
+a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wrap { width: 100%; max-width: 1360px; margin-inline: auto; padding-inline: var(--gutter); min-width: 0; }
+.mono { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.kw { font-family: var(--serif); font-style: italic; font-weight: 700; font-variation-settings: normal; letter-spacing: 0; }
+/* Marker band on the lower part of the word only: no padding, so it never reaches the lines above or below. */
+.kw-mark {
+  background-image: linear-gradient(to bottom, transparent 56%, var(--marker) 56%, var(--marker) 90%, transparent 90%);
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+.label { font-family: var(--mono); font-weight: 600; font-size: .75rem; color: var(--ink-2); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Shared pills */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 52px; padding: 0 26px; border-radius: 999px;
+  background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
+  font: inherit; font-weight: 700; font-size: 1.0625rem; white-space: nowrap;
+  text-decoration: none; cursor: pointer;
+}
+.btn:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.btn--outline { background: transparent; color: var(--ink); }
+.btn--outline:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn--sm { min-height: 44px; padding: 0 18px; font-size: .9375rem; }
+.databadge {
+  display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px;
+  border: 1px solid var(--ink-2); color: var(--ink-2);
+  font-family: var(--mono); font-weight: 500; font-size: .75rem; line-height: 1.2; white-space: nowrap;
+}
+.chip {
+  display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px;
+  font-weight: 700; font-size: .8125rem; line-height: 1.5; white-space: nowrap;
+}
+.chip--harmful { color: var(--harmful-text); background: var(--harmful-fill); }
+.chip--false { color: var(--false-text); background: var(--false-fill); }
+.chip--unproven { color: var(--unproven-text); background: var(--unproven-fill); }
+.chip--basis { border: 1px solid var(--ink); }
+.chip--ok { background: var(--lime); color: var(--ink); }
+
+/* AppBar */
+.appbar-wrap { position: sticky; top: 12px; z-index: 10; padding-top: 12px; }
+.appbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 6px 6px 6px 22px; border: 1px solid var(--ink); border-radius: 999px; background: var(--paper);
+}
+.wordmark { font-weight: 800; font-size: 1.375rem; font-variation-settings: "opsz" 48; font-stretch: 92%; letter-spacing: -.02em; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.nav-links { display: none; list-style: none; margin: 0; padding: 0; gap: 4px; }
+.nav-links a, .menu-panel a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px;
+  font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.nav-links a:hover, .menu-panel a:hover, .nav-links a[aria-current="page"] { background: var(--ink); color: var(--paper); }
+.menu { position: relative; }
+.menu summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px;
+  border-radius: 999px; background: var(--ink); color: var(--paper); font-weight: 700; white-space: nowrap;
+}
+.menu summary::-webkit-details-marker { display: none; }
+.menu-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); display: grid; gap: 2px; padding: 6px; min-width: 200px;
+  background: var(--paper); border: 1px solid var(--ink); border-radius: 24px;
+}
+@media (min-width: 700px) { .nav-links { display: flex; } .menu { display: none; } }
+
+/* Page head */
+.page-head { display: grid; gap: 14px; padding-top: 48px; padding-bottom: 48px; min-width: 0; }
+.headline {
+  font-weight: 800; font-variation-settings: "opsz" 96; font-stretch: 90%;
+  font-size: clamp(2.75rem, 1.5rem + 3.4vw, 4.75rem); line-height: .98; letter-spacing: -.035em;
+}
+.headline .kw { letter-spacing: -.01em; }
+.week { font-family: var(--mono); font-weight: 600; font-size: 1rem; }
+.lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40rem; }
+
+/* Sections */
+.section { border-top: 1px solid var(--ink); padding-top: 40px; padding-bottom: 64px; display: grid; gap: 28px; min-width: 0; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.section-head h2 { font-weight: 800; font-variation-settings: "opsz" 72; font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); line-height: 1.05; letter-spacing: -.025em; }
+.section-note { color: var(--ink-2); font-size: .9375rem; max-width: 44rem; }
+
+/* This week rows: video strip first, then the topic */
+.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+.item {
+  min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px;
+  padding: 18px; border: 1px solid var(--ink); border-radius: var(--frame-r); scroll-margin-top: 110px;
+}
+.item:target { outline: 3px solid var(--ink); outline-offset: 4px; }
+.strip { list-style: none; margin: 0; padding: 0; min-width: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); }
+.strip-empty {
+  min-width: 0; display: grid; place-items: center; min-height: 140px; padding: 20px; text-align: center;
+  border: 1px dashed var(--ink-2); border-radius: 20px; color: var(--ink-2); font-weight: 600;
+}
+.vcard { min-width: 0; display: grid; gap: 10px; align-content: start; padding: 10px; border: 1px solid var(--rule); border-radius: 20px; }
+.thumb {
+  position: relative; aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden;
+  background: var(--unproven-fill); color: var(--ink-2);
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb--empty { display: grid; place-items: center; padding: 12px; text-align: center; border: 1px dashed var(--ink-2); font-family: var(--mono); font-size: .75rem; font-weight: 600; }
+.vmeta { font-family: var(--mono); font-size: .75rem; font-weight: 600; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.quote { font-family: var(--serif); font-size: 1.0625rem; line-height: 1.4; overflow-wrap: anywhere; }
+.byline { font-size: .875rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.vviews { font-family: var(--mono); font-size: .8125rem; font-weight: 600; }
+.vcard .btn { justify-self: start; }
+.strip-note { color: var(--ink-2); font-size: .875rem; }
+
+.info { min-width: 0; display: grid; gap: 12px; align-content: start; }
+.topic {
+  font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.375rem; line-height: 1.2; letter-spacing: -.01em;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.count { font-family: var(--mono); font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--unproven-fill); color: var(--ink); white-space: nowrap; }
+.win { font-family: var(--mono); font-size: .75rem; color: var(--ink-2); }
+.why { font-family: var(--serif); font-size: 1rem; line-height: 1.45; color: var(--ink-2); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (min-width: 1000px) {
+  .item { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 28px; padding: 22px; }
+}
+
+/* Coming up */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.card { min-width: 0; display: grid; gap: 14px; align-content: start; padding: 20px 22px; border: 1px solid var(--ink); border-radius: 24px; }
+.card h3 { font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.25rem; letter-spacing: -.01em; }
+.date { font-family: var(--mono); font-weight: 600; font-size: .875rem; }
+.measured { font-size: .9375rem; color: var(--ink-2); padding-top: 12px; border-top: 1px solid var(--rule); }
+.ai-area { display: grid; gap: 8px; padding: 14px 16px; border: 1px dashed var(--ink-2); border-radius: 18px; }
+.ai-area p { color: var(--ink-2); font-size: .9375rem; }
+@media (min-width: 900px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Watchlist */
+.watch { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.watch li { min-width: 0; display: grid; gap: 10px; align-content: start; padding: 20px 22px; border: 1px solid var(--ink); border-radius: 24px; }
+.watch h3 { font-weight: 800; font-variation-settings: "opsz" 32; font-size: 1.25rem; letter-spacing: -.01em; }
+.empty { color: var(--ink-2); font-weight: 600; }
+@media (min-width: 900px) { .watch { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Footer */
+.footer { border-top: 1px solid var(--ink); padding-top: 28px; padding-bottom: 40px; }
+.footer .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.footer p { font-weight: 700; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .btn { transition: transform 160ms var(--ease); }
+  .btn:active { transform: scale(.97); }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap appbar-wrap">
+  <header class="appbar">
+    <a class="wordmark" href="v3.html">MyBuster</a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a href="calendar.html" aria-current="page">Calendar</a></li>
+        <li><a href="creator.html">Creator mode</a></li>
+      </ul>
+      <details class="menu">
+        <summary>Menu</summary>
+        <div class="menu-panel">
+          <a href="calendar.html" aria-current="page">Calendar</a>
+          <a href="creator.html">Creator mode</a>
+        </div>
+      </details>
+    </nav>
+  </header>
+</div>
+
+<main class="wrap">
+  <div class="page-head">
+    <h1 class="headline">This week's <em class="kw kw-mark">myths</em></h1>
+    <p class="week">Week of Nov 9, 2026</p>
+    <p class="lede">Videos circulating this week, with the exact quote and where it was said.</p>
+    <div class="row"><span class="databadge"><span class="sr">Data source: </span>fixture</span></div>
+  </div>
+
+  <section class="section" aria-labelledby="this-week-h">
+    <div class="section-head">
+      <h2 id="this-week-h">This week</h2>
+      <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+    </div>
+    <p class="section-note">Counts are Oriane results for Oct 7 to Nov 6, 2026. Videos are sorted by views.</p>
+
+    <ol class="rows">
+      <li class="item" id="lymphatic-detox">
+        <div>
+          <ul class="strip" aria-label="Videos about lymphatic drainage, sorted by views">
+            <li class="vcard">
+              <div class="thumb"><img src="https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeM2Kywtwcj/thumbnail.webp" alt="Thumbnail of the Instagram video posted by @tulumtrainer" loading="lazy"></div>
+              <p class="vmeta"><span>Instagram</span><span>0:07</span><span>Transcript</span></p>
+              <p class="quote">"It's the easiest way to get inflammation out of the body, detox, and wake up."</p>
+              <p class="byline">From a video posted by @tulumtrainer</p>
+              <p class="vviews">2,298,948 views</p>
+              <a class="btn btn--outline btn--sm" href="https://www.instagram.com/reel/DeM2Kywtwcj/">Watch<span class="sr"> on Instagram</span></a>
+            </li>
+            <li class="vcard">
+              <div class="thumb thumb--empty">Thumbnail from Oriane</div>
+              <p class="vmeta"><span>TikTok</span><span>Caption</span></p>
+              <p class="quote">Quote pending re-check</p>
+              <p class="byline">From a video posted by @charlenechew3005</p>
+              <p class="vviews">1,900,000 views</p>
+              <a class="btn btn--outline btn--sm" href="https://www.tiktok.com/@charlenechew3005/video/7699011335610256658">Watch<span class="sr"> on TikTok</span></a>
+            </li>
+          </ul>
+        </div>
+        <div class="info">
+          <h3 class="topic">Lymphatic drainage detox and fat loss</h3>
+          <div class="row"><span class="chip chip--false">False</span><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">1,317 videos found</span><span class="count">49,537,321 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <div class="actions">
+            <a class="btn btn--outline btn--sm" href="myth-videos.html#lymphatic-detox">Open the video list</a>
+            <a class="btn btn--sm" href="creator.html">Use this script</a>
+          </div>
+        </div>
+      </li>
+
+      <li class="item" id="garlic-tumor">
+        <div>
+          <ul class="strip" aria-label="Top video about garlic and tumors">
+            <li class="vcard">
+              <div class="thumb"><img src="https://social-catalog-static.oriane.xyz/oriane-contents/instagram/DeUEusVxZr7/thumbnail.webp" alt="Thumbnail of the Instagram video posted by @barlowherbal" loading="lazy"></div>
+              <p class="vmeta"><span>Instagram</span><span>0:55</span><span>Transcript</span></p>
+              <p class="quote">"Garlic's been proven in medical industries in this country to destroy cancer tumors, period."</p>
+              <p class="byline">From a video posted by @barlowherbal</p>
+              <p class="vviews">2,144,856 views</p>
+              <a class="btn btn--outline btn--sm" href="https://www.instagram.com/reel/DeUEusVxZr7/">Watch<span class="sr"> on Instagram</span></a>
+            </li>
+            <li class="strip-empty">Video list not loaded yet</li>
+          </ul>
+        </div>
+        <div class="info">
+          <h3 class="topic">Garlic on tumors</h3>
+          <div class="row"><span class="chip chip--harmful">Harmful</span><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">59 videos found</span><span class="count">5,768,385 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <div class="actions">
+            <a class="btn btn--outline btn--sm" href="myth-videos.html#garlic-tumor">Open the video list</a>
+          </div>
+        </div>
+      </li>
+
+      <li class="item" id="mouth-taping">
+        <div>
+          <ul class="strip" aria-label="Top video about mouth taping">
+            <li class="vcard">
+              <div class="thumb"><img src="https://social-catalog-static.oriane.xyz/oriane-contents/tiktok/7694724543407017247/thumbnail.webp" alt="Thumbnail of the TikTok video posted by @mari.aranaa" loading="lazy"></div>
+              <p class="vmeta"><span>TikTok</span><span>0:58</span><span>Transcript</span></p>
+              <p class="quote">"I feel like it really has helped me with like snatching my jaw because you sleep with your mouth closed and it really helps."</p>
+              <p class="byline">From a video posted by @mari.aranaa</p>
+              <p class="vviews">241,700 views</p>
+              <a class="btn btn--outline btn--sm" href="https://www.tiktok.com/@mari.aranaa/video/7694724543407017247">Watch<span class="sr"> on TikTok</span></a>
+            </li>
+            <li class="strip-empty">Video list not loaded yet</li>
+          </ul>
+        </div>
+        <div class="info">
+          <h3 class="topic">Mouth taping</h3>
+          <div class="row"><span class="chip chip--unproven">Unproven</span><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">199 videos found</span><span class="count">8,304,973 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <div class="actions">
+            <a class="btn btn--outline btn--sm" href="myth-videos.html#mouth-taping">Open the video list</a>
+          </div>
+        </div>
+      </li>
+
+      <li class="item">
+        <div class="strip-empty">Video list not loaded yet</div>
+        <div class="info">
+          <h3 class="topic">Sea moss</h3>
+          <div class="row"><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">659 videos found</span><span class="count">19,432,612 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <p class="why">Claims not reviewed yet.</p>
+        </div>
+      </li>
+
+      <li class="item">
+        <div class="strip-empty">Video list not loaded yet</div>
+        <div class="info">
+          <h3 class="topic">Castor oil packs and belly button oiling</h3>
+          <div class="row"><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">239 videos found</span><span class="count">18,146,452 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026, fuzzy match. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <p class="why">Claims not reviewed yet.</p>
+        </div>
+      </li>
+
+      <li class="item">
+        <div class="strip-empty">Video list not loaded yet</div>
+        <div class="info">
+          <h3 class="topic">Berberine as "nature's Ozempic"</h3>
+          <div class="row"><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">445 videos found</span><span class="count">11,195,302 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026, fuzzy match. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <p class="why">Claims not reviewed yet.</p>
+        </div>
+      </li>
+
+      <li class="item">
+        <div class="strip-empty">Video list not loaded yet</div>
+        <div class="info">
+          <h3 class="topic">Parasite cleanses</h3>
+          <div class="row"><span class="chip chip--basis">Oriane trend</span></div>
+          <div class="counts"><span class="count">325 videos found</span><span class="count">10,125,946 views</span></div>
+          <p class="win">Counted Oct 7 to Nov 6, 2026, fuzzy match. On the calendar for Nov 9 to Nov 15, 2026.</p>
+          <p class="why">Claims not reviewed yet.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="coming-up-h">
+    <div class="section-head">
+      <h2 id="coming-up-h">Coming up</h2>
+    </div>
+    <ul class="cards">
+      <li class="card">
+        <p class="date">Nov 26, 2026</p>
+        <h3>Thanksgiving</h3>
+        <p class="measured">Measured counts from the same window last year: not pulled yet.</p>
+        <div class="ai-area">
+          <span class="label">Suggested by AI, not measured</span>
+          <p>Suggestions appear here after the next search.</p>
+        </div>
+      </li>
+      <li class="card">
+        <p class="date">Nov 27, 2026</p>
+        <h3>Black Friday</h3>
+        <p class="measured">Measured counts from the same window last year: not pulled yet.</p>
+        <div class="ai-area">
+          <span class="label">Suggested by AI, not measured</span>
+          <p>Suggestions appear here after the next search.</p>
+        </div>
+      </li>
+      <li class="card">
+        <p class="date">Dec 25, 2026</p>
+        <h3>Christmas</h3>
+        <p class="measured">Measured counts from the same window last year: not pulled yet.</p>
+        <div class="ai-area">
+          <span class="label">Suggested by AI, not measured</span>
+          <p>Suggestions appear here after the next search.</p>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="watchlist-h">
+    <div class="section-head">
+      <h2 id="watchlist-h">Watchlist</h2>
+      <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+    </div>
+    <p class="section-note">AI proposes topics. A person approves them before they show here.</p>
+    <ul class="watch">
+      <li>
+        <h3>Cold and flu remedies</h3>
+        <div class="row"><span class="chip chip--basis">Curated</span><span class="chip">Proposed, awaiting approval</span></div>
+        <p class="win">Nov 9 to Nov 15, 2026</p>
+        <p class="why">Seasonal guess: cold and flu season. No Oriane data pulled yet.</p>
+      </li>
+      <li>
+        <h3>Thanksgiving food and sleep claims</h3>
+        <div class="row"><span class="chip chip--basis">Curated</span><span class="chip">Proposed, awaiting approval</span></div>
+        <p class="win">Nov 23 to Nov 29, 2026</p>
+        <p class="why">Seasonal guess: Thanksgiving is Nov 26, 2026. No Oriane data pulled yet.</p>
+      </li>
+    </ul>
+    <!-- Empty state when the watchlist has no approved items: <p class="empty">Nothing approved yet.</p> -->
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>Find the health myth. Get the receipts. Make the debunk.</p>
+    <span class="databadge"><span class="sr">Data source: </span>fixture</span>
+  </div>
+</footer>
+
+</body>
+</html>
