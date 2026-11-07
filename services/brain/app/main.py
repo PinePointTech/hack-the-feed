@@ -11,9 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, oriane, qa, radar
+from . import brief, check, oriane, publish, qa, radar
 from .config import Settings
-from .schemas import Brief, BriefRequest, CheckRequest, CheckResponse, QAReport, ScriptLine
+from .schemas import (
+    Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
+    QAReport, ScriptLine,
+)
 
 VERSION = "0.1.0"
 HEALTH_TTL = 300
@@ -154,6 +157,24 @@ def create_app(
         except (TimeoutError, OSError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Video QA failed (%s)", type(error).__name__)
             return api_error(503, "qa_unavailable", "Video QA is temporarily unavailable.")
+
+    @app.post("/publish", response_model=PublishedDebunk, response_model_exclude_none=True)
+    def publish_brief(body: PublishRequest):
+        if body.myth_id not in radar.TOPICS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        try:
+            return publish.save(body)
+        except ValueError as error:
+            return api_error(422, "publish_rejected", str(error))
+
+    @app.get("/published/{myth_id}", response_model=PublishedDebunk, response_model_exclude_none=True)
+    def get_published(myth_id: str):
+        if myth_id not in radar.TOPICS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        try:
+            return publish.read_published(myth_id)
+        except FileNotFoundError:
+            return api_error(404, "not_published", "No published debunk exists for this myth.")
 
     async def refresh_radar(request: Request):
         async with request.app.state.radar_lock:

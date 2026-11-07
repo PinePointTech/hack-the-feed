@@ -69,3 +69,11 @@ and evidence checks. Send `POST /qa` as multipart with `myth_id`,
 `approved_lines` (JSON), and `file` (an MP4 up to 45 seconds and 100 MiB).
 The brain saves the latest report under `data/qa/` and reuses a cached result
 for the same video, approved script, evidence and models.
+
+## Publish receipts
+
+Send `POST /publish` with the final brief, the completed approval checklist,
+and an optional video URL. The brain checks excerpts and citations against
+the verified evidence cache and saves the receipt to
+`data/published/{myth_id}.json`. `GET /published/{myth_id}` reads that receipt.
+The web app's existing sync script copies the saved JSON for the static site.
