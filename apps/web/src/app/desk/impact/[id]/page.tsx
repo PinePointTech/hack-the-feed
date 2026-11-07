@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { exact } from "@/lib/format";
 import { pendingOr, windowLabel } from "@/lib/view-model";
 import { FixtureBadge } from "@/components/FixtureBadge";
+import { AudiencePanel } from "@/components/AudiencePanel";
 
 // v2 signal band (design/preview/v2.html .band, .readout)
 const GRATICULE =
@@ -86,16 +87,7 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
             label="Hours from spike to first response"
             big={pendingOr(d.hours_spike_to_first_response)}
           />
-          <Readout
-            label="Our debunk views"
-            big={pendingOr(o?.views, exact)}
-            sub={o ? `Source: ${o.source}` : undefined}
-          />
-          <Readout
-            label="Votes: changed their mind"
-            big={o?.votes_yes !== undefined && o.votes_total !== undefined ? `${o.votes_yes} of ${o.votes_total}` : "Pending"}
-            sub="Voted yes on the receipts page"
-          />
+          <AudiencePanel id={id} fallback={o} />
         </dl>
       </section>
 

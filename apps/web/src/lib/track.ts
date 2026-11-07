@@ -29,7 +29,7 @@ type Events = {
   "Debunk Published": { myth_id: string; has_video: boolean; certified_by_clinician: boolean };
   "Receipts Viewed": { myth_id: string; utm_source?: string; utm_medium?: string };
   "Source Clicked": { myth_id: string; source_id: string; publisher: string; location: "receipts" | "studio" };
-  "Mind Changed Vote": { myth_id: string; answer: "yes" | "no" | "already_knew" };
+  "Mind Changed Vote": { myth_id: string; answer: "yes" | "no" | "already_knew"; utm_source?: string };
   "Calendar Viewed": { week_of: string; item_count: number };
   "Script Reused": { myth_id: string; from: "calendar" };
 };

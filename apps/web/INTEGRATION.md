@@ -58,3 +58,20 @@ It never calls `/publish` or `/qa`. One line per check, exit code 1 on any failu
     - `useCalendar`: loads the weekly calendar.
     - `useTrackOnce`: fires a tracking event once per mount.
 - Redraw any page freely, but keep calling these hooks and keep `FixtureBadge` visible wherever data can fall back.
+
+## Live Amplitude audience (creator impact page)
+
+`/desk/impact/[id]` shows live receipts views (and how many came from the demo QR), the "Did this change your mind?" vote split and source clicks for that myth, read from Amplitude through `GET /api/audience/{id}` every 10 s. The route caches each myth for 15 s, so many open tabs still make only three Amplitude calls.
+
+| Name | Where | Notes |
+|---|---|---|
+| `AMPLITUDE_SECRET_KEY` | server only | Never prefix with `NEXT_PUBLIC_`. Never commit it. |
+| `AMPLITUDE_API_KEY` | server, optional | Defaults to `NEXT_PUBLIC_AMPLITUDE_API_KEY`. |
+| `AUDIENCE_SINCE` | server, optional | ISO time, for example `2026-11-06T17:00:00-08:00`. Counts start at the hour holding this time, so rehearsal traffic before it is left out. Default: midnight today, Los Angeles time. |
+
+- Find the secret in Amplitude: Settings, Projects, pick the project, General tab, API key and Secret key.
+- Local: add `AMPLITUDE_SECRET_KEY=...` to `apps/web/.env.local` and restart the dev server.
+- Vercel: Project, Settings, Environment Variables, add `AMPLITUDE_SECRET_KEY` for Production (and Preview if wanted), mark it Sensitive, then redeploy.
+- Without the secret the page says "Connect Amplitude to see live audience numbers" and the "Our debunk" figures stay "Pending". If Amplitude fails it says "Amplitude is not answering right now". It never shows made-up zeros.
+- Check: `curl localhost:3000/api/audience/lymphatic-detox` returns `"configured": true` and a `stats` object once the secret is set.
+- Hourly buckets are read as UTC. If the Amplitude project uses another time zone, the `AUDIENCE_SINCE` cutoff shifts by that offset.
