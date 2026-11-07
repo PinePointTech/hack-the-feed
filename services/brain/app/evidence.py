@@ -154,7 +154,7 @@ async def select_excerpts(
     if not sentences:
         return []
     response = await client.post(
-        "https://api.openai.com/v1/chat/completions",
+        f"{settings.openai_base_url}/chat/completions",
         headers={"Authorization": f"Bearer {settings.openai_key}"},
         json={
             "model": settings.openai_model,

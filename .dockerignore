@@ -1,0 +1,8 @@
+# Only the brain image builds from this context (docker build -f services/brain/Dockerfile .).
+# Allowlist what it copies so .env files, data/ and node_modules never enter the build.
+*
+!services/brain/pyproject.toml
+!services/brain/uv.lock
+!services/brain/app
+!contracts/fixtures
+**/__pycache__
