@@ -1,0 +1,22 @@
+{
+  "myth_id": "lymphatic-detox",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "myth_reach": {
+    "videos": 6,
+    "views": 3543768
+  },
+  "response_reach": {
+    "videos": 0,
+    "views": 0
+  },
+  "response_ratio": 0.0,
+  "baseline_clinician": {
+    "videos": 63,
+    "views": 1228159,
+    "note": "Estimated from bio keywords. This does not verify credentials."
+  },
+  "note": "Based on the 30 highest-viewed Oriane topic matches in the saved stance sample. Reach sums the views of posts labeled promotes or debunks. The sampled posts account for 44.7% of topic views. Response ratio divides debunk views by promoter views. The sample contains zero posts labeled debunks."
+}

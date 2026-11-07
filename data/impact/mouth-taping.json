@@ -1,0 +1,17 @@
+{
+  "myth_id": "mouth-taping",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "myth_reach": {
+    "videos": 5,
+    "views": 810769
+  },
+  "response_reach": {
+    "videos": 1,
+    "views": 129724
+  },
+  "response_ratio": 0.1600011840610581,
+  "note": "Based on the 30 highest-viewed Oriane topic matches in the saved stance sample. Reach sums the views of posts labeled promotes or debunks. The sampled posts account for 84.7% of topic views. Response ratio divides debunk views by promoter views."
+}
