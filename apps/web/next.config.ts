@@ -10,12 +10,8 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  async rewrites() {
-    return {
-      // The root URL serves the v3 landing from the static preview copy.
-      beforeFiles: [{ source: "/", destination: "/preview/v3.html" }],
-    };
-  },
+  // No root rewrite: "/" is the app's live landing, so nav, data and search match every page.
+  // The static v3 design mock stays at /preview/v3.html.
 };
 
 export default nextConfig;
