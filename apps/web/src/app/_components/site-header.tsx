@@ -3,6 +3,7 @@ import Link from "next/link";
 const links = [
   { href: "/calendar", label: "Calendar" },
   { href: "/desk", label: "Creator mode" },
+  { href: "/desk/impact/lymphatic-detox", label: "Impact" },
 ];
 
 const pill =

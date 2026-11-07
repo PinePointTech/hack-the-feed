@@ -43,6 +43,7 @@ const videos = (r: { videos: number } | undefined, win: string) => (r ? `${exact
 export default async function ImpactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { data: d, from } = await api.impact(id);
+  if (d.myth_id !== id) return <main className="wrap py-10"><h1>Impact</h1><p>Response reach is pending for this myth.</p></main>;
   const win = `${windowLabel(d.window)}, ${d.window.to.slice(0, 4)}`;
   const o = d.our_debunk;
   const fixture = from === "fixture";
@@ -70,13 +71,13 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
           <Readout
             label="Myth reach views"
             big={views(d.myth_reach)}
-            sub={`${videos(d.myth_reach, win)}. Stand-in from the claim search until stance labels run.`}
+            sub={fixture ? `${videos(d.myth_reach, win)}. Example from the claim search.` : videos(d.myth_reach, win)}
             placeholder={fixture}
           />
           <Readout
             label="Response reach views"
             big={views(d.response_reach)}
-            sub={videos(d.response_reach, win)}
+            sub={d.response_reach ? videos(d.response_reach, win) : "Response reach is pending for this myth."}
           />
           <Readout
             label="Clinician baseline views"

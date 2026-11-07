@@ -12,7 +12,7 @@ const LABEL: Record<Stance, string> = { promotes: "Promotes", debunks: "Debunks"
 export function StanceBar({ counts, sampleSize }: { counts: Partial<Record<Stance, number>>; sampleSize?: number }) {
   const entries = (Object.keys(COLOR) as Stance[]).filter((s) => (counts[s] ?? 0) > 0).map((s) => [s, counts[s]!] as const);
   const total = entries.reduce((a, [, n]) => a + n, 0);
-  if (!total) return <p className="text-ink-2">No stance data yet</p>;
+  if (!total) return <p className="text-ink-2">Post classifications are pending.</p>;
   return (
     <div className="grid gap-3">
       <div className="flex h-4 gap-0.5 overflow-hidden rounded-pill border border-ink">
@@ -28,7 +28,7 @@ export function StanceBar({ counts, sampleSize }: { counts: Partial<Record<Stanc
           </li>
         ))}
         {sampleSize !== undefined && (
-          <li className="mono text-ink-2">n = {sampleSize}</li>
+          <li className="mono text-ink-2">{sampleSize} posts checked</li>
         )}
       </ul>
     </div>

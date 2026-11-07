@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { receiptVideoUrl } from "@/lib/api";
 import { useReceipts, type VoteAnswer as Answer } from "@/lib/hooks/useReceipts";
 import { QuoteCard } from "@/components/QuoteCard";
 import { SourceCard } from "@/components/SourceCard";
@@ -66,16 +67,13 @@ export function Receipts({ id }: { id: string }) {
               <video
                 controls
                 playsInline
-                src={d.video_url}
+                src={receiptVideoUrl(d.video_url)}
                 onError={() => setVideoOk(false)}
                 className="absolute inset-0 h-full w-full bg-ink object-contain"
               />
             ) : (
               <p className="text-xl font-bold">Video not ready</p>
             )}
-            <span className="absolute top-3.5 left-3.5 rounded-pill bg-paper px-3 py-0.5 text-[0.8125rem] font-bold text-ink">
-              AI presenter
-            </span>
           </div>
           <figcaption className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-semibold text-ink-2">
             {topic} debunk

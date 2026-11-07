@@ -1,7 +1,7 @@
 // Pure studio rules. No "@/..." imports so node --test can run this file directly.
 import type { ApprovalChecklist, ClaimCheck, LineCheck, ScriptLine, SupportStatus } from "../contracts/types";
 
-export type LineStatus = SupportStatus | "no_claim" | "pending";
+export type LineStatus = SupportStatus | "no_claim" | "pending" | "failed";
 export type Ticks = Omit<ApprovalChecklist, "approved_by" | "approved_at">;
 export const REQUIRED_TICKS = ["every_claim_has_source", "quotes_are_exact", "targets_claim_not_person", "no_minors_or_illness_stories"] as const;
 
@@ -10,14 +10,15 @@ export const statusFromSupport = (s: number): SupportStatus => (s >= 0.8 ? "supp
 // undefined means no result for the current text yet.
 export function lineStatus(c: LineCheck | undefined): LineStatus {
   if (!c) return "pending";
+  if (c.note === "Not checked (brain offline)") return "failed";
   if (!c.has_claim) return "no_claim";
   if (c.status) return c.status;
-  // A claim with no score cannot be verified: flag it without blocking approval.
-  return c.support === undefined ? "weak" : statusFromSupport(c.support);
+  return c.support === undefined ? "failed" : statusFromSupport(c.support);
 }
 
 export const canApprove = (ticks: Ticks, statuses: LineStatus[]) =>
-  REQUIRED_TICKS.every((k) => ticks[k]) && !statuses.some((s) => s === "unsupported" || s === "pending");
+  REQUIRED_TICKS.every((k) => ticks[k]) && statuses.length > 0 &&
+  statuses.every((s) => s === "supported" || s === "no_claim");
 
 // Lines whose text differs from the text last sent to (or seeded from) the brain.
 export const changedLines = (lines: ScriptLine[], checked: Record<string, string>) =>

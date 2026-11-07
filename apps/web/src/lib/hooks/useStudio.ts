@@ -1,44 +1,6 @@
 "use client";
-/**
- * useStudio(mythId): every studio behaviour, headless. The view only renders what this returns.
- *
- * Brief
- * - format: Format ("stitch" default). The brief for it loads once when the studio opens.
- *   setFormat(f) only sets it; call generateBrief(f) to fetch another format.
- * - FORMATS: Format[] in display order.
- * - generateBrief(f = format): POST /brief. Fires "Brief Generated". Resets hook, lines, checks.
- * - briefLoading: boolean. brief: Brief | null. from: "live" | "fixture" (brief source). error: string | null.
- *
- * Hooks
- * - hookId: string | undefined. selectHook(id): fires "Hook Selected" and puts the hook text in line 1.
- *
- * Script lines
- * - lines: { ...ScriptLine, status: LineStatus, check?: LineCheck }[] in order; on_screen is kept.
- *   status is "supported" | "weak" | "unsupported" | "no_claim" | "pending" (pending = edited, waiting for the check).
- * - setLineText(id, text): edits a line; about 600 ms after the last edit, POST /check for the changed lines.
- *   Weak or unsupported results fire "Claim Flagged" once per distinct line text.
- * - checkFrom: "live" | "fixture" (source of the latest check). hasUnsupported: boolean.
- *
- * Approval
- * - checklist: Ticks (the ApprovalChecklist booleans). toggle(key) flips one; video_qa_passed is set only by runQA, and nothing changes after approve().
- * - canApprove: four required ticks set, no unsupported or pending line, brief loaded, not yet approved.
- * - approve(): fires "Brief Approved" and freezes the lines. approved: boolean. approvedLines: ScriptLine[] | null.
- *
- * Handoff to Compound (Mac app, no API)
- * - copyScriptText: approved lines (or current lines before approval) with their on-screen text.
- * - copyScript(): writes copyScriptText to the clipboard. copied: boolean.
- *
- * Video
- * - video: File | null. attachVideo(file | null): stores it, fires "Video Exported" (duration when readable).
- * - runQA(): POST /qa with the approved lines and the file; fires "Video QA Completed"; a pass ticks video_qa_passed.
- * - qa: QAReport | null. qaFrom: "live" | "fixture". qaRunning: boolean.
- *
- * Publish
- * - publish(): only after approve(); POST /publish; fires "Debunk Published".
- * - publishing: boolean. published: PublishedDebunk | null. publishFrom: "live" | "fixture". receiptsHref: "/r/{id}".
- */
 import { useEffect, useRef, useState } from "react";
-import type { Brief, Format, LineCheck, PublishedDebunk, QAReport, ScriptLine } from "@/contracts/types";
+import type { Brief, ClaimCheck, Format, LineCheck, PublishedDebunk, QAReport, ScriptLine } from "@/contracts/types";
 import { api } from "@/lib/api";
 import { track } from "@/lib/track";
 import {
@@ -55,8 +17,8 @@ const NO_TICKS: Ticks = {
 };
 
 export function useStudio(mythId: string) {
-  const openedAt = useRef(Date.now());
-  const [format, setFormat] = useState<Format>("stitch");
+  const openedAt = useRef(0);
+  const [format, setFormat] = useState<Format>("standalone");
   const [briefLoading, setBriefLoading] = useState(false);
   const [brief, setBrief] = useState<Brief | null>(null);
   const [from, setFrom] = useState<From>("live");
@@ -64,10 +26,13 @@ export function useStudio(mythId: string) {
   const [hookId, setHookId] = useState<string>();
   const [lines, setLines] = useState<ScriptLine[]>([]);
   // Each check remembers the text it was made for; a mismatch means pending.
-  const [checks, setChecks] = useState<Record<string, { text: string; check: LineCheck }>>({});
+  const [checks, setChecks] = useState<Record<string, { text: string; check: LineCheck; from: From }>>({});
   const [checkFrom, setCheckFrom] = useState<From>("live");
   const [checklist, setChecklist] = useState<Ticks>(NO_TICKS);
   const [approvedLines, setApprovedLines] = useState<ScriptLine[] | null>(null);
+  const [reviewer, setReviewer] = useState("");
+  const [finalApproved, setFinalApproved] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [video, setVideo] = useState<File | null>(null);
   const [qa, setQa] = useState<QAReport | null>(null);
@@ -77,28 +42,56 @@ export function useStudio(mythId: string) {
   const [publishing, setPublishing] = useState(false);
   const [publishFrom, setPublishFrom] = useState<From>("live");
 
+  const draftVersion = useRef(0);
+  const qaVersion = useRef(0);
   const linesRef = useRef<ScriptLine[]>([]);
-  linesRef.current = lines;
   const sentText = useRef<Record<string, string>>({});
   const flagged = useRef(new Set<string>());
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  async function generateBrief(f: Format = format) {
+  function resetQA() {
+    qaVersion.current += 1;
+    setQa(null);
+    setQaRunning(false);
+    setVideoUrl(null);
+    setFinalApproved(false);
+    setPublished(null);
+  }
+
+  function unlockScript() {
+    setApprovedLines(null);
+    setCopied(false);
+    resetQA();
+  }
+
+  async function generateBrief(f: Format = format, refresh = false) {
+    const version = ++draftVersion.current;
+    clearTimeout(timer.current);
+    linesRef.current = [];
+    sentText.current = {};
+    setLines([]);
+    setChecks({});
+    setBrief(null);
+    setChecklist(NO_TICKS);
+    setVideo(null);
+    unlockScript();
     setFormat(f);
     setBriefLoading(true);
     setError(null);
     const t0 = performance.now();
     try {
-      const { data, from } = await api.brief({ myth_id: mythId, format: f });
+      const { data, from } = await api.brief({ myth_id: mythId, format: f, refresh });
+      if (version !== draftVersion.current) return;
       const seed = seedChecks(data.script.lines, data.claims);
       clearTimeout(timer.current);
       sentText.current = Object.fromEntries(data.script.lines.map((l) => [l.id, l.text]));
       setBrief(data);
       setFrom(from);
       setHookId(undefined);
+      linesRef.current = data.script.lines;
       setLines(data.script.lines);
-      setChecks(Object.fromEntries(data.script.lines.map((l) => [l.id, { text: l.text, check: seed[l.id] }])));
+      setChecks(Object.fromEntries(data.script.lines.map((l) => [l.id, { text: l.text, check: seed[l.id], from }])));
       setCheckFrom(from);
       track("Brief Generated", {
         myth_id: mythId, format: f, source_count: data.sources.length, claim_count: data.claims.length,
@@ -106,9 +99,9 @@ export function useStudio(mythId: string) {
         engine: data.claims[0]?.engine ?? "none",
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (version === draftVersion.current) setError(`Draft unavailable. ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setBriefLoading(false);
+      if (version === draftVersion.current) setBriefLoading(false);
     }
   }
 
@@ -117,22 +110,25 @@ export function useStudio(mythId: string) {
   useEffect(() => {
     if (autoLoaded.current) return;
     autoLoaded.current = true;
+    openedAt.current = Date.now();
     void generateBrief();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function runCheck() {
+    const version = draftVersion.current;
     const sent = changedLines(linesRef.current, sentText.current);
     if (!sent.length) return;
     for (const l of sent) sentText.current[l.id] = l.text;
     try {
       const { data, from } = await api.check({ myth_id: mythId, lines: sent });
+      if (version !== draftVersion.current) return;
       setCheckFrom(from);
-      const fresh: Record<string, { text: string; check: LineCheck }> = {};
+      const fresh: Record<string, { text: string; check: LineCheck; from: From }> = {};
       for (const r of data.results) {
         const s = sent.find((x) => x.id === r.line_id);
-        if (!s || sentText.current[r.line_id] !== s.text) continue; // stale response
-        fresh[r.line_id] = { text: s.text, check: r };
+        if (!s || linesRef.current.find((line) => line.id === r.line_id)?.text !== s.text) continue; // stale response
+        fresh[r.line_id] = { text: s.text, check: r, from };
         const status = lineStatus(r);
         const key = flagKey(r.line_id, s.text);
         if ((status === "weak" || status === "unsupported") && !flagged.current.has(key)) {
@@ -140,17 +136,40 @@ export function useStudio(mythId: string) {
           track("Claim Flagged", { myth_id: mythId, line_id: r.line_id, status, support: r.support, engine: r.engine });
         }
       }
+      for (const line of sent) {
+        if (!fresh[line.id] && linesRef.current.find((current) => current.id === line.id)?.text === line.text) {
+          fresh[line.id] = { text: line.text, from: "fixture",
+            check: { line_id: line.id, has_claim: false, engine: "cached", note: "Not checked (brain offline)" } };
+        }
+      }
       setChecks((c) => ({ ...c, ...fresh }));
     } catch (e) {
-      // Let the next edit retry these lines.
-      for (const l of sent) delete sentText.current[l.id];
+      if (version !== draftVersion.current) return;
+      setChecks((previous) => ({
+        ...previous,
+        ...Object.fromEntries(sent.filter((line) => linesRef.current.some((current) =>
+          current.id === line.id && current.text === line.text)).map((line) => [
+          line.id, { text: line.text, from: "fixture", check: {
+            line_id: line.id, has_claim: false, engine: "cached", note: "Not checked (brain offline)",
+          } },
+        ])),
+      }));
       setError(e instanceof Error ? e.message : String(e));
     }
   }
 
-  function setLineText(id: string, text: string) {
+  function setLineText(id: string, text: string, syncOverlay = false) {
     if (approvedLines) return;
-    const next = linesRef.current.map((l) => (l.id === id ? { ...l, text } : l));
+    const next = linesRef.current.map((l) => (l.id === id
+      ? { ...l, text, ...(syncOverlay || l.on_screen ? { on_screen: text } : {}) }
+      : l));
+    delete sentText.current[id];
+    setChecks((previous) => {
+      const updated = { ...previous };
+      delete updated[id];
+      return updated;
+    });
+    resetQA();
     linesRef.current = next;
     setLines(next);
     clearTimeout(timer.current);
@@ -162,27 +181,55 @@ export function useStudio(mythId: string) {
     if (!h || approvedLines) return;
     setHookId(id);
     track("Hook Selected", { myth_id: mythId, hook_style: h.style });
-    if (lines[0]) setLineText(lines[0].id, h.text);
+    if (lines[0]) setLineText(lines[0].id, h.text, true);
   }
 
-  const studioLines: StudioLine[] = lines.map((l) => {
-    const c = checks[l.id];
-    const check = c && c.text === l.text ? c.check : undefined;
-    return { ...l, check, status: lineStatus(check) };
+  const studioLines = lines.map((line) => {
+    const entry = checks[line.id];
+    const current = entry?.text === line.text ? entry : undefined;
+    return { ...line, check: current?.check, checkedFrom: current?.from, status: lineStatus(current?.check) };
   });
-  const hasUnsupported = studioLines.some((l) => l.status === "unsupported");
-  const canApprove = !!brief && !approvedLines && rulesAllowApproval(checklist, studioLines.map((l) => l.status));
+  const hasUnsupported = studioLines.some((line) => line.status === "unsupported");
+  const coverage = studioLines.length > 0 && studioLines.every(({ status, check, checkedFrom }) =>
+    checkedFrom === "live" && (status === "no_claim" || (status === "supported" &&
+      !!check?.evidence?.some((citation) => brief?.sources.some((source) =>
+        source.id === citation.source_id && source.excerpts.includes(citation.excerpt))))));
+  const effectiveChecklist = { ...checklist, every_claim_has_source: coverage,
+    video_qa_passed: !!qa?.pass && qaFrom === "live" && !!videoUrl };
+  const canLock = !!brief && !approvedLines && rulesAllowApproval(effectiveChecklist, studioLines.map((line) => line.status));
+  const canApprove = !!approvedLines && effectiveChecklist.video_qa_passed && !!reviewer.trim() && !finalApproved;
 
   const toggle = (key: keyof Ticks) => {
-    if (key === "video_qa_passed" || approvedLines) return; // QA ticks itself in runQA
-    setChecklist((t) => ({ ...t, [key]: !t[key] }));
+    if (key === "video_qa_passed" || key === "every_claim_has_source" || approvedLines) return;
+    setChecklist((ticks) => ({ ...ticks, [key]: !ticks[key] }));
   };
 
+  const [editedClaims, setEditedClaims] = useState<ClaimCheck[]>([]);
+
+  function lockScript() {
+    if (!canLock || !brief) return;
+    const added: ClaimCheck[] = [];
+    const locked = lines.map((line) => {
+      const result = checks[line.id].check;
+      if (!result.has_claim) return { ...line, claim_id: undefined, source_id: undefined };
+      if (brief.script.lines.some((original) => original.id === line.id && original.text === line.text && original.claim_id && original.source_id))
+        return line;
+      const evidence = result.evidence!.filter((citation) => brief.sources.some((source) =>
+        source.id === citation.source_id && source.excerpts.includes(citation.excerpt)));
+      const claim = { id: `reviewed-${line.id}`, text: line.text, evidence, support: result.support!,
+        status: "supported" as const, engine: result.engine };
+      added.push(claim);
+      return { ...line, claim_id: claim.id, source_id: evidence[0].source_id };
+    });
+    setEditedClaims(added);
+    setApprovedLines(locked);
+  }
+
   function approve() {
-    if (!canApprove) return;
-    setApprovedLines(lines);
+    if (!canApprove || !approvedLines) return;
+    setFinalApproved(true);
     track("Brief Approved", {
-      myth_id: mythId, format, line_count: lines.length, claim_count: lines.filter((l) => l.claim_id).length,
+      myth_id: mythId, format, line_count: approvedLines.length, claim_count: approvedLines.filter((line) => line.claim_id).length,
       minutes_since_open: Math.round((Date.now() - openedAt.current) / 60000),
     });
   }
@@ -194,8 +241,14 @@ export function useStudio(mythId: string) {
   }
 
   function attachVideo(file: File | null) {
+    resetQA();
+    setError(null);
+    if (file && (!/\.mp4$/i.test(file.name) || file.size > 100 * 1024 * 1024)) {
+      setVideo(null);
+      setError("Attach an MP4 up to 100 MiB.");
+      return;
+    }
     setVideo(file);
-    setQa(null);
     if (!file) return;
     const v = document.createElement("video");
     const url = URL.createObjectURL(file);
@@ -214,40 +267,50 @@ export function useStudio(mythId: string) {
 
   async function runQA() {
     if (!approvedLines || !video) return;
+    resetQA();
+    setError(null);
+    const version = qaVersion.current;
     setQaRunning(true);
     try {
       const form = new FormData();
       form.append("myth_id", mythId);
       form.append("approved_lines", JSON.stringify(approvedLines));
       form.append("file", video);
-      const { data, from } = await api.qa(form);
+      const { data, from, videoUrl } = await api.qa(form);
+      if (version !== qaVersion.current) return;
       setQa(data);
       setQaFrom(from);
-      if (data.pass) setChecklist((t) => ({ ...t, video_qa_passed: true }));
+      if (from === "live" && data.myth_id === mythId && data.pass) setVideoUrl(videoUrl);
       track("Video QA Completed", {
         myth_id: mythId, pass: data.pass, issue_count: data.issues.length, frames_checked: data.frames_checked, ran_in: data.ran_in,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (version === qaVersion.current) setError(`Video QA unavailable. ${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setQaRunning(false);
+      if (version === qaVersion.current) setQaRunning(false);
     }
   }
 
+  function retryChecks() {
+    for (const line of studioLines) {
+      if (line.status === "failed" || line.checkedFrom === "fixture") delete sentText.current[line.id];
+    }
+    void runCheck();
+  }
+
   async function publish() {
-    if (!brief || !approvedLines || publishing) return;
+    if (!brief || !approvedLines || !finalApproved || !videoUrl || !effectiveChecklist.video_qa_passed || publishing) return;
     setPublishing(true);
     try {
       const { data, from } = await api.publish({
         myth_id: mythId,
-        brief: { ...brief, script: { ...brief.script, format, lines: approvedLines } },
-        approval: { ...checklist, approved_by: "Vi", approved_at: new Date().toISOString() },
-        ...(video ? { video_url: `/video/${mythId}.mp4` } : {}),
+        brief: { ...brief, claims: [...brief.claims, ...editedClaims], script: { ...brief.script, format, lines: approvedLines } },
+        approval: { ...effectiveChecklist, approved_by: reviewer.trim(), approved_at: new Date().toISOString() },
+        video_url: videoUrl,
       });
       setPublished(data);
       setPublishFrom(from);
-      if (from === "live") track("Debunk Published", { myth_id: mythId, has_video: !!video, certified_by_clinician: data.certified_by_clinician });
-      else if (process.env.NEXT_PUBLIC_USE_MOCKS !== "1") setError("Publish failed, showing the example receipts");
+      track("Debunk Published", { myth_id: mythId, has_video: !!video, certified_by_clinician: data.certified_by_clinician });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -256,10 +319,11 @@ export function useStudio(mythId: string) {
   }
 
   return {
-    format, setFormat, FORMATS, generateBrief, briefLoading, brief, from, error,
+    format, FORMATS, generateBrief, briefLoading, brief, from, error,
     hookId, selectHook,
     lines: studioLines, setLineText, checkFrom, hasUnsupported,
-    checklist, toggle, canApprove, approve, approved: !!approvedLines, approvedLines,
+    checklist: effectiveChecklist, toggle, canLock, lockScript, unlockScript, canApprove, approve,
+    reviewer, setReviewer, finalApproved, approved: !!approvedLines, approvedLines, retryChecks,
     copyScriptText, copyScript, copied,
     video, attachVideo, runQA, qa, qaFrom, qaRunning,
     publish, publishing, published, publishFrom, receiptsHref: `/r/${published?.id ?? mythId}`,
