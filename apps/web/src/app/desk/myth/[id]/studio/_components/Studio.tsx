@@ -8,6 +8,7 @@ import { SourceCard } from "@/components/SourceCard";
 import { SupportBadge } from "@/components/SupportBadge";
 import { Checklist } from "@/components/Checklist";
 import { Qr } from "@/components/Qr";
+import { ModelCredits } from "@/components/ModelCredits";
 import { QAReportView } from "./QAReportView";
 
 const FORMATS: { value: Format; label: string }[] = [
@@ -174,6 +175,7 @@ export function Studio({ mythId }: { mythId: string }) {
               <div className="grid gap-3">
                 <span className="font-mono text-sm font-semibold text-ink-2">Verdict</span>
                 <p className="max-w-[36em] font-serif text-[clamp(1.5rem,1.2rem+1vw,2rem)] font-normal leading-[1.35]">{brief.verdict}</p>
+                <ModelCredits models={brief.models} />
               </div>
 
               <div className="grid gap-8 lg:grid-cols-2">

@@ -1,5 +1,6 @@
 import type { QAIssue, QAReport } from "@/contracts/types";
 import { mss } from "@/lib/format";
+import { ModelCredits } from "@/components/ModelCredits";
 
 const PROBLEM: Record<QAIssue["problem"], string> = {
   text_not_in_script: "This text is not in the approved script",
@@ -26,6 +27,7 @@ export function QAReportView({ report, placeholder }: { report: QAReport; placeh
         <span className="font-mono font-semibold text-ink">{report.frames_checked}</span> frames checked,{" "}
         <span className="font-mono font-semibold text-ink">{report.texts_found}</span> on-screen texts found.
       </p>
+      <ModelCredits models={report.models} />
       {report.issues.length > 0 ? (
         <ul className="grid gap-3">
           {report.issues.map((i, n) => (

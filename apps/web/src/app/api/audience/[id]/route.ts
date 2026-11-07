@@ -1,4 +1,5 @@
 import { AUDIENCE_ERROR, loadAudience, type AudienceResponse } from "@/lib/amplitude-audience";
+import radar from "@/contracts/fixtures/radar.json";
 
 // Live audience for a myth's receipts page, read from Amplitude with the server-only secret key.
 export const dynamic = "force-dynamic";
@@ -8,12 +9,17 @@ const MAX_IDS = 3; // live upstream loads per TTL window: each costs 3 calls, Am
 // Keyed by myth id; holds the in-flight promise so polling tabs share one set of Amplitude calls.
 // shortcut: the cache is per server instance, so two warm Vercel instances double the calls; move to a shared store if 429s show up.
 const cache = new Map<string, { at: number; body: Promise<AudienceResponse> }>();
+// Only known myths reach Amplitude, so random ids cannot spend the upstream budget.
+const KNOWN = new Set(radar.myths.map((m) => m.id));
 const json = (b: AudienceResponse, status = 200) => Response.json(b, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   if (!/^[a-z0-9-]{1,64}$/.test(id)) {
     return Response.json({ error: { code: "bad_request", message: "Myth id must be lowercase letters, digits and dashes" } }, { status: 400 });
+  }
+  if (!KNOWN.has(id)) {
+    return Response.json({ error: { code: "myth_not_found", message: `No myth with id ${id}` } }, { status: 404 });
   }
   const now = Date.now();
   const hit = cache.get(id);
