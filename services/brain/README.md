@@ -116,3 +116,8 @@ and an optional video URL. The brain checks excerpts and citations against
 the verified evidence cache and saves the receipt to
 `data/published/{myth_id}.json`. `GET /published/{myth_id}` reads that receipt.
 The web app's existing sync script copies the saved JSON for the static site.
+
+Passing video QA returns a `Content-Location` for that exact upload and
+locked script. Publishing with that location makes the video available to
+the receipts page. Keep `data/published/` and `data/cache/qa/` on persistent
+storage when the brain serves live receipts.

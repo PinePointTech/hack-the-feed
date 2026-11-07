@@ -6,10 +6,10 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Form, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
 from . import brief, check, oriane, publish, qa, radar, reporting
@@ -117,6 +117,7 @@ def create_app(
         allow_origins=settings.allowed_origins,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Content-Location"],
     )
 
     def api_error(status: int, code: str, message: str) -> JSONResponse:
@@ -132,7 +133,10 @@ def create_app(
             return api_error(404, "myth_not_found", "Unknown myth ID.")
         try:
             async with asyncio.timeout(45):
-                return await brief.generate(body, request.app.state.client, settings)
+                draft = await brief.generate(body, request.app.state.client, settings)
+                if not draft.claims or not draft.sources:
+                    return api_error(404, "draft_unavailable", "No verified draft is available for this claim.")
+                return draft
         except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Brief generation failed (%s)", type(error).__name__)
             return api_error(503, "brief_unavailable", "The grounded brief is temporarily unavailable.")
@@ -150,7 +154,8 @@ def create_app(
 
     @app.post("/qa", response_model=QAReport, response_model_exclude_none=True)
     async def video_qa(
-        request: Request, myth_id: str = Form(), approved_lines: str = Form(), file: UploadFile = File(),
+        request: Request, response: Response, myth_id: str = Form(), approved_lines: str = Form(),
+        file: UploadFile = File(),
     ):
         if myth_id not in brief.MYTHS:
             return api_error(404, "myth_not_found", "Unknown myth ID.")
@@ -162,7 +167,10 @@ def create_app(
             return api_error(422, "invalid_approved_lines", "Provide the approved script lines as JSON.")
         try:
             async with asyncio.timeout(58):
-                return await request.app.state.video_qa.run(request.app.state.client, myth_id, lines, file)
+                report, video_url = await request.app.state.video_qa.run(request.app.state.client, myth_id, lines, file)
+                if video_url:
+                    response.headers["Content-Location"] = video_url
+                return report
         except qa.InvalidVideo as error:
             return api_error(422, "invalid_video", str(error))
         except (TimeoutError, OSError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
@@ -186,6 +194,18 @@ def create_app(
             return publish.read_published(myth_id)
         except FileNotFoundError:
             return api_error(404, "not_published", "No published debunk exists for this myth.")
+
+    @app.get("/published/{myth_id}/video/{token}.mp4")
+    def get_published_video(myth_id: str, token: str):
+        if myth_id in radar.TOPICS:
+            try:
+                video = qa.media_path(token)
+                receipt = publish.read_published(myth_id)
+                if receipt.video_url == qa.media_url(myth_id, token) and video.is_file():
+                    return FileResponse(video, media_type="video/mp4")
+            except (FileNotFoundError, ValueError):
+                pass
+        return api_error(404, "video_not_found", "No published video exists at this address.")
 
     async def refresh_radar(request: Request):
         async with request.app.state.radar_lock:
