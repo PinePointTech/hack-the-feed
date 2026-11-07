@@ -1,0 +1,18 @@
+{
+  "myth_id": "garlic-tumor",
+  "window": {
+    "from": "2026-10-07",
+    "to": "2026-11-06"
+  },
+  "myth_reach": {
+    "videos": 4,
+    "views": 2663899
+  },
+  "response_reach": {
+    "videos": 1,
+    "views": 522991
+  },
+  "response_ratio": 0.19632538621021292,
+  "hours_spike_to_first_response": 386.87,
+  "note": "Based on the 30 highest-viewed Oriane topic matches in the saved stance sample. Reach sums the views of posts labeled promotes or debunks. The sampled posts account for 98.3% of topic views. Response ratio divides debunk views by promoter views. Response time is measured from the top promoter to the first later sampled debunk."
+}

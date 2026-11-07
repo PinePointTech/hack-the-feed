@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from . import judge, oriane, radar
+from . import judge, oriane, radar, reporting
 from .config import Settings
 
 CLINICIAN_TERMS = [
@@ -212,15 +212,21 @@ async def build(client: httpx.AsyncClient, settings: Settings, *, refresh: bool 
              "stance_confidence": entry.confidence, "nameable": entry.nameable}
             for entry in classified
         ]
-        return updated, detail, {"videos": labels, "suggested_harm_tier": suggested_tier}
+        impact = reporting.build_impact(detail, [(entry.stance, entry.item) for entry in classified])
+        if impact is None:
+            raise ValueError(f"Oriane stance sample for {myth_id} has incomplete impact data")
+        return updated, detail, {"videos": labels, "suggested_harm_tier": suggested_tier}, impact
 
     results = await asyncio.gather(*(enrich(summary) for summary in snapshot["myths"]))
-    for summary, detail, audit in results:
+    updated_radar = {**snapshot, "myths": [summary for summary, _, _, _ in results]}
+    calendar = reporting.build_calendar(updated_radar)
+    for summary, detail, audit, impact in results:
         myth_id = summary["id"]
         oriane.write_json(radar.DATA_DIR / "cache" / "radar-policy" / f"{myth_id}.json", audit)
         oriane.write_json(radar.DATA_DIR / "myths" / f"{myth_id}.json", detail)
-    updated_radar = {**snapshot, "myths": [summary for summary, _, _ in results]}
+        oriane.write_json(radar.DATA_DIR / "impact" / f"{myth_id}.json", impact)
     oriane.write_json(radar.DATA_DIR / "radar.json", updated_radar)
+    oriane.write_json(radar.DATA_DIR / "calendar.json", calendar)
     return updated_radar
 
 

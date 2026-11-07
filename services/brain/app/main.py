@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -11,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, oriane, publish, qa, radar
+from . import brief, check, oriane, publish, qa, radar, reporting
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -197,6 +198,22 @@ def create_app(
         if refresh and (error := await refresh_radar(request)):
             return error
         return radar.read_myth(myth_id)
+
+    @app.get("/impact/{myth_id}")
+    def get_impact(myth_id: str):
+        if myth_id not in radar.TOPICS:
+            return api_error(404, "myth_not_found", "Unknown myth ID.")
+        try:
+            return json.loads((oriane.DATA_DIR / "impact" / f"{myth_id}.json").read_bytes())
+        except FileNotFoundError:
+            return api_error(404, "impact_unavailable", "No measured stance sample exists for this myth.")
+
+    @app.get("/calendar")
+    def get_calendar():
+        try:
+            return json.loads((oriane.DATA_DIR / "calendar.json").read_bytes())
+        except FileNotFoundError:
+            return reporting.build_calendar(radar.read_radar())
 
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:
