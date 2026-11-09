@@ -111,4 +111,6 @@ export const api = {
   candidates: () => read<MythCandidates>("/myths/candidates"),
   confirmMyth: (id: string, token?: string) => live<ConfirmedMyth>(`/myths/${encodeURIComponent(id)}/confirm`,
     { method: "POST", headers: token ? { "X-Review-Token": token } : undefined }, 15000),
+  rejectMyth: (id: string, token?: string) => live<{ id: string; rejected: true }>(`/myths/${encodeURIComponent(id)}/reject`,
+    { method: "POST", headers: token ? { "X-Review-Token": token } : undefined }, 15000),
 };

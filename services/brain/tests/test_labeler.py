@@ -253,6 +253,30 @@ def test_confirm_needs_the_reviewer_token_when_one_is_set(env):
         assert ok.status_code == 200 and ok.json()["status"] == "confirmed"
 
 
+def test_reject_deletes_a_candidate_and_frees_its_posts(env):
+    seed((1, 20000, "sea moss"))
+    label(FakeJudge())
+    with TestClient(main.create_app(config(oriane_key="", review_token="s3cret"))) as client:
+        assert client.post("/myths/sea-moss/reject").status_code == 401
+        ok = client.post("/myths/sea-moss/reject", headers={"X-Review-Token": "s3cret"})
+        assert ok.json() == {"id": "sea-moss", "rejected": True}
+        assert client.post("/myths/sea-moss/reject", headers={"X-Review-Token": "s3cret"}).status_code == 404
+    assert rows("SELECT id FROM myths") == [] and rows("SELECT myth_id FROM labels") == [(None,)]
+
+
+def test_labels_from_an_older_prompt_are_relabeled_after_new_posts(env):
+    seed((1, 20000, "q"), (2, 30000, "q"))
+    with closing(store.connect()) as con:
+        store.upsert_label(con, "cnt_2", health_claim=True, myth_id=None, stance="promotes", confidence=0.9,
+                           model="old", labeled_at=store.iso(T0), prompt_version=None)
+        assert [p["oriane_id"] for p in store.unlabeled_posts(con, 10, 0)] == ["cnt_1"]
+        assert [p["oriane_id"] for p in store.unlabeled_posts(con, 10, 0, labeler.PROMPT_VERSION)] == ["cnt_1", "cnt_2"]
+    fake = FakeJudge()
+    assert label(fake, now=T0 + timedelta(hours=2)) == 2
+    assert rows("SELECT DISTINCT prompt_version FROM labels") == [(labeler.PROMPT_VERSION,)]
+    assert label(fake, now=T0 + timedelta(hours=4)) == 0  # current labels are not redone
+
+
 def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
     def stub_model(request: httpx.Request) -> httpx.Response:
         asked = json.loads(json.loads(request.content)["messages"][1]["content"])["questions"]

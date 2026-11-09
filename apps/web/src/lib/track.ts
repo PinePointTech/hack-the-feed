@@ -34,6 +34,7 @@ type Events = {
   "Script Reused": { myth_id: string; from: "calendar" };
   "Feed Viewed": { post_count: number; labeled_count: number };
   "Myth Confirmed": { myth_id: string };
+  "Myth Rejected": { myth_id: string };
   "Video Suggested": { myth_id: string; video_id: string; format: string; ok: boolean };
 };
 
