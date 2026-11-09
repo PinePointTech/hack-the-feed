@@ -25,10 +25,17 @@ VIDEOS_SHOWN = 10
 QUOTE_SOURCES = {"transcript": "transcript", "caption": "caption", "on_screen": "on_screen_text"}
 
 
+# shortcut: measured once (docs/research/live-feed-coverage.md, 1.4): Oriane's text search fills a day about
+# 6 days after it. Replace with a per-day completeness check if that lag changes.
+INDEX_LAG_DAYS = 6
+
+
 def data_end(con: sqlite3.Connection, now: datetime) -> date:
-    """The newest day Oriane has posts for, or today. Oriane lags a few days, and empty trailing days would read as cooling."""
+    """The last day Oriane's text search has filled: the newest post day, at most INDEX_LAG_DAYS before today.
+    A single early post must not pull a half-empty week into the window, or every trend reads as cooling."""
+    filled = now.date() - timedelta(days=INDEX_LAG_DAYS)
     newest = con.execute("SELECT MAX(substr(published_at, 1, 10)) FROM posts").fetchone()[0]
-    return min(now.date(), date.fromisoformat(newest)) if newest else now.date()
+    return min(filled, date.fromisoformat(newest)) if newest else filled
 
 
 def windows(today: date) -> tuple[dict, dict]:

@@ -156,6 +156,13 @@ def test_a_full_last_page_at_the_page_cap_is_not_an_error(env, monkeypatch):
     assert rows("SELECT error FROM polls") == [(None,)]
 
 
+def test_only_every_fourth_poll_pages_deep(env, monkeypatch):
+    fake = paged(monkeypatch, 5)
+    for i in range(5):
+        poll(fake, config(oriane_max_searches_per_hour=100), T0 + timedelta(minutes=15 * i))
+    assert rows("SELECT searches FROM polls ORDER BY id") == [(3,), (1,), (1,), (1,), (3,)]  # polls 1 and 5 page
+
+
 def test_paging_stops_when_the_hourly_budget_runs_out(env, monkeypatch):
     fake = paged(monkeypatch, 5)
     assert poll(fake, config(oriane_max_searches_per_hour=2), T0) == (True, 4)
