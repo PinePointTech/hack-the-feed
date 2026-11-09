@@ -8,13 +8,17 @@ import { track } from "../track";
  * Candidate myths for review. Returns { rows, loading, unavailable, busy, notice, confirm }.
  * `unavailable` means the brain did not answer the candidates read. The feed read only adds source links, so it may fail quietly.
  * confirm(id) calls POST /myths/{id}/confirm, drops the row on success or 404 (already gone), and tracks "Myth Confirmed" on success.
+ * A public brain answers 401 until the reviewer enters its token; the token stays in this tab's sessionStorage only.
  */
+const TOKEN_KEY = "mybuster-review-token";
+const readToken = () => { try { return sessionStorage.getItem(TOKEN_KEY) ?? ""; } catch { return ""; } };
 export function useCandidates() {
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [needsToken, setNeedsToken] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -37,11 +41,14 @@ export function useCandidates() {
     setBusy(id);
     setNotice(null);
     try {
-      await api.confirmMyth(id);
+      await api.confirmMyth(id, readToken() || undefined);
       track("Myth Confirmed", { myth_id: id });
       setRows((r) => r.filter((x) => x.id !== id));
     } catch (err) {
-      if (err instanceof BrainError && err.status === 404) {
+      if (err instanceof BrainError && err.status === 401) {
+        setNeedsToken(true);
+        setNotice("Enter the reviewer token, then press Confirm again.");
+      } else if (err instanceof BrainError && err.status === 404) {
         setRows((r) => r.filter((x) => x.id !== id));
         setNotice("That myth is no longer a candidate, so it was removed from the list.");
       } else {
@@ -52,5 +59,9 @@ export function useCandidates() {
     }
   }, []);
 
-  return { rows, loading, unavailable, busy, notice, confirm };
+  const saveToken = useCallback((token: string) => {
+    try { sessionStorage.setItem(TOKEN_KEY, token.trim()); } catch { /* private mode: the next confirm asks again */ }
+  }, []);
+
+  return { rows, loading, unavailable, busy, notice, confirm, needsToken, saveToken };
 }

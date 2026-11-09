@@ -196,6 +196,18 @@ def test_candidates_list_and_only_a_person_confirms(env):
     assert rows("SELECT id, status FROM myths ORDER BY id") == [("castor-oil-pack", "candidate"), ("sea-moss", "confirmed")]
 
 
+def test_confirm_needs_the_reviewer_token_when_one_is_set(env):
+    seed((1, 20000, "sea moss"))
+    label(FakeJudge())
+    with TestClient(main.create_app(config(oriane_key="", review_token="s3cret"))) as client:
+        for headers in ({}, {"X-Review-Token": "wrong"}):
+            refused = client.post("/myths/sea-moss/confirm", headers=headers)
+            assert refused.status_code == 401 and refused.json()["error"]["code"] == "review_token_required"
+        assert rows("SELECT status FROM myths") == [("candidate",)]
+        ok = client.post("/myths/sea-moss/confirm", headers={"X-Review-Token": "s3cret"})
+        assert ok.status_code == 200 and ok.json()["status"] == "confirmed"
+
+
 def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
     def stub_model(request: httpx.Request) -> httpx.Response:
         asked = json.loads(json.loads(request.content)["messages"][1]["content"])["questions"]
