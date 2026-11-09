@@ -1,7 +1,7 @@
 # Build from the repo root so the image keeps the repo layout the code expects
 # (services/brain/app -> ../../../data and ../../../contracts):
 #   docker build -f services/brain/Dockerfile -t mybuster-brain .
-#   docker run --env-file services/brain/.env -p 8000:8000 -v "$PWD/data:/app/data" mybuster-brain
+#   docker run --env-file services/brain/.env -p 8000:8000 -v mybuster-data:/app/data mybuster-brain
 FROM python:3.12-slim
 
 RUN apt-get update \
@@ -17,13 +17,14 @@ COPY services/brain/app ./app
 # radar.py seeds refreshes from the shared fixture
 COPY contracts/fixtures /app/contracts/fixtures
 
-RUN useradd --create-home --uid 1000 brain
-# Watchlist, briefs, sources and receipts ship in the image. The database lives elsewhere (MYBUSTER_DB),
-# e.g. on a Railway volume, so redeploys keep it.
-COPY --chown=brain data /app/data
+RUN useradd --create-home --uid 1000 brain && mkdir -p /app/data && chown brain /app/data
+# Seed data (watchlist, briefs, sources, receipts) ships in the image; /app/data is meant to be a volume.
+# At start, seed files the volume lacks are copied in and the watchlist is refreshed, so the database,
+# published receipts and caches written at runtime survive redeploys.
+COPY --chown=brain data /app/data-seed
 USER brain
 ENV PATH="/app/services/brain/.venv/bin:$PATH"
 
 EXPOSE 8000
 # Railway and similar hosts pass the port in $PORT.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "cp -Rn /app/data-seed/. /app/data/ 2>/dev/null; cp /app/data-seed/watchlist.json /app/data/ && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
