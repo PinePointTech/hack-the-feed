@@ -18,6 +18,7 @@ from .config import Settings
 
 logger = logging.getLogger(__name__)
 NO_MYTH = "none"
+DUBIOUS_MIN = 0.6
 CONTEXT_MAX = 1500
 STANCES = {
     "promotes": "The post presents the claim as true or tells people to act on it.",
@@ -43,6 +44,13 @@ def questions(myths: dict[str, str]) -> dict:
             "type": "choice",
             "instructions": "What stance does the post take on the claim in claim_sentence?",
             "options": STANCES,
+        },
+        "dubious": {
+            "type": "noul",
+            "instructions": (
+                "Is the health claim in claim_sentence false, unproven, or contradicted by mainstream medical "
+                "evidence? A modest claim that evidence supports, such as massage easing swelling for a while, is not."
+            ),
         },
     }
 
@@ -94,7 +102,9 @@ async def label_pending(
                 logger.warning("Labeling failed (%s)", type(result).__name__)
                 continue
             health_claim, myth_id, stance, confidence = decide(result[0])
-            if health_claim and myth_id is None and stance in ("promotes", "debunks"):
+            # Only a claim the model doubts can seed a candidate; true or modest claims are labeled, not proposed.
+            dubious = result[0].get("dubious", {}).get("noul", 0.0) >= DUBIOUS_MIN
+            if health_claim and myth_id is None and stance in ("promotes", "debunks") and dubious:
                 myth_id = candidate_id(post["matched_query"]) or None
                 if myth_id and myth_id not in myths:
                     store.add_candidate(
