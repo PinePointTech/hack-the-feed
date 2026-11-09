@@ -3,6 +3,7 @@
 import json
 import os
 import sqlite3
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +33,10 @@ CREATE TABLE IF NOT EXISTS labels (
     stance TEXT NOT NULL,
     confidence REAL NOT NULL,
     model TEXT NOT NULL,
-    labeled_at TEXT NOT NULL
+    labeled_at TEXT NOT NULL,
+    dubious REAL,
+    standalone_claim REAL,
+    prompt_version TEXT
 );
 CREATE TABLE IF NOT EXISTS myths (
     id TEXT PRIMARY KEY,
@@ -93,6 +97,11 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
+    have = {row["name"] for row in con.execute("PRAGMA table_info(labels)")}
+    for column, kind in (("dubious", "REAL"), ("standalone_claim", "REAL"), ("prompt_version", "TEXT")):
+        if column not in have:
+            with suppress(sqlite3.OperationalError):  # another connection added it first
+                con.execute(f"ALTER TABLE labels ADD COLUMN {column} {kind}")
     return con
 
 
@@ -125,11 +134,14 @@ def upsert_posts(con: sqlite3.Connection, posts: list[dict], fetched_at: str) ->
 def upsert_label(
     con: sqlite3.Connection, oriane_id: str, *, health_claim: bool, myth_id: str | None,
     stance: str, confidence: float, model: str, labeled_at: str,
+    dubious: float | None = None, standalone_claim: float | None = None, prompt_version: str | None = None,
 ) -> None:
     with con:
         con.execute(
-            "INSERT OR REPLACE INTO labels VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (oriane_id, int(health_claim), myth_id, stance, confidence, model, labeled_at),
+            "INSERT OR REPLACE INTO labels (oriane_id, health_claim, myth_id, stance, confidence, model, labeled_at, "
+            "dubious, standalone_claim, prompt_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (oriane_id, int(health_claim), myth_id, stance, confidence, model, labeled_at,
+             dubious, standalone_claim, prompt_version),
         )
 
 

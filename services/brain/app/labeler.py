@@ -19,12 +19,22 @@ from .config import Settings
 logger = logging.getLogger(__name__)
 NO_MYTH = "none"
 DUBIOUS_MIN = 0.6
+STANDALONE_MIN = 0.5
+PROMPT_VERSION = "ad-first-standalone-1"  # bump when a question changes, so old labels stay explainable
 CONTEXT_MAX = 1500
 STANCES = {
-    "promotes": "The post presents the claim as true or tells people to act on it.",
-    "debunks": "The post disputes the claim or corrects it.",
-    "ad": "The post sells or sponsors a product that relies on the claim.",
-    "unrelated": "The post does not take a position on the claim.",
+    "promotes": (
+        "Not an ad. The person presents the claim as true or tells others to act on it, as advice, education "
+        "or a personal routine."
+    ),
+    "debunks": "The post disputes the claim, corrects it or warns against it.",
+    "ad": (
+        "The post is made to sell or advertise a product, service, brand, shop or event: it has a price, a "
+        "booking or discount line, a shop or marketplace listing, a brand tag or paid partnership, or a business "
+        "describing its own offer, or it tells people to buy or take a named brand product. Choose ad even when "
+        "the post also states the claim."
+    ),
+    "unrelated": "The post takes no position on the claim, or claim_sentence is not a health claim.",
 }
 FAILURES = (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError)
 
@@ -42,8 +52,19 @@ def questions(myths: dict[str, str]) -> dict:
         },
         "stance": {
             "type": "choice",
-            "instructions": "What stance does the post take on the claim in claim_sentence?",
+            "instructions": (
+                "Check ad first: if the post is made to sell something, answer ad. Otherwise, what stance does "
+                "the post take on the claim in claim_sentence?"
+            ),
             "options": STANCES,
+        },
+        "standalone_claim": {
+            "type": "noul",
+            "instructions": (
+                "Read alone, is claim_sentence a complete statement that something has a health effect, such as "
+                "'X cures Y' or 'Did you know X does Y'? Answer no for an ingredient or product name, a slogan, "
+                "a price or booking line, a question that states no effect, or a story about a person."
+            ),
         },
         "dubious": {
             "type": "noul",
@@ -104,11 +125,14 @@ async def label_pending(
                 logger.warning("Labeling failed (%s)", type(result).__name__)
                 continue
             health_claim, myth_id, stance, confidence = decide(result[0])
-            # Only a claim the model doubts can seed a candidate; true or modest claims are labeled, not proposed.
-            dubious = result[0].get("dubious", {}).get("noul", 0.0) >= DUBIOUS_MIN
+            # Only a promoted claim the model doubts, and that reads as a claim on its own, can seed a candidate;
+            # a debunk, a slogan, an ingredient or a modest true claim is labeled, not proposed.
+            dubious = result[0].get("dubious", {}).get("noul", 0.0)
+            standalone = result[0].get("standalone_claim", {}).get("noul", 0.0)
             # A phrase a confirmed myth already owns never seeds a second myth with the same title.
             new_topic = post["matched_query"].lower() not in owned
-            if health_claim and myth_id is None and stance in ("promotes", "debunks") and dubious and new_topic:
+            if (health_claim and myth_id is None and stance == "promotes" and dubious >= DUBIOUS_MIN
+                    and standalone >= STANDALONE_MIN and new_topic):
                 myth_id = candidate_id(post["matched_query"]) or None
                 if myth_id and myth_id not in myths:
                     store.add_candidate(
@@ -118,6 +142,7 @@ async def label_pending(
             store.upsert_label(
                 con, post["oriane_id"], health_claim=health_claim, myth_id=myth_id, stance=stance,
                 confidence=confidence, model=settings.chat_model, labeled_at=store.iso(now),
+                dubious=dubious, standalone_claim=standalone, prompt_version=PROMPT_VERSION,
             )
             labeled += 1
         return labeled

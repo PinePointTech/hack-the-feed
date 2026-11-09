@@ -79,6 +79,11 @@ def posts_of(myth: dict, posts: list[dict]) -> list[dict]:
     ]
 
 
+def assigned(myth: dict, posts: list[dict]) -> list[dict]:
+    """Posts a label assigns to this confirmed myth. Reach and stance numbers use only these, never the phrase."""
+    return [post for post in posts if post["myth_id"] == myth["id"]]
+
+
 def inside(posts: list[dict], window: dict) -> list[dict]:
     return [post for post in posts if window["from"] <= post["day"] <= window["to"]]
 
@@ -116,13 +121,14 @@ def summary_of(myth: dict, mine: list[dict], current: dict, previous: dict, snap
         "topic_views": sum(post["views"] for post in now_posts),
         "prev_window": previous, "prev_topic_video_count": len(before),
         "prev_topic_views": sum(post["views"] for post in before),
-        "match_note": "Posts found with " + ", ".join(f'"{p}"' for p in myth["phrases"])
-                      + " unless a label assigns them elsewhere. Labels decide the stance.",
+        "match_note": "Topic counts include posts found with " + ", ".join(f'"{p}"' for p in myth["phrases"])
+                      + " unless a label assigns them elsewhere. Promoter reach, top video and stance counts "
+                      "use only posts a label assigns to this myth.",
         "data_source": "oriane_live", "snapshot_at": snapshot_at,
     }
     if pct is not None:
         summary["trend_pct"] = pct
-    if promoters := [post for post in now_posts if post["stance"] == "promotes"]:
+    if promoters := [post for post in assigned(myth, now_posts) if post["stance"] == "promotes"]:
         summary["top_video"] = video_ref(max(promoters, key=lambda post: post["views"]))
     return summary
 
@@ -145,7 +151,7 @@ def myth_detail(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | 
     current, previous = windows(data_end(con, now))
     mine = posts_of(myth, load_posts(con, previous["from"]))
     detail = summary_of(myth, mine, current, previous, snapshot_time(con, now))
-    now_posts = inside(mine, current)
+    now_posts = inside(assigned(myth, mine), current)
 
     def top(stance: str) -> list[dict]:
         ranked = sorted((p for p in now_posts if p["stance"] == stance), key=lambda p: -p["views"])
@@ -168,15 +174,17 @@ def impact(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
     if myth is None:
         return None
     current, previous = windows(data_end(con, now))
-    labeled = [p for p in inside(posts_of(myth, load_posts(con, previous["from"])), current) if p["labeled"]]
+    labeled = [p for p in inside(assigned(myth, posts_of(myth, load_posts(con, previous["from"]))), current)
+               if p["labeled"]]
     result = {"generated_at": store.iso(now), "myth_id": myth_id, "window": current, "myth_reach": reach([p for p in labeled if p["stance"] == "promotes"])}
     if not labeled:
-        result["note"] = "Pending: no posts about this myth are labeled yet, so response reach is not measured."
+        result["note"] = "Pending: no posts are labeled as this myth yet, so response reach is not measured."
         return result
     debunks = reach([p for p in labeled if p["stance"] == "debunks"])
     result["response_reach"] = debunks
-    note = (f"Based on {len(labeled)} labeled posts from {current['from']} through {current['to']}. "
-            "Reach sums the views of posts labeled promotes or debunks.")
+    note = (f"Based on {len(labeled)} posts a label assigns to this myth, from {current['from']} through "
+            f"{current['to']}. Reach sums the views of those posts labeled promotes or debunks. "
+            "Topic counts on the radar also include unlabeled posts found with the myth's phrases.")
     if result["myth_reach"]["views"]:
         result["response_ratio"] = debunks["views"] / result["myth_reach"]["views"]
         note += " Response ratio divides debunk views by promoter views."
@@ -184,21 +192,6 @@ def impact(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
         note += " No post is labeled promotes, so there is no ratio."
     result["note"] = note
     return result
-
-
-def daily_counts(posts: list[dict], window: dict) -> list[int]:
-    start = date.fromisoformat(window["from"])
-    days = Counter(post["day"] for post in posts)
-    return [days[(start + timedelta(days=i)).isoformat()] for i in range(WINDOW_DAYS)]
-
-
-def project_next_week(counts: list[int]) -> tuple[float, int]:
-    """Least-squares line through the daily counts: (slope per day, posts expected over the next 7 days)."""
-    n = len(counts)
-    mean_x, mean_y = (n - 1) / 2, sum(counts) / n
-    slope = sum((x - mean_x) * (y - mean_y) for x, y in enumerate(counts)) / sum((x - mean_x) ** 2 for x in range(n))
-    line = lambda x: mean_y + slope * (x - mean_x)  # noqa: E731
-    return slope, round(sum(max(line(x), 0) for x in range(n, 2 * n)))
 
 
 def week_label(monday: date) -> str:
@@ -214,19 +207,19 @@ def calendar(con: sqlite3.Connection, now: datetime) -> dict:
     for myth in confirmed_myths(con):
         mine = posts_of(myth, posts)
         summary = summary_of(myth, mine, current, previous, at)
-        counts = daily_counts(inside(mine, current), current)
-        slope, projected = project_next_week(counts)
-        rising = slope > 0 and sum(counts) >= MIN_RISING_POSTS
+        count, before = summary["topic_video_count"], summary["prev_topic_video_count"]
+        rising = summary["trend"] == "rising" and count >= MIN_RISING_POSTS
+        weeks = (f"{before} posts from {previous['from']} through {previous['to']}, "
+                 f"{count} from {current['from']} through {current['to']}")
         item = {
             "topic": myth["title"], "myth_id": myth["id"], "harm_tier": myth["harm_tier"],
             "trend": summary["trend"], "window": week_label(monday), "basis": "oriane_trend",
-            "video_count": summary["topic_video_count"], "views": summary["topic_views"],
+            "video_count": count, "views": summary["topic_views"],
             "script_available": any((oriane.DATA_DIR / "briefs").glob(f"{myth['id']}.*.json")),
-            "why": (f"Daily posts rose over {current['from']} through {current['to']} "
-                    f"({sum(counts)} posts). The trend line projects {projected} posts next week."
-                    if rising else
-                    f"Daily posts are not rising over {current['from']} through {current['to']} "
-                    f"({sum(counts)} posts). Watching."),
+            "why": (f"Posts rose week over week: {weeks}." if rising else
+                    f"Posts rose week over week but {count} is under the {MIN_RISING_POSTS} needed to call it a trend: "
+                    f"{weeks}. Watching." if summary["trend"] == "rising" else
+                    f"Not rising week over week: {weeks}. Watching."),
         }
         (this_week if rising else watchlist).append(item)
     return {"generated_at": store.iso(now), "week_of": monday.isoformat(), "this_week": this_week, "watchlist": watchlist}

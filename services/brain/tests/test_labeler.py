@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sqlite3
 import time
 from contextlib import closing
 from datetime import timedelta
@@ -19,10 +20,12 @@ def settings(**changes):
     return config(openai_key="test-key", openai_model=MODEL, **changes)
 
 
-def answers(health: float = 0.9, myth: str = labeler.NO_MYTH, stance: str = "promotes", dubious: float = 0.9) -> dict:
+def answers(health: float = 0.9, myth: str = labeler.NO_MYTH, stance: str = "promotes", dubious: float = 0.9,
+            standalone: float = 0.9) -> dict:
     return {
         "health_claim": {"noul": health},
         "dubious": {"noul": dubious},
+        "standalone_claim": {"noul": standalone},
         "myth": {"choice": myth, "probabilities": {myth: 1.0}},
         "stance": {"choice": stance, "probabilities": {**dict.fromkeys(labeler.STANCES, 0.0), stance: 0.8}},
     }
@@ -120,6 +123,48 @@ def test_a_supported_claim_is_labeled_but_never_becomes_a_candidate(env):
     assert [(i, myth, stance) for i, _, myth, stance, *_ in labels()] == [("cnt_1", None, "promotes")]
 
 
+def test_a_candidate_needs_a_promoting_standalone_claim_the_model_doubts(env):
+    seed((1, 20000, "slogan"), (2, 20000, "debunk"), (3, 20000, "did you know"), (4, 20000, "borderline"))
+    replies = {
+        "claim 1": answers(standalone=0.0),  # a slogan or ingredient name is not a claim
+        "claim 2": answers(stance="debunks"),  # a debunk never seeds
+        "claim 3": answers(standalone=0.5),  # 'Did you know X does Y' reads as a claim, at the threshold
+        "claim 4": answers(standalone=0.49),
+    }
+    label(FakeJudge(lambda state, questions: replies[state["claim_sentence"]]))
+    assert rows("SELECT id, claim FROM myths") == [("did-you-know", "claim 3")]
+
+
+def test_the_stance_question_checks_ad_first_and_standalone_claim_is_asked(env):
+    asked = labeler.questions({})
+    assert asked["stance"]["instructions"].startswith("Check ad first")
+    assert "named brand product" in asked["stance"]["options"]["ad"]
+    assert "Did you know" in asked["standalone_claim"]["instructions"]
+
+
+def test_dubious_standalone_claim_and_prompt_version_are_stored_per_label(env):
+    seed((1, 20000, "q"))
+    label(FakeJudge(lambda state, questions: answers(dubious=0.7, standalone=0.2)))
+    assert rows("SELECT dubious, standalone_claim, prompt_version FROM labels") == [(0.7, 0.2, labeler.PROMPT_VERSION)]
+
+
+def test_an_existing_database_gains_the_new_label_columns_once(env, tmp_path):
+    old = tmp_path / "old.db"
+    legacy = sqlite3.connect(old)
+    legacy.execute(
+        "CREATE TABLE labels (oriane_id TEXT PRIMARY KEY, health_claim INTEGER NOT NULL, myth_id TEXT, "
+        "stance TEXT NOT NULL, confidence REAL NOT NULL, model TEXT NOT NULL, labeled_at TEXT NOT NULL)"
+    )
+    legacy.execute("INSERT INTO labels VALUES ('cnt_old', 1, NULL, 'promotes', 0.9, 'm', 't')")
+    legacy.commit()
+    legacy.close()
+    for _ in range(2):  # a second connect is a no-op
+        with closing(store.connect(old)) as con:
+            assert [tuple(r) for r in con.execute("SELECT oriane_id, dubious, standalone_claim, prompt_version FROM labels")] == [
+                ("cnt_old", None, None, None),
+            ]
+
+
 def test_a_phrase_a_confirmed_myth_owns_never_becomes_a_candidate(env):
     with closing(store.connect()) as con, con:
         con.execute("INSERT INTO myths (id, title, claim, phrases) VALUES ('m1', 'T', 'C', '[\"Sea Moss\"]')")
@@ -214,6 +259,7 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
         reply = {
             "health_claim": {"noul": 0.9},
             "dubious": {"noul": 0.9},
+            "standalone_claim": {"noul": 0.9},
             "myth": {"choice": "none", "probabilities": {name: float(name == "none") for name in asked["myth"]["options"]}},
             "stance": {"choice": "promotes", "probabilities": {name: float(name == "promotes") for name in asked["stance"]["options"]}},
         }
