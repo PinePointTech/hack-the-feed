@@ -121,3 +121,14 @@ Passing video QA returns a `Content-Location` for that exact upload and
 locked script. Publishing with that location makes the video available to
 the receipts page. Keep `data/published/` and `data/cache/qa/` on persistent
 storage when the brain serves live receipts.
+
+## Live feed
+
+The brain polls Oriane in the background and stores posts in `data/mybuster.db` (SQLite, gitignored). Edit `data/watchlist.json` to change the searched phrases; the next poll picks it up.
+
+- `GET /feed?since=<ISO8601>&limit=<1..100>` returns stored posts, newest fetch first, then by views. `label` stays null until the labeler runs.
+- `POST /poll` runs one poll only if `POLL_INTERVAL_MINUTES` (default 15) passed since the last poll started. Otherwise it returns `ran: false`.
+- `ORIANE_MAX_SEARCHES_PER_HOUR` (default 20) caps Oriane searches, counted from the `polls` table.
+- Nothing polls without `ORIANE_API_KEY`.
+
+Run the tests with `uv run pytest -q`.
