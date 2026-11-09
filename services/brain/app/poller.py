@@ -6,12 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from . import oriane, store
+from . import derived, oriane, store
 from .config import Settings
 from .radar import text_query
 
 WATCHLIST = oriane.DATA_DIR / "watchlist.json"
-WINDOW_DAYS = 7
 PHRASES_PER_SEARCH = 6
 RESULTS_PER_SEARCH = 100
 # shortcut: assumes the REST API takes comma-separated sort keys; confirm with a live poll.
@@ -119,7 +118,7 @@ async def run_poll(
         # shortcut: batches past the cap are dropped, not rotated; fine while 3 batches x 4 polls/hour < 20.
         error = f"search cap reached: ran {max(budget, 0)} of {len(batches)} searches" if budget < len(batches) else None
         new_posts = 0
-        after = (now - timedelta(days=WINDOW_DAYS)).date().isoformat()
+        after = (now - timedelta(days=derived.WINDOW_DAYS)).date().isoformat()
         try:
             for batch in batches[:max(budget, 0)]:
                 store.charge_search(con, poll_id)
@@ -135,6 +134,7 @@ async def run_poll(
         except (httpx.RequestError, ValueError, KeyError, TypeError, RuntimeError) as failure:
             error = f"Oriane search failed ({type(failure).__name__})"
         store.finish_poll(con, poll_id, store.iso(datetime.now(timezone.utc)), new_posts, error)
+        derived.write_snapshots(con, now)
         return True, new_posts
     finally:
         con.close()
