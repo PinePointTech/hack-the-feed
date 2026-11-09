@@ -70,7 +70,7 @@ def test_query_asks_for_recent_posts_sorted_by_date_then_views(env):
     poll(fake, config(), T0)
     params, body = fake.requests[0]
     assert params["sort"] == "publishedAt:desc,viewsCount:desc"
-    assert body["filters"]["publishedAt"] == {"after": "2026-11-01"}
+    assert body["filters"]["publishedAt"] == {"after": "2026-10-25"}  # two windows back
     exact = body["queries"][0]["filters"]["transcript"]["includesExactly"]
     assert exact == {"operator": "or", "values": ["mouth tape"]}
 

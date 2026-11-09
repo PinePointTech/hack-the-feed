@@ -89,6 +89,8 @@ async def label_pending(
         if not posts:
             return 0
         myths = {**brief.MYTHS, **store.myth_claims(con)}
+        owned = {phrase.lower() for (phrases,) in con.execute("SELECT phrases FROM myths WHERE status = 'confirmed'")
+                 for phrase in json.loads(phrases)}
         asked = questions(myths)
         results = await asyncio.gather(
             *(evaluator.ask(state_for(post), asked, client=client) for post in posts), return_exceptions=True,
@@ -104,7 +106,9 @@ async def label_pending(
             health_claim, myth_id, stance, confidence = decide(result[0])
             # Only a claim the model doubts can seed a candidate; true or modest claims are labeled, not proposed.
             dubious = result[0].get("dubious", {}).get("noul", 0.0) >= DUBIOUS_MIN
-            if health_claim and myth_id is None and stance in ("promotes", "debunks") and dubious:
+            # A phrase a confirmed myth already owns never seeds a second myth with the same title.
+            new_topic = post["matched_query"].lower() not in owned
+            if health_claim and myth_id is None and stance in ("promotes", "debunks") and dubious and new_topic:
                 myth_id = candidate_id(post["matched_query"]) or None
                 if myth_id and myth_id not in myths:
                     store.add_candidate(

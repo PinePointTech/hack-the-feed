@@ -120,6 +120,15 @@ def test_a_supported_claim_is_labeled_but_never_becomes_a_candidate(env):
     assert [(i, myth, stance) for i, _, myth, stance, *_ in labels()] == [("cnt_1", None, "promotes")]
 
 
+def test_a_phrase_a_confirmed_myth_owns_never_becomes_a_candidate(env):
+    with closing(store.connect()) as con, con:
+        con.execute("INSERT INTO myths (id, title, claim, phrases) VALUES ('m1', 'T', 'C', '[\"Sea Moss\"]')")
+    seed((1, 20000, "sea moss"))
+    label(FakeJudge())
+    assert rows("SELECT id FROM myths") == [("m1",)]
+    assert [(i, myth) for i, _, myth, *_ in labels()] == [("cnt_1", None)]
+
+
 def test_no_candidate_for_non_health_posts_ads_or_unrelated_stance(env):
     seed((1, 20000, "a"), (2, 20000, "b"), (3, 20000, "c"))
     replies = {"claim 1": answers(health=0.2), "claim 2": answers(stance="ad"), "claim 3": answers(stance="unrelated")}
@@ -210,7 +219,8 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
                 and time.monotonic() < deadline:
             time.sleep(0.05)
         assert posts["cnt_1"]["label"] == {
-            "health_claim": True, "myth_id": "mouth-tape", "stance": "promotes", "confidence": 1.0, "model": MODEL,
+            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL,
         }
         assert posts["cnt_2"]["label"] is None  # under the view floor
-        assert [c["id"] for c in client.get("/myths/candidates").json()["candidates"]] == ["mouth-tape"]
+        # The seeded mouth-taping myth owns "mouth tape", so no duplicate candidate appears.
+        assert client.get("/myths/candidates").json()["candidates"] == []

@@ -18,16 +18,21 @@ SEED_PHRASES = {
     "mouth-taping": ["mouth taping", "mouth tape", "tape my mouth", "taping my mouth"],
     "garlic-tumor": ["garlic tumor", "garlic cancer"],
 }
-WINDOW_DAYS = 7  # the poller searches this far back, so every window post has been searchable
+WINDOW_DAYS = 7  # the poller searches two windows back, so both windows have been searchable
 MIN_RISING_POSTS = 3  # shortcut: fewer posts in the window is noise, not a trend; tune with real poll history
 TREND_PCT = 10
 VIDEOS_SHOWN = 10
 QUOTE_SOURCES = {"transcript": "transcript", "caption": "caption", "on_screen": "on_screen_text"}
 
 
-def windows(now: datetime) -> tuple[dict, dict]:
-    """(current, previous) as inclusive date windows ending today."""
-    today = now.date()
+def data_end(con: sqlite3.Connection, now: datetime) -> date:
+    """The newest day Oriane has posts for, or today. Oriane lags a few days, and empty trailing days would read as cooling."""
+    newest = con.execute("SELECT MAX(substr(published_at, 1, 10)) FROM posts").fetchone()[0]
+    return min(now.date(), date.fromisoformat(newest)) if newest else now.date()
+
+
+def windows(today: date) -> tuple[dict, dict]:
+    """(current, previous) as inclusive date windows ending on `today`."""
     span = timedelta(days=WINDOW_DAYS)
     current = {"from": (today - span + timedelta(days=1)).isoformat(), "to": today.isoformat()}
     previous = {"from": (today - 2 * span + timedelta(days=1)).isoformat(), "to": (today - span).isoformat()}
@@ -53,7 +58,9 @@ def confirmed_myths(con: sqlite3.Connection) -> list[dict]:
 
 def load_posts(con: sqlite3.Connection, since: str) -> list[dict]:
     rows = con.execute(
-        "SELECT p.*, l.oriane_id IS NOT NULL AS labeled, l.myth_id, l.stance, l.confidence "
+        # A label assigns a post only to a confirmed myth; a candidate or no myth leaves the phrase to decide.
+        "SELECT p.*, l.oriane_id IS NOT NULL AS labeled, l.stance, l.confidence, "
+        "CASE WHEN l.myth_id IN (SELECT id FROM myths WHERE status = 'confirmed') THEN l.myth_id END AS myth_id "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
         "WHERE substr(COALESCE(p.published_at, p.fetched_at), 1, 10) >= ?",
         (since,),
@@ -63,11 +70,12 @@ def load_posts(con: sqlite3.Connection, since: str) -> list[dict]:
 
 
 def posts_of(myth: dict, posts: list[dict]) -> list[dict]:
-    """A label decides when there is one; otherwise the phrase the post was found with does."""
+    """A label that names a confirmed myth decides; otherwise the phrase the post was found with does.
+    Posts labeled unrelated never count."""
     return [
         post for post in posts
-        if (post["myth_id"] == myth["id"] and post["stance"] != "unrelated" if post["labeled"]
-            else post["matched_query"].lower() in myth["phrases"])
+        if post["stance"] != "unrelated"
+        and (post["myth_id"] == myth["id"] if post["myth_id"] else post["matched_query"].lower() in myth["phrases"])
     ]
 
 
@@ -124,7 +132,7 @@ def snapshot_time(con: sqlite3.Connection, now: datetime) -> str:
 
 
 def radar(con: sqlite3.Connection, now: datetime) -> dict:
-    current, previous = windows(now)
+    current, previous = windows(data_end(con, now))
     posts, at = load_posts(con, previous["from"]), snapshot_time(con, now)
     myths = [summary_of(m, posts_of(m, posts), current, previous, at) for m in confirmed_myths(con)]
     return {"generated_at": store.iso(now), "window": current, "myths": myths}
@@ -134,7 +142,7 @@ def myth_detail(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | 
     myth = next((m for m in confirmed_myths(con) if m["id"] == myth_id), None)
     if myth is None:
         return None
-    current, previous = windows(now)
+    current, previous = windows(data_end(con, now))
     mine = posts_of(myth, load_posts(con, previous["from"]))
     detail = summary_of(myth, mine, current, previous, snapshot_time(con, now))
     now_posts = inside(mine, current)
@@ -159,7 +167,7 @@ def impact(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
     myth = next((m for m in confirmed_myths(con) if m["id"] == myth_id), None)
     if myth is None:
         return None
-    current, previous = windows(now)
+    current, previous = windows(data_end(con, now))
     labeled = [p for p in inside(posts_of(myth, load_posts(con, previous["from"])), current) if p["labeled"]]
     result = {"generated_at": store.iso(now), "myth_id": myth_id, "window": current, "myth_reach": reach([p for p in labeled if p["stance"] == "promotes"])}
     if not labeled:
@@ -199,7 +207,7 @@ def week_label(monday: date) -> str:
 
 
 def calendar(con: sqlite3.Connection, now: datetime) -> dict:
-    current, previous = windows(now)
+    current, previous = windows(data_end(con, now))
     posts, at = load_posts(con, previous["from"]), snapshot_time(con, now)
     monday = now.date() + timedelta(days=7 - now.weekday())
     this_week, watchlist = [], []
@@ -226,7 +234,7 @@ def calendar(con: sqlite3.Connection, now: datetime) -> dict:
 
 def write_snapshots(con: sqlite3.Connection, now: datetime) -> None:
     """One row per confirmed myth per day; later polls on the same day replace it."""
-    current, previous = windows(now)
+    current, previous = windows(data_end(con, now))
     posts = load_posts(con, previous["from"])
     with con:
         for myth in confirmed_myths(con):

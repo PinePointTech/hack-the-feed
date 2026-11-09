@@ -118,7 +118,7 @@ async def run_poll(
         # shortcut: batches past the cap are dropped, not rotated; fine while 3 batches x 4 polls/hour < 20.
         error = f"search cap reached: ran {max(budget, 0)} of {len(batches)} searches" if budget < len(batches) else None
         new_posts = 0
-        after = (now - timedelta(days=derived.WINDOW_DAYS)).date().isoformat()
+        after = (now - timedelta(days=2 * derived.WINDOW_DAYS)).date().isoformat()  # current and previous window
         try:
             for batch in batches[:max(budget, 0)]:
                 store.charge_search(con, poll_id)
@@ -126,7 +126,11 @@ async def run_poll(
                     client, settings, build_query(batch, after),
                     sort=SORT, projection="default", limit=RESULTS_PER_SEARCH,
                 )
-                posts = [post for item in payload["data"]["results"] if (post := to_post(item, batch))]
+                results = payload["data"]["results"]
+                if len(results) >= RESULTS_PER_SEARCH:
+                    # shortcut: no paging yet, so a full page undercounts older days; page with offset if this shows up.
+                    error = f"a search hit the {RESULTS_PER_SEARCH}-result limit, so older posts may be missing"
+                posts = [post for item in results if (post := to_post(item, batch))]
                 # The oriane_id primary key dedupes repeats within and across searches.
                 new_posts += store.upsert_posts(con, posts, store.iso(now))
         except httpx.HTTPStatusError as failure:
