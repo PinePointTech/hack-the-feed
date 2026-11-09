@@ -1,4 +1,4 @@
-"""Label stored posts: health claim, myth and stance. Unknown claims become candidate myths.
+"""Label stored posts: health claim, myth, claim stance and commercial intent. Unknown claims become candidate myths.
 
 A candidate keeps the post's own sentence as its claim and a watchlist phrase as its title, so the
 model never writes text a user could read as a fact. Only POST /myths/{id}/confirm promotes one.
@@ -20,23 +20,23 @@ logger = logging.getLogger(__name__)
 NO_MYTH = "none"
 DUBIOUS_MIN = 0.6
 STANDALONE_MIN = 0.5
-PROMPT_VERSION = "evidence-quote-1"  # bump when a question changes, so old labels stay explainable
+PROMPT_VERSION = "two-axes-1"  # bump when a question changes, so old labels stay explainable
 CONTEXT_MAX = 6000
+REST_MAX = 1500  # caption and on-screen text always keep this much room, so a long transcript cannot hide an offer
 EVIDENCE_OPTIONS = 12
 EVIDENCE_MIN_WORDS = 4
-STANCES = {
-    "promotes": (
-        "Not an ad. The person presents the claim as true or tells others to act on it, as advice, education "
-        "or a personal routine."
+COMMERCIAL_MIN = 0.5
+CLAIM_STANCES = {
+    "endorses": (
+        "In their own voice, the creator asserts or implies that the named practice or product has a health effect, "
+        "or tells people to use it for their health. Selling it as well does not change this."
     ),
-    "debunks": "The post disputes the claim, corrects it or warns against it.",
-    "ad": (
-        "The post is made to sell or advertise a product, service, brand, shop or event: it has a price, a "
-        "booking or discount line, a shop or marketplace listing, a brand tag or paid partnership, or a business "
-        "describing its own offer, or it tells people to buy or take a named brand product. Choose ad even when "
-        "the post also states the claim."
+    "disputes": "In their own voice, the creator disputes that claim, corrects it or warns against it.",
+    "neither": (
+        "A passing mention, list item, label or banner, joke, metaphor or figure of speech (such as a spiritual "
+        "'cleanse'), a claim the creator only reports without taking a side, or no health effect stated for the "
+        "named practice or product."
     ),
-    "unrelated": "The post takes no position on the claim, or claim_sentence is not a health claim.",
 }
 FAILURES = (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError)
 
@@ -64,16 +64,34 @@ def questions(myths: dict[str, str], evidence: list[tuple[str, str]] = ()) -> di
         },
         "myth": {
             "type": "choice",
-            "instructions": "Which listed claim does claim_sentence restate? Pick none if it matches no listed claim.",
+            "instructions": (
+                "Which listed myth does the creator endorse or dispute in this post? The post must make the same kind "
+                "of claim about the same practice or product, not just mention it; a different effect of the same "
+                "practice is not a match. Pick none if unsure."
+            ),
             "options": {**myths, NO_MYTH: "None of the listed claims."},
         },
-        "stance": {
+        "claim_stance": {
             "type": "choice",
             "instructions": (
-                "Check ad first: if the post is made to sell something, answer ad. Otherwise, what stance does "
-                "the post take on the claim in claim_sentence?"
+                "Read the post, spoken words first. Does the creator, in their own voice, assert or imply that the "
+                "practice or product in claim_sentence has a health effect, or dispute such a claim? Whether the "
+                "post sells anything is a separate question."
             ),
-            "options": STANCES,
+            "options": CLAIM_STANCES,
+        },
+        "commercial": {
+            "type": "noul",
+            "instructions": (
+                "Is the post made by or for a seller to sell or promote a product, service, brand, shop, event or paid "
+                "offer? Yes for the creator's own price, booking or discount line, shop or marketplace listing, paid "
+                "partnership or brand tag, a link, code or 'comment a word' or 'DM me' funnel to get a guide, fix or "
+                "product (also when it is only in the caption), a business showing its own work, products or offer, "
+                "or telling people to buy or take a named brand product. No for brand names or packaging that merely "
+                "appear on screen, a banner or ad the creator shows, reports on or criticizes, a seller the creator "
+                "exposes, or products named with no link, code, price or offer, such as a review that says it is not "
+                "sponsored. Answer this whether or not the post also states a health claim."
+            ),
         },
         "standalone_claim": {
             "type": "noul",
@@ -87,7 +105,8 @@ def questions(myths: dict[str, str], evidence: list[tuple[str, str]] = ()) -> di
             "type": "noul",
             "instructions": (
                 "Is the health claim in claim_sentence false, unproven, or contradicted by mainstream medical "
-                "evidence? A modest claim that evidence supports, such as massage easing swelling for a while, is not."
+                "evidence? A modest claim that evidence supports, such as massage easing swelling for a while, or a "
+                "hedged summary of a controlled trial with its limits, is not."
             ),
         },
     }
@@ -95,8 +114,9 @@ def questions(myths: dict[str, str], evidence: list[tuple[str, str]] = ()) -> di
         asked["evidence"] = {
             "type": "choice",
             "instructions": (
-                "Which listed sentence, in the post's own words, best shows the position the post takes on "
-                "claim_sentence? Pick none if no listed sentence shows it."
+                "Which listed sentence, in the post's own words, best shows what the post does with claim_sentence: "
+                "states the claim, disputes it or, if the post only sells, makes the offer? Pick none if no listed "
+                "sentence shows it."
             ),
             "options": {**{f"s{i}": f"({source}) {sentence}" for i, (source, sentence) in enumerate(evidence, 1)},
                         NO_MYTH: "No listed sentence shows it."},
@@ -105,9 +125,20 @@ def questions(myths: dict[str, str], evidence: list[tuple[str, str]] = ()) -> di
 
 
 def state_for(post: dict) -> str:
-    # texts_of lists the transcript first, then the caption, then on-screen text, so a long transcript is cut last.
-    context = " ".join(text for _, text in poller.texts_of(json.loads(post["raw_json"])))[:CONTEXT_MAX]
-    return json.dumps({"claim_sentence": post["snippet"], "matched_phrase": post["matched_query"], "post_text": context})
+    """The judge's view of a post: its claim sentence and up to CONTEXT_MAX characters of text, transcript first.
+
+    The caption and on-screen text keep up to REST_MAX characters; a transcript longer than what is left is cut to the
+    stretch around the matched phrase, so neither the offer in a caption nor the claim deep in a transcript is lost."""
+    texts = poller.texts_of(json.loads(post["raw_json"]))
+    transcript = " ".join(text for kind, text in texts if kind == "transcript")
+    rest = " ".join(text for kind, text in texts if kind != "transcript")[:REST_MAX]
+    room = CONTEXT_MAX - len(rest) - 1 if rest else CONTEXT_MAX
+    if len(transcript) > room:
+        hit = transcript.lower().find(post["matched_query"].lower())
+        start = min(max(hit - room // 2, 0), len(transcript) - room) if hit >= 0 else 0
+        transcript = transcript[start:start + room]
+    return json.dumps({"claim_sentence": post["snippet"], "matched_phrase": post["matched_query"],
+                       "post_text": f"{transcript} {rest}".strip()})
 
 
 def evidence_of(post: dict, evidence: list[tuple[str, str]], answers: dict) -> tuple[str | None, str | None]:
@@ -124,14 +155,28 @@ def candidate_id(phrase: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", phrase.lower()).strip("-")
 
 
+def stance_of(claim_stance: str, commercial: bool) -> str:
+    """The stored stance for the two axes: endorses is promotes and disputes is debunks, sold or not."""
+    return {"endorses": "promotes", "disputes": "debunks"}.get(claim_stance) or ("ad" if commercial else "unrelated")
+
+
 def decide(answers: dict) -> tuple[bool, str | None, str, float]:
-    """(health_claim, myth_id or None, stance, confidence) from the judge's answers."""
-    p_health = answers["health_claim"]["noul"]
-    if p_health < 0.5:
-        return False, None, "unrelated", 1 - p_health
-    stance = answers["stance"]["choice"]
+    """(health_claim, myth_id or None, stored stance, confidence) from the judge's answers.
+
+    A myth counts only when the creator takes a side on it."""
+    claim = answers["claim_stance"]["choice"]
+    sells = answers["commercial"]["noul"]
+    stance = stance_of(claim, sells >= COMMERCIAL_MIN)
+    confidence = answers["claim_stance"]["probabilities"][claim]
+    if claim == "neither":
+        confidence = min(confidence, sells if stance == "ad" else 1 - sells)
     myth = answers["myth"]["choice"]
-    return True, None if myth == NO_MYTH else myth, stance, answers["stance"]["probabilities"][stance]
+    return answers["health_claim"]["noul"] >= 0.5, None if myth == NO_MYTH or claim == "neither" else myth, stance, confidence
+
+
+def quote_for(post: dict, evidence: list[tuple[str, str]], answers: dict, health_claim: bool, stance: str) -> tuple[str | None, str | None]:
+    """The evidence quote a label carries: only a health claim the post takes a position on, or sells, shows its words."""
+    return evidence_of(post, evidence, answers) if health_claim and stance != "unrelated" else (None, None)
 
 
 async def label_pending(
@@ -173,7 +218,7 @@ async def label_pending(
             # A phrase a confirmed myth already owns never seeds a second myth with the same title.
             new_topic = post["matched_query"].lower() not in owned
             # An evidence quote shows the post's words; unrelated labels carry none.
-            quote, source = evidence_of(post, sentences, result[0]) if health_claim and stance != "unrelated" else (None, None)
+            quote, source = quote_for(post, sentences, result[0], health_claim, stance)
             basis = "transcript" if poller.has_transcript(json.loads(post["raw_json"])) else "text_only"
             # A caption-only post needs a quote to seed a candidate; a transcript backs it already.
             grounded = basis == "transcript" or quote is not None
@@ -189,6 +234,7 @@ async def label_pending(
                 con, post["oriane_id"], health_claim=health_claim, myth_id=myth_id, stance=stance,
                 confidence=confidence, model=settings.chat_model, labeled_at=store.iso(now),
                 dubious=dubious, standalone_claim=standalone, prompt_version=PROMPT_VERSION,
+                commercial=result[0]["commercial"]["noul"] >= COMMERCIAL_MIN,
                 basis=basis, evidence_quote=quote, evidence_source=source,
             )
             labeled += 1

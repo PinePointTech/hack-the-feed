@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS labels (
     prompt_version TEXT,
     basis TEXT,
     evidence_quote TEXT,
-    evidence_source TEXT
+    evidence_source TEXT,
+    commercial INTEGER
 );
 CREATE TABLE IF NOT EXISTS myths (
     id TEXT PRIMARY KEY,
@@ -109,7 +110,8 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     con.executescript(SCHEMA)
     for table, columns in (
         ("labels", (("dubious", "REAL"), ("standalone_claim", "REAL"), ("prompt_version", "TEXT"),
-                    ("basis", "TEXT"), ("evidence_quote", "TEXT"), ("evidence_source", "TEXT"))),
+                    ("basis", "TEXT"), ("evidence_quote", "TEXT"), ("evidence_source", "TEXT"),
+                    ("commercial", "INTEGER"))),
         ("posts", (("text_checked_at", "TEXT"),)),
     ):
         have = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
@@ -157,14 +159,16 @@ def upsert_label(
     stance: str, confidence: float, model: str, labeled_at: str,
     dubious: float | None = None, standalone_claim: float | None = None, prompt_version: str | None = None,
     basis: str | None = None, evidence_quote: str | None = None, evidence_source: str | None = None,
+    commercial: bool | None = None,
 ) -> None:
     with con:
         con.execute(
             "INSERT OR REPLACE INTO labels (oriane_id, health_claim, myth_id, stance, confidence, model, labeled_at, "
-            "dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source, commercial) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (oriane_id, int(health_claim), myth_id, stance, confidence, model, labeled_at,
-             dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source),
+             dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source,
+             None if commercial is None else int(commercial)),
         )
 
 
@@ -200,7 +204,7 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     2 of the first 20 slots, and posts labeled unrelated come last.
     """
     rows = con.execute(
-        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, "
+        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, l.commercial, "
         "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id WHERE (? IS NULL OR p.fetched_at > ?)",
         (since, since),
@@ -244,6 +248,8 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
             # Only a confirmed myth has a page; a candidate id must not become a link.
             "myth_confirmed": row["myth_status"] == "confirmed",
         }
+        if post["label"] and row["commercial"] is not None:  # labels from before the two axes lack it
+            post["label"]["commercial"] = bool(row["commercial"])
         if post["label"] and row["basis"]:  # labels from before the evidence prompt carry neither field
             post["label"]["basis"] = row["basis"]
             post["label"]["evidence"] = (

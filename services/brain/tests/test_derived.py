@@ -36,7 +36,7 @@ def add_myth(con, myth_id: str, *phrases: str) -> None:
 
 
 def add_post(con, n: int, day: str, views: int, query: str = "mouth tape", *, stance: str | None = None,
-             myth_id: str | None = "m1", source: str = "caption") -> str:
+             myth_id: str | None = "m1", source: str = "caption", commercial: bool | None = None) -> str:
     oriane_id = f"cnt_{n}"
     store.upsert_posts(con, [{
         "oriane_id": oriane_id, "platform": "tiktok", "url": f"https://t.test/{n}", "handle": f"user{n}",
@@ -46,7 +46,7 @@ def add_post(con, n: int, day: str, views: int, query: str = "mouth tape", *, st
     }], "2026-11-08T11:00:00Z")
     if stance:
         store.upsert_label(con, oriane_id, health_claim=True, myth_id=myth_id, stance=stance,
-                           confidence=0.8, model="test", labeled_at="2026-11-08T11:30:00Z")
+                           confidence=0.8, model="test", labeled_at="2026-11-08T11:30:00Z", commercial=commercial)
     return oriane_id
 
 
@@ -280,3 +280,16 @@ def test_endpoints_serve_the_derived_shapes(con):
         for path in ("/myths/nope", "/impact/nope"):
             response = client.get(path)
             assert response.status_code == 404 and response.json()["error"]["code"] == "myth_not_found"
+
+
+def test_sold_posts_that_push_the_claim_count_as_promoters_and_plain_ads_do_not(con):
+    add_myth(con, "m1", "mouth tape")
+    sold = add_post(con, 1, "2026-11-03", 5000, stance="promotes", commercial=True)  # sells and states the claim
+    add_post(con, 2, "2026-11-04", 100, stance="promotes", commercial=False)
+    add_post(con, 3, "2026-11-05", 9000, stance="ad", commercial=True)  # sells, takes no position on the claim
+    result = derived.impact(con, "m1", NOW)
+    assert result["myth_reach"] == {"videos": 2, "views": 5100}
+    assert "including posts that also sell something" in result["note"]
+    detail = derived.myth_detail(con, "m1", NOW)
+    assert [v["oriane_id"] for v in detail["videos"]] == [sold, "cnt_2"] and detail["stance_counts"] == {"promotes": 2, "ad": 1}
+    assert next(m for m in derived.radar(con, NOW)["myths"] if m["id"] == "m1")["top_video"]["oriane_id"] == sold

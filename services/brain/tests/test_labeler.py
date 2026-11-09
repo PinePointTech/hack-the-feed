@@ -20,15 +20,23 @@ def settings(**changes):
     return config(openai_key="test-key", openai_model=MODEL, **changes)
 
 
+STANCE_ANSWERS = {"promotes": ("endorses", 0.0), "debunks": ("disputes", 0.0), "ad": ("neither", 0.9), "unrelated": ("neither", 0.1)}
+
+
 def answers(health: float = 0.9, myth: str = labeler.NO_MYTH, stance: str = "promotes", dubious: float = 0.9,
-            standalone: float = 0.9, evidence: str | None = None) -> dict:
+            standalone: float = 0.9, evidence: str | None = None, claim: str | None = None,
+            commercial: float | None = None) -> dict:
+    """The judge's answers. `stance` is shorthand for a claim_stance and commercial pair; `claim` and `commercial` override it."""
+    claim_stance, sells = STANCE_ANSWERS[stance]
+    claim_stance = claim or claim_stance
     return {
         **({"evidence": {"choice": evidence, "probabilities": {evidence: 1.0}}} if evidence else {}),
         "health_claim": {"noul": health},
         "dubious": {"noul": dubious},
         "standalone_claim": {"noul": standalone},
         "myth": {"choice": myth, "probabilities": {myth: 1.0}},
-        "stance": {"choice": stance, "probabilities": {**dict.fromkeys(labeler.STANCES, 0.0), stance: 0.8}},
+        "claim_stance": {"choice": claim_stance, "probabilities": {**dict.fromkeys(labeler.CLAIM_STANCES, 0.0), claim_stance: 0.8}},
+        "commercial": {"noul": sells if commercial is None else commercial},
     }
 
 
@@ -87,7 +95,7 @@ def test_label_fields_are_stored_and_reach_the_feed(env):
     with closing(store.connect()) as con:
         assert store.list_feed(con)[0]["label"] == {
             "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL, "myth_confirmed": False,
-            "basis": "transcript", "evidence": None,
+            "commercial": False, "basis": "transcript", "evidence": None,
         }
     assert rows("SELECT id FROM myths") == []  # a known myth makes no candidate
 
@@ -99,7 +107,8 @@ def test_the_judge_sees_the_claim_the_post_text_and_every_known_myth(env):
     state, questions = fake.calls[0]
     assert state == {"claim_sentence": "claim 1", "matched_phrase": "sea moss", "post_text": "transcript 1 caption 1"}
     assert set(questions["myth"]["options"]) == {*brief.MYTHS, labeler.NO_MYTH}
-    assert set(questions["stance"]["options"]) == {"promotes", "debunks", "ad", "unrelated"}
+    assert set(questions["claim_stance"]["options"]) == {"endorses", "disputes", "neither"}
+    assert questions["commercial"]["type"] == "noul" and "stance" not in questions
 
 
 def test_unknown_claim_becomes_a_candidate_with_the_posts_own_sentence(env):
@@ -142,11 +151,15 @@ def test_a_candidate_needs_a_promoting_standalone_claim_the_model_doubts(env):
     assert rows("SELECT id, claim FROM myths") == [("did-you-know", "claim 3")]
 
 
-def test_the_stance_question_checks_ad_first_and_standalone_claim_is_asked(env):
-    asked = labeler.questions({})
-    assert asked["stance"]["instructions"].startswith("Check ad first")
-    assert "named brand product" in asked["stance"]["options"]["ad"]
-    assert "Did you know" in asked["standalone_claim"]["instructions"]
+def test_the_two_axes_are_asked_apart_and_the_myth_question_asks_what_the_creator_endorses_or_disputes():
+    asked = labeler.questions({"m": "claim"})
+    assert "own voice" in asked["claim_stance"]["instructions"] and "separate question" in asked["claim_stance"]["instructions"]
+    assert "passing mention" in asked["claim_stance"]["options"]["neither"] and "joke" in asked["claim_stance"]["options"]["neither"]
+    assert "sell or promote" in asked["commercial"]["instructions"] and "funnel" in asked["commercial"]["instructions"]
+    assert "whether or not the post also states a health claim" in asked["commercial"]["instructions"]
+    assert "endorse or dispute" in asked["myth"]["instructions"] and "restate" not in asked["myth"]["instructions"]
+    assert "same kind of claim" in asked["myth"]["instructions"] and "Pick none if unsure" in asked["myth"]["instructions"]
+    assert "Did you know" in asked["standalone_claim"]["instructions"] and "dubious" in asked
 
 
 def test_dubious_standalone_claim_and_prompt_version_are_stored_per_label(env):
@@ -168,8 +181,8 @@ def test_an_existing_database_gains_the_new_label_columns_once(env, tmp_path):
     for _ in range(2):  # a second connect is a no-op
         with closing(store.connect(old)) as con:
             assert [tuple(r) for r in con.execute(
-                "SELECT oriane_id, dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source FROM labels"
-            )] == [("cnt_old", None, None, None, None, None, None)]
+                "SELECT oriane_id, dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source, commercial FROM labels"
+            )] == [("cnt_old", None, None, None, None, None, None, None)]
             assert "text_checked_at" in [r["name"] for r in con.execute("PRAGMA table_info(posts)")]
 
 
@@ -188,7 +201,7 @@ def test_no_candidate_for_non_health_posts_ads_or_unrelated_stance(env):
     label(FakeJudge(lambda state, questions: replies[state["claim_sentence"]]))
     assert rows("SELECT id FROM myths") == []
     assert labels() == [
-        ("cnt_1", 0, None, "unrelated", 0.8, MODEL),  # not a health claim: confidence is 1 - 0.2
+        ("cnt_1", 0, None, "promotes", 0.8, MODEL),  # a low health claim score no longer forces unrelated
         ("cnt_2", 1, None, "ad", 0.8, MODEL),
         ("cnt_3", 1, None, "unrelated", 0.8, MODEL),
     ]
@@ -293,7 +306,8 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
             "dubious": {"noul": 0.9},
             "standalone_claim": {"noul": 0.9},
             "myth": {"choice": "none", "probabilities": {name: float(name == "none") for name in asked["myth"]["options"]}},
-            "stance": {"choice": "promotes", "probabilities": {name: float(name == "promotes") for name in asked["stance"]["options"]}},
+            "claim_stance": {"choice": "endorses", "probabilities": {name: float(name == "endorses") for name in asked["claim_stance"]["options"]}},
+            "commercial": {"noul": 0.1},
             **({"evidence": {"choice": "none", "probabilities": {name: float(name == "none") for name in asked["evidence"]["options"]}}}
                if "evidence" in asked else {}),
         }
@@ -312,7 +326,7 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
             time.sleep(0.05)
         assert posts["cnt_1"]["label"] == {
             "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False,
-            "basis": "text_only", "evidence": None,  # the stub judge picks none
+            "commercial": False, "basis": "text_only", "evidence": None,  # the stub judge picks none
         }
         assert posts["cnt_2"]["label"] is None  # under the view floor
         # The seeded mouth-taping myth owns "mouth tape", so no duplicate candidate appears.
@@ -333,9 +347,27 @@ def stored(n: int) -> dict:
 
 def test_state_puts_the_transcript_first_then_caption_then_on_screen_and_keeps_6000_characters(env):
     seed_raw((1, 20000, "q", {"caption": "CAP", "media": [{"transcript": "TRANSCRIPT", "onScreenText": ["SCREEN"]}]}),
-             (2, 20000, "q", {"caption": "CAP", "media": [{"transcript": "T" * 7000}]}))
+             (2, 20000, "q", {"media": [{"transcript": "T" * 7000}]}))
     assert json.loads(labeler.state_for(stored(1)))["post_text"] == "TRANSCRIPT CAP SCREEN"
-    assert json.loads(labeler.state_for(stored(2)))["post_text"] == "T" * 6000
+    assert json.loads(labeler.state_for(stored(2)))["post_text"] == "T" * labeler.CONTEXT_MAX
+
+
+def test_a_long_transcript_never_hides_the_caption(env):
+    caption = "Link in bio. " * 20
+    seed_raw((1, 20000, "q", {"caption": caption, "media": [{"transcript": "T" * 9000, "onScreenText": ["S" * 5000]}]}))
+    text = json.loads(labeler.state_for(stored(1)))["post_text"]
+    assert len(text) <= labeler.CONTEXT_MAX
+    assert caption.strip() in text and text.count("S") == labeler.REST_MAX - len(caption) - 1  # on-screen fills the rest of REST_MAX
+    assert text.startswith("T" * 100)
+
+
+def test_a_long_transcript_is_cut_around_the_matched_phrase(env):
+    transcript = "a" * 8000 + " mouth taping works " + "b" * 8000
+    seed_raw((1, 20000, "mouth taping", {"media": [{"transcript": transcript}]}),
+             (2, 20000, "absent phrase", {"media": [{"transcript": transcript}]}))
+    near = json.loads(labeler.state_for(stored(1)))["post_text"]
+    assert "mouth taping works" in near and len(near) == labeler.CONTEXT_MAX
+    assert json.loads(labeler.state_for(stored(2)))["post_text"] == transcript[:labeler.CONTEXT_MAX]  # no hit: the start
 
 
 def test_evidence_options_are_sentences_of_four_words_nearest_the_phrase_each_with_its_source(env):
@@ -409,3 +441,63 @@ def test_a_label_from_before_the_evidence_prompt_has_neither_field_in_the_feed(e
                            model="old", labeled_at=store.iso(T0))
         assert "basis" not in store.list_feed(con)[0]["label"]
         assert "evidence" not in store.list_feed(con)[0]["label"]
+
+
+def test_decide_maps_the_two_axes_to_the_stored_stance():
+    stance = lambda claim, commercial: labeler.decide(answers(claim=claim, commercial=commercial))[2]  # noqa: E731
+    assert stance("endorses", 0.0) == "promotes"
+    assert stance("endorses", 0.95) == "promotes"  # a sold post that pushes the claim is still promotes
+    assert stance("disputes", 0.95) == "debunks"
+    assert stance("neither", 0.95) == "ad" and stance("neither", labeler.COMMERCIAL_MIN) == "ad"
+    assert stance("neither", 0.49) == "unrelated"
+    assert [labeler.stance_of(c, s) for c, s in (("endorses", True), ("disputes", False), ("neither", True), ("neither", False))] == [
+        "promotes", "debunks", "ad", "unrelated"]
+
+
+def test_a_low_health_claim_score_no_longer_forces_unrelated_and_neither_drops_the_myth():
+    health, myth, stance, _ = labeler.decide(answers(health=0.1, myth="mouth-taping", stance="promotes"))
+    assert (health, myth, stance) == (False, "mouth-taping", "promotes")
+    assert labeler.decide(answers(health=0.1, myth="mouth-taping", stance="ad"))[1:3] == (None, "ad")  # no side taken, no myth
+    assert labeler.decide(answers(myth="mouth-taping", stance="debunks"))[1] == "mouth-taping"
+
+
+def test_confidence_is_the_claim_stance_probability_or_the_weaker_of_neither_and_the_commercial_call():
+    assert labeler.decide(answers(stance="promotes"))[3] == 0.8
+    assert labeler.decide(answers(claim="neither", commercial=0.7))[3] == 0.7
+    assert labeler.decide(answers(claim="neither", commercial=0.1))[3] == 0.8  # not commercial: 1 - 0.1 = 0.9, capped by neither at 0.8
+    assert labeler.decide(answers(claim="neither", commercial=0.4))[3] == 0.6
+
+
+def test_commercial_is_stored_per_label_independently_of_the_stance(env):
+    seed((1, 20000, "q"), (2, 20000, "q2"))
+    replies = {"claim 1": answers(stance="promotes", commercial=0.9), "claim 2": answers(stance="debunks", commercial=0.2)}
+    label(FakeJudge(lambda state, questions: replies[state["claim_sentence"]]))
+    assert rows("SELECT oriane_id, stance, commercial FROM labels ORDER BY oriane_id") == [
+        ("cnt_1", "promotes", 1), ("cnt_2", "debunks", 0)]
+
+
+def test_a_label_from_before_the_two_axes_has_no_commercial_field_in_the_feed(env):
+    seed((1, 20000, "q"))
+    with closing(store.connect()) as con:
+        store.upsert_label(con, "cnt_1", health_claim=True, myth_id=None, stance="promotes", confidence=0.9,
+                           model="old", labeled_at=store.iso(T0))
+        assert "commercial" not in store.list_feed(con)[0]["label"]
+        store.upsert_label(con, "cnt_1", health_claim=True, myth_id=None, stance="ad", confidence=0.9,
+                           model="m", labeled_at=store.iso(T0), commercial=True)
+        assert store.list_feed(con)[0]["label"]["commercial"] is True
+
+
+def test_a_sold_post_that_pushes_a_doubtful_claim_still_seeds_a_candidate(env):
+    seed((1, 20000, "sold claim"), (2, 20000, "sold ad"))
+    replies = {"claim 1": answers(stance="promotes", commercial=0.95), "claim 2": answers(stance="ad", commercial=0.95)}
+    label(FakeJudge(lambda state, questions: replies[state["claim_sentence"]]))
+    assert rows("SELECT id FROM myths") == [("sold-claim",)]  # the plain ad seeds nothing
+
+
+def test_labels_from_the_previous_prompt_version_are_relabeled(env):
+    seed((1, 20000, "q"))
+    with closing(store.connect()) as con:
+        store.upsert_label(con, "cnt_1", health_claim=True, myth_id=None, stance="promotes", confidence=0.9,
+                           model="old", labeled_at=store.iso(T0), prompt_version="evidence-quote-1")
+    assert labeler.PROMPT_VERSION != "evidence-quote-1"
+    assert label(FakeJudge(), now=T0 + timedelta(hours=2)) == 1
