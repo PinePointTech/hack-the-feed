@@ -36,6 +36,6 @@ export function labelWhy(label: FeedLabel): LabelWhy {
     stanceLine,
     evidence: ev ? { quote: ev.quote, sourceLine: SOURCE_LINE[ev.source] } : { none: NO_EVIDENCE_LINE },
     basisNote: label.basis === "text_only" ? TEXT_ONLY_LINE : null,
-    mythHref: label.myth_id ? `/desk/myth/${encodeURIComponent(label.myth_id)}` : null,
+    mythHref: label.myth_id && label.myth_confirmed ? `/desk/myth/${encodeURIComponent(label.myth_id)}` : null,
   };
 }

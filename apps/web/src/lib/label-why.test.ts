@@ -43,7 +43,8 @@ test("text_only basis adds the no-transcript note, transcript basis does not", (
 });
 
 test("a myth id links to its desk page, and none means no link", () => {
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "mouth-taping" })).mythHref, "/desk/myth/mouth-taping");
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "a b/c" })).mythHref, "/desk/myth/a%20b%2Fc");
+  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "mouth-taping", myth_confirmed: true })).mythHref, "/desk/myth/mouth-taping");
+  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "sea-moss", myth_confirmed: false })).mythHref, null);  // candidates have no page
+  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "a b/c", myth_confirmed: true })).mythHref, "/desk/myth/a%20b%2Fc");
   assert.equal(labelWhy(label({ basis: "transcript", evidence: null })).mythHref, null);
 });

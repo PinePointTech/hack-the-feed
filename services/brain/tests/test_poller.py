@@ -242,7 +242,7 @@ def test_feed_puts_posts_near_the_data_end_first_then_views_and_keeps_since_and_
                            confidence=0.9, model="test-model", labeled_at="2026-11-08T11:05:00Z")
         assert next(p for p in store.list_feed(con) if p["oriane_id"] == "cnt_4")["label"] == {
             "health_claim": True, "myth_id": "mouth-taping", "stance": "promotes",
-            "confidence": 0.9, "model": "test-model",
+            "confidence": 0.9, "model": "test-model", "myth_confirmed": False,
         }
         assert "cnt_4" not in [p["oriane_id"] for p in store.unlabeled_posts(con)]
         assert len(store.unlabeled_posts(con)) == 4

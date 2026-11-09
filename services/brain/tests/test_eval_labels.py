@@ -73,7 +73,7 @@ def run(items, max_calls=70, reply=reply, status=200):
 def test_state_matches_what_the_poller_stores():
     p = post("cnt_a", "a", transcript="spoken", caption="written", on_screen=["on", "screen"])
     assert json.loads(labeler.state_for(ev.stored_post(p)))["post_text"] == "spoken written on screen"
-    long = post("cnt_b", "b", transcript="x" * 2000)
+    long = post("cnt_b", "b", transcript="x" * (labeler.CONTEXT_MAX + 500))
     assert len(json.loads(labeler.state_for(ev.stored_post(long)))["post_text"]) == labeler.CONTEXT_MAX
 
 
@@ -113,8 +113,8 @@ def test_a_failing_judge_is_an_error_not_a_disagreement():
     assert result["disagreements"] == [] and "n/a" in ev.render(result)
 
 
-def test_gold_quote_outside_the_1500_char_window_is_flagged():
-    far = "Filler sentence. " * 100 + "Late claim."
+def test_gold_quote_outside_the_context_window_is_flagged():
+    far = "Filler sentence. " * (labeler.CONTEXT_MAX // 17 + 10) + "Late claim."
     near = item(post("cnt_a", "a", caption="Early claim."), gold("cnt_a", "ad", quote="Early claim.", source="caption"))
     late = item(post("cnt_b", "b", caption=far), gold("cnt_b", "ad", quote="Late claim.", source="caption"))
     rows, calls = run([near, late])

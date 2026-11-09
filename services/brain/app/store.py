@@ -200,7 +200,8 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     2 of the first 20 slots, and posts labeled unrelated come last.
     """
     rows = con.execute(
-        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source "
+        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, "
+        "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id WHERE (? IS NULL OR p.fetched_at > ?)",
         (since, since),
     ).fetchall()
@@ -240,6 +241,8 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
         post["label"] = None if row["stance"] is None else {
             "health_claim": bool(row["health_claim"]), "myth_id": row["myth_id"],
             "stance": row["stance"], "confidence": row["confidence"], "model": row["model"],
+            # Only a confirmed myth has a page; a candidate id must not become a link.
+            "myth_confirmed": row["myth_status"] == "confirmed",
         }
         if post["label"] and row["basis"]:  # labels from before the evidence prompt carry neither field
             post["label"]["basis"] = row["basis"]

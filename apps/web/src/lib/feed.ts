@@ -9,6 +9,7 @@ export type FeedLabel = {
   model: string;
   // Round 3, optional: old labels lack both. quote is an exact substring of its source text; null means no sentence supports the label.
   basis?: "transcript" | "text_only";
+  myth_confirmed?: boolean;
   evidence?: { quote: string; source: "transcript" | "caption" | "on_screen" } | null;
 };
 

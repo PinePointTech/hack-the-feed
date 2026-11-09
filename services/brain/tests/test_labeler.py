@@ -86,7 +86,7 @@ def test_label_fields_are_stored_and_reach_the_feed(env):
     assert labels() == [("cnt_1", 1, myth, "debunks", 0.8, MODEL)]
     with closing(store.connect()) as con:
         assert store.list_feed(con)[0]["label"] == {
-            "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL,
+            "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL, "myth_confirmed": False,
             "basis": "transcript", "evidence": None,
         }
     assert rows("SELECT id FROM myths") == []  # a known myth makes no candidate
@@ -311,7 +311,7 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
                 and time.monotonic() < deadline:
             time.sleep(0.05)
         assert posts["cnt_1"]["label"] == {
-            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL,
+            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False,
             "basis": "text_only", "evidence": None,  # the stub judge picks none
         }
         assert posts["cnt_2"]["label"] is None  # under the view floor
