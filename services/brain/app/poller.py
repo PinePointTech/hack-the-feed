@@ -14,6 +14,8 @@ WATCHLIST = oriane.DATA_DIR / "watchlist.json"
 PHRASES_PER_SEARCH = 6
 RESULTS_PER_SEARCH = 100
 MAX_PAGES_PER_BATCH = 5
+# The text index changes slowly, so only every DEEP_EVERY-th poll (the first included) pages past the newest 100.
+DEEP_EVERY = 4
 # shortcut: assumes the REST API takes comma-separated sort keys; confirm with a live poll.
 SORT = "publishedAt:desc,viewsCount:desc"
 SNIPPET_MAX = 240
@@ -118,11 +120,12 @@ async def run_poll(
         poll_id = store.start_poll(con, store.iso(now))
         new_posts, ran, capped = 0, 0, 0
         out_of_budget = False
-        after = (now - timedelta(days=2 * derived.WINDOW_DAYS)).date().isoformat()  # current and previous window
+        # both trend windows, which end INDEX_LAG_DAYS ago, plus the lag days the feed shows
+        after = (now - timedelta(days=2 * derived.WINDOW_DAYS + derived.INDEX_LAG_DAYS)).date().isoformat()
         try:
             for batch in batches:
                 fetched = 0
-                for _ in range(MAX_PAGES_PER_BATCH):
+                for _ in range(MAX_PAGES_PER_BATCH if poll_id % DEEP_EVERY == 1 else 1):
                     if budget <= 0:
                         out_of_budget = True
                         break
@@ -142,7 +145,7 @@ async def run_poll(
                     if not results or fetched >= total:
                         break
                 else:
-                    capped += 1  # shortcut: results past the page cap are dropped; raise MAX_PAGES_PER_BATCH if this shows up.
+                    capped += poll_id % DEEP_EVERY == 1  # shortcut: results past the page cap are dropped; raise MAX_PAGES_PER_BATCH if this shows up.
                 if out_of_budget:
                     break
             problems = [

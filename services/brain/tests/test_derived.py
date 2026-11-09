@@ -99,6 +99,16 @@ def test_windows_end_on_the_newest_day_oriane_has_posts_for(con):
     assert radar["myths"][0]["topic_video_count"] == 1
 
 
+def test_windows_end_where_oriane_has_filled_the_days(con, monkeypatch):
+    monkeypatch.setattr(derived, "INDEX_LAG_DAYS", 6)
+    add_myth(con, "m1", "mouth tape")
+    add_post(con, 1, "2026-11-08", 10)  # one early post must not pull the half-filled days into the window
+    add_post(con, 2, "2026-11-01", 10)
+    radar = derived.radar(con, NOW)
+    assert radar["window"] == {"from": "2026-10-27", "to": "2026-11-02"}
+    assert radar["myths"][0]["topic_video_count"] == 1
+
+
 def test_a_candidate_label_leaves_the_post_with_the_myth_that_owns_its_phrase(con):
     add_myth(con, "m1", "mouth tape")
     add_post(con, 1, "2026-11-08", 10, stance="promotes", myth_id="mouth-tape-candidate")
