@@ -42,7 +42,7 @@ def validate_answers(content: str, questions: dict) -> dict:
         if (
             choice not in scores
             or scores[choice] != max(scores.values())
-            or not math.isclose(sum(scores.values()), 1, abs_tol=0.01)
+            or not math.isclose(sum(scores.values()), 1, abs_tol=max(0.01, 0.005 * len(scores)))  # two-decimal rounding per option
         ):
             raise ValueError("Judge returned inconsistent choice probabilities")
         result[name] = {"choice": choice, "probabilities": scores}
@@ -75,6 +75,7 @@ class Judge:
         payload = {
             "model": settings.openai_model,
             "response_format": {"type": "json_object"},
+            "temperature": 0,  # repeat runs of the same post should agree; _request drops it for a model that refuses it
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": json.dumps({"state": state, "questions": questions})},
@@ -106,6 +107,8 @@ class Judge:
                 content = response.json()["choices"][0]["message"]["content"]
                 return validate_answers(content, questions)
             except httpx.HTTPStatusError as error:
+                if error.response.status_code == 400 and "temperature" in error.response.text and payload.pop("temperature", None) is not None:
+                    continue
                 if attempt or error.response.status_code not in {408, 429, 500, 502, 503, 504}:
                     raise
             except (httpx.RequestError, ValueError, KeyError, TypeError, IndexError):

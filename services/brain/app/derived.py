@@ -190,7 +190,8 @@ def impact(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
     debunks = reach([p for p in labeled if p["stance"] == "debunks"])
     result["response_reach"] = debunks
     note = (f"Based on {len(labeled)} posts a label assigns to this myth, from {current['from']} through "
-            f"{current['to']}. Reach sums the views of those posts labeled promotes or debunks. "
+            f"{current['to']}. Reach sums the views of those posts labeled promotes or debunks, including posts that "
+            "also sell something. "
             "Topic counts on the radar also include unlabeled posts found with the myth's phrases.")
     if result["myth_reach"]["views"]:
         result["response_ratio"] = debunks["views"] / result["myth_reach"]["views"]
