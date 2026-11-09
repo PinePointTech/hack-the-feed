@@ -9,7 +9,9 @@ type Props<K extends Name> = Parameters<typeof track<K>>[1];
 export function useTrackOnce<K extends Name>(name: K, props: Props<K> | (() => Props<K>), enabled = true) {
   const sent = useRef(false);
   const latest = useRef(props);
-  latest.current = props;
+  useEffect(() => {
+    latest.current = props; // runs before the firing effect below, so it reads the newest props
+  });
   useEffect(() => {
     if (!enabled || sent.current) return;
     sent.current = true;

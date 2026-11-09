@@ -32,6 +32,7 @@ type Events = {
   "Mind Changed Vote": { myth_id: string; answer: "yes" | "no" | "already_knew" };
   "Calendar Viewed": { week_of: string; item_count: number };
   "Script Reused": { myth_id: string; from: "calendar" };
+  "Feed Viewed": { post_count: number; labeled_count: number };
   "Video Suggested": { myth_id: string; video_id: string; format: string; ok: boolean };
 };
 
