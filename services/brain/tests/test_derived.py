@@ -108,6 +108,27 @@ def test_a_candidate_label_leaves_the_post_with_the_myth_that_owns_its_phrase(co
     assert (m1["topic_video_count"], m2["topic_video_count"]) == (1, 1)
 
 
+def test_reach_and_stance_use_only_posts_a_label_assigns_to_the_myth(con):
+    add_myth(con, "m1", "mouth tape")
+    add_post(con, 1, "2026-11-03", 100, stance="promotes")
+    add_post(con, 2, "2026-11-04", 9000, stance="promotes", myth_id=None)  # phrase match, label names no myth
+    add_post(con, 3, "2026-11-05", 7000, stance="promotes", myth_id="other-candidate")
+    add_post(con, 4, "2026-11-06", 500, stance="debunks", myth_id=None)
+    add_post(con, 5, "2026-11-07", 40)  # unlabeled
+    radar = derived.radar(con, NOW)["myths"][0]
+    # Topic volume still counts every phrase match, so labeled-away posts and unlabeled ones both show.
+    assert (radar["topic_video_count"], radar["topic_views"]) == (5, 16640)
+    assert radar["top_video"]["oriane_id"] == "cnt_1"
+    assert "Topic counts include" in radar["match_note"] and "assigns to this myth" in radar["match_note"]
+    detail = derived.myth_detail(con, "m1", NOW)
+    assert [v["oriane_id"] for v in detail["videos"]] == ["cnt_1"] and detail["counter_voices"] == []
+    assert detail["stance_counts"] == {"promotes": 1} and detail["stance_sample_size"] == 1
+    result = derived.impact(con, "m1", NOW)
+    assert result["myth_reach"] == {"videos": 1, "views": 100}
+    assert result["response_reach"] == {"videos": 0, "views": 0}
+    assert "assigns to this myth" in result["note"] and "Topic counts on the radar" in result["note"]
+
+
 def test_trend_is_cooling_or_steady_from_video_counts():
     assert derived.trend_of(1, 2) == ("cooling", -50)
     assert derived.trend_of(105, 100) == ("steady", 5)
@@ -149,7 +170,7 @@ def test_impact_divides_debunk_views_by_promote_views(con):
     assert result["myth_reach"] == {"videos": 2, "views": 1000}
     assert result["response_reach"] == {"videos": 1, "views": 250}
     assert result["response_ratio"] == 0.25
-    assert "4 labeled posts" in result["note"]
+    assert "4 posts a label assigns to this myth" in result["note"]
 
 
 def test_impact_has_no_ratio_when_nothing_promotes(con):
@@ -159,30 +180,41 @@ def test_impact_has_no_ratio_when_nothing_promotes(con):
     assert result["response_reach"] == {"videos": 1, "views": 80} and "response_ratio" not in result
 
 
-def test_calendar_projects_rising_myths_and_watches_the_rest(con):
-    add_myth(con, "rising", "mouth tape")
-    add_myth(con, "falling", "sea moss")
-    add_myth(con, "sparse", "berberine")
+def test_calendar_needs_a_weekly_rise_and_the_text_states_both_weekly_counts(con):
+    for myth_id, phrase in (("rising", "mouth tape"), ("falling", "sea moss"), ("sparse", "berberine"), ("flat", "castor oil")):
+        add_myth(con, myth_id, phrase)
     n = 0
-    for day, count in zip(range(2, 9), [1, 1, 1, 2, 2, 2, 3]):  # slope 9/28 per day, 12 posts
-        for _ in range(count):
-            n += 1
-            add_post(con, n, f"2026-11-{day:02d}", 10, "mouth tape", myth_id=None)
-    for day, count in zip(range(2, 9), [3, 2, 2, 1, 1, 0, 0]):
-        for _ in range(count):
-            n += 1
-            add_post(con, n, f"2026-11-{day:02d}", 10, "sea moss", myth_id=None)
-    add_post(con, 99, "2026-11-08", 10, "berberine")
+
+    def posts(phrase, current, previous):
+        nonlocal n
+        for day, count in ((3, current), (28, previous)):  # Nov 3 is this week, Oct 28 the week before
+            for _ in range(count):
+                n += 1
+                add_post(con, n, "2026-11-03" if day == 3 else "2026-10-28", 10, phrase, myth_id=None)
+
+    posts("mouth tape", 12, 4)  # +200%
+    posts("sea moss", 8, 20)  # cooling
+    posts("berberine", 2, 1)  # rising by percent, but under MIN_RISING_POSTS
+    posts("castor oil", 5, 5)  # steady
+    add_post(con, 999, "2026-11-08", 1, "unwatched")  # Oriane's newest day, so the windows end on Nov 8
 
     calendar = derived.calendar(con, NOW)
     assert calendar["week_of"] == "2026-11-09"
     assert [item["myth_id"] for item in calendar["this_week"]] == ["rising"]
     item = calendar["this_week"][0]
     assert item["window"] == "Nov 9 to Nov 15, 2026" and item["basis"] == "oriane_trend"
-    assert item["video_count"] == 12 and item["script_available"] is False
-    assert "12 posts" in item["why"] and "projects 28 posts next week" in item["why"]
-    assert [i["myth_id"] for i in calendar["watchlist"]] == ["falling", "sparse"]
-    assert all("not rising" in i["why"] for i in calendar["watchlist"])
+    assert item["video_count"] == 12 and item["script_available"] is False and item["trend"] == "rising"
+    assert item["why"] == (
+        "Posts rose week over week: 4 posts from 2026-10-26 through 2026-11-01, 12 from 2026-11-02 through 2026-11-08."
+    )
+    assert [i["myth_id"] for i in calendar["watchlist"]] == ["falling", "sparse", "flat"]
+    falling, sparse, flat = calendar["watchlist"]
+    assert falling["trend"] == "cooling" and falling["why"].startswith("Not rising week over week: 20 posts")
+    assert "8 from 2026-11-02" in falling["why"]
+    # The badge and the text agree: a Rising badge on the watchlist says why it is still watched.
+    assert sparse["trend"] == "rising" and "under the 3 needed" in sparse["why"] and "1 posts" in sparse["why"]
+    assert flat["trend"] == "steady" and flat["why"].startswith("Not rising week over week")
+    assert all("not rising" not in i["why"].lower().replace("not rising week over week", "") for i in calendar["watchlist"])
 
 
 def test_snapshots_write_one_row_per_myth_per_day(con):

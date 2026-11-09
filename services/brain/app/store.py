@@ -3,7 +3,8 @@
 import json
 import os
 import sqlite3
-from datetime import datetime, timezone
+from contextlib import suppress
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import oriane
@@ -25,6 +26,13 @@ CREATE TABLE IF NOT EXISTS posts (
     raw_json TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS posts_feed ON posts (fetched_at DESC, views DESC);
+-- one row per change in a post's view count, so views per hour can be computed across polls
+CREATE TABLE IF NOT EXISTS post_views (
+    oriane_id TEXT NOT NULL REFERENCES posts (oriane_id),
+    polled_at TEXT NOT NULL,
+    views INTEGER NOT NULL,
+    PRIMARY KEY (oriane_id, polled_at)
+);
 CREATE TABLE IF NOT EXISTS labels (
     oriane_id TEXT PRIMARY KEY REFERENCES posts (oriane_id),
     health_claim INTEGER NOT NULL,
@@ -32,7 +40,10 @@ CREATE TABLE IF NOT EXISTS labels (
     stance TEXT NOT NULL,
     confidence REAL NOT NULL,
     model TEXT NOT NULL,
-    labeled_at TEXT NOT NULL
+    labeled_at TEXT NOT NULL,
+    dubious REAL,
+    standalone_claim REAL,
+    prompt_version TEXT
 );
 CREATE TABLE IF NOT EXISTS myths (
     id TEXT PRIMARY KEY,
@@ -93,6 +104,11 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
+    have = {row["name"] for row in con.execute("PRAGMA table_info(labels)")}
+    for column, kind in (("dubious", "REAL"), ("standalone_claim", "REAL"), ("prompt_version", "TEXT")):
+        if column not in have:
+            with suppress(sqlite3.OperationalError):  # another connection added it first
+                con.execute(f"ALTER TABLE labels ADD COLUMN {column} {kind}")
     return con
 
 
@@ -107,42 +123,109 @@ def upsert_posts(con: sqlite3.Connection, posts: list[dict], fetched_at: str) ->
             row = {key: post.get(key) for key in FEED_FIELDS if key != "fetched_at"}
             row["fetched_at"] = fetched_at
             row["raw_json"] = json.dumps(post.get("raw"), ensure_ascii=False)
-            if con.execute("SELECT 1 FROM posts WHERE oriane_id = ?", (row["oriane_id"],)).fetchone():
+            last = con.execute(
+                "SELECT views FROM post_views WHERE oriane_id = ? ORDER BY polled_at DESC LIMIT 1", (row["oriane_id"],),
+            ).fetchone()
+            known = con.execute("SELECT 1 FROM posts WHERE oriane_id = ?", (row["oriane_id"],)).fetchone()
+            if not known:
+                new += 1
+                con.execute(
+                    f"INSERT INTO posts ({', '.join(row)}) VALUES ({', '.join('?' * len(row))})",
+                    tuple(row.values()),
+                )
+            if row["views"] is not None and (last is None or last["views"] != row["views"]):
+                con.execute("INSERT OR REPLACE INTO post_views VALUES (?, ?, ?)", (row["oriane_id"], fetched_at, row["views"]))
+            if known:
                 # Keep the first fetched_at, snippet and match so the feed does not reshuffle.
                 con.execute(
                     "UPDATE posts SET views = ?, thumbnail_url = ?, url = ?, raw_json = ? WHERE oriane_id = ?",
                     (row["views"], row["thumbnail_url"], row["url"], row["raw_json"], row["oriane_id"]),
                 )
-                continue
-            con.execute(
-                f"INSERT INTO posts ({', '.join(row)}) VALUES ({', '.join('?' * len(row))})",
-                tuple(row.values()),
-            )
-            new += 1
     return new
 
 
 def upsert_label(
     con: sqlite3.Connection, oriane_id: str, *, health_claim: bool, myth_id: str | None,
     stance: str, confidence: float, model: str, labeled_at: str,
+    dubious: float | None = None, standalone_claim: float | None = None, prompt_version: str | None = None,
 ) -> None:
     with con:
         con.execute(
-            "INSERT OR REPLACE INTO labels VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (oriane_id, int(health_claim), myth_id, stance, confidence, model, labeled_at),
+            "INSERT OR REPLACE INTO labels (oriane_id, health_claim, myth_id, stance, confidence, model, labeled_at, "
+            "dubious, standalone_claim, prompt_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (oriane_id, int(health_claim), myth_id, stance, confidence, model, labeled_at,
+             dubious, standalone_claim, prompt_version),
         )
 
 
+RECENT = timedelta(hours=72)  # "new" is measured from the newest post Oriane has, not the wall clock (it lags days)
+TOP_SLOTS, PER_HANDLE = 20, 2
+
+
+def data_through(con: sqlite3.Connection) -> str | None:
+    """The newest published_at stored: how far Oriane's search runs."""
+    return con.execute("SELECT MAX(published_at) FROM posts").fetchone()[0]
+
+
+def _when(value: str | None) -> datetime:
+    return parse_iso(value) if value else datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _views_per_hour(con: sqlite3.Connection) -> dict[str, float]:
+    points: dict[str, list[tuple[datetime, int]]] = {}
+    for row in con.execute("SELECT oriane_id, polled_at, views FROM post_views ORDER BY polled_at"):
+        points.setdefault(row["oriane_id"], []).append((parse_iso(row["polled_at"]), row["views"]))
+    speed = {}
+    for oriane_id, pts in points.items():
+        hours = (pts[-1][0] - pts[0][0]).total_seconds() / 3600
+        if len(pts) >= 2 and hours > 0:
+            speed[oriane_id] = (pts[-1][1] - pts[0][1]) / hours
+    return speed
+
+
 def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int = 50) -> list[dict]:
+    """Posts within 72 h of the data end first (newest first), then by views gained per hour, then by views.
+
+    A repeat of the same words from the same handle collapses to its newest post, a handle holds at most
+    2 of the first 20 slots, and posts labeled unrelated come last.
+    """
     rows = con.execute(
         "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model "
-        "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
-        "WHERE (? IS NULL OR p.fetched_at > ?) "
-        "ORDER BY p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
-        (since, since, limit),
+        "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id WHERE (? IS NULL OR p.fetched_at > ?)",
+        (since, since),
     ).fetchall()
-    feed = []
+    end = data_through(con)
+    cutoff = _when(end) - RECENT if end else None
+    speed = _views_per_hour(con)
+
+    newest: dict[tuple, sqlite3.Row] = {}
     for row in rows:
+        # shortcut: posts with no handle never collapse, upgrade if Oriane returns handle-less duplicates
+        key = (row["handle"], " ".join(row["snippet"].split()).casefold()) if row["handle"] else row["oriane_id"]
+        age = lambda r: (_when(r["published_at"]), r["fetched_at"], r["oriane_id"])  # noqa: E731
+        if key not in newest or age(row) > age(newest[key]):
+            newest[key] = row
+
+    def rank(row: sqlite3.Row) -> tuple:
+        recent = cutoff is not None and row["published_at"] is not None and _when(row["published_at"]) >= cutoff
+        if recent:
+            tier, primary = 0, -_when(row["published_at"]).timestamp()
+        elif row["oriane_id"] in speed:
+            tier, primary = 1, -speed[row["oriane_id"]]
+        else:
+            tier, primary = 2, 0
+        return (row["stance"] == "unrelated", tier, primary, -(row["views"] or 0), row["oriane_id"])
+
+    ordered, rest, per_handle = [], [], {}
+    for row in sorted(newest.values(), key=rank):
+        if len(ordered) < TOP_SLOTS and not (row["handle"] and per_handle.get(row["handle"], 0) >= PER_HANDLE):
+            per_handle[row["handle"]] = per_handle.get(row["handle"], 0) + 1
+            ordered.append(row)
+        else:
+            rest.append(row)
+
+    feed = []
+    for row in (ordered + rest)[:limit]:
         post = {key: row[key] for key in FEED_FIELDS}
         post["label"] = None if row["stance"] is None else {
             "health_claim": bool(row["health_claim"]), "myth_id": row["myth_id"],
@@ -153,12 +236,18 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
 
 
 def unlabeled_posts(con: sqlite3.Connection, limit: int = 100, min_views: int = 0) -> list[dict]:
-    """Posts with no label yet and at least min_views, newest first. Rows include raw_json."""
+    """Posts with no label yet, newest first, with at least min_views, or with no view count and
+    interactions (raw interactionsCount, else likes + comments + shares) of at least min_views / 20.
+    Rows include raw_json."""
+    interactions = (
+        "COALESCE(json_extract(p.raw_json, '$.interactionsCount'), COALESCE(json_extract(p.raw_json, '$.likesCount'), 0)"
+        " + COALESCE(json_extract(p.raw_json, '$.commentsCount'), 0) + COALESCE(json_extract(p.raw_json, '$.sharesCount'), 0))"
+    )
     rows = con.execute(
         "SELECT p.* FROM posts p WHERE NOT EXISTS (SELECT 1 FROM labels l WHERE l.oriane_id = p.oriane_id) "
-        "AND COALESCE(p.views, 0) >= ? "
+        f"AND CASE WHEN p.views IS NULL THEN {interactions} * 20 >= ? ELSE p.views >= ? END "
         "ORDER BY p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
-        (min_views, limit),
+        (min_views, min_views, limit),
     ).fetchall()
     return [dict(row) for row in rows]
 

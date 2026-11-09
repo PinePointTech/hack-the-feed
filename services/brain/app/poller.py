@@ -13,6 +13,7 @@ from .radar import text_query
 WATCHLIST = oriane.DATA_DIR / "watchlist.json"
 PHRASES_PER_SEARCH = 6
 RESULTS_PER_SEARCH = 100
+MAX_PAGES_PER_BATCH = 5
 # shortcut: assumes the REST API takes comma-separated sort keys; confirm with a live poll.
 SORT = "publishedAt:desc,viewsCount:desc"
 SNIPPET_MAX = 240
@@ -29,7 +30,7 @@ def load_watchlist() -> list[str]:
 def build_query(phrases: list[str], after: str) -> dict:
     return {
         "operator": "and",
-        "filters": {"publishedAt": {"after": after}},
+        "filters": {"publishedAt": {"after": after}, "captionLanguage": {"includes": ["en"]}},
         "queries": [text_query(phrases)],
     }
 
@@ -115,24 +116,40 @@ async def run_poll(
         batches = [phrases[i:i + PHRASES_PER_SEARCH] for i in range(0, len(phrases), PHRASES_PER_SEARCH)]
         budget = settings.oriane_max_searches_per_hour - store.searches_since(con, store.iso(now - timedelta(hours=1)))
         poll_id = store.start_poll(con, store.iso(now))
-        # shortcut: batches past the cap are dropped, not rotated; fine while 3 batches x 4 polls/hour < 20.
-        error = f"search cap reached: ran {max(budget, 0)} of {len(batches)} searches" if budget < len(batches) else None
-        new_posts = 0
+        new_posts, ran, capped = 0, 0, 0
+        out_of_budget = False
         after = (now - timedelta(days=2 * derived.WINDOW_DAYS)).date().isoformat()  # current and previous window
         try:
-            for batch in batches[:max(budget, 0)]:
-                store.charge_search(con, poll_id)
-                payload = await oriane.search(
-                    client, settings, build_query(batch, after),
-                    sort=SORT, projection="default", limit=RESULTS_PER_SEARCH,
-                )
-                results = payload["data"]["results"]
-                if len(results) >= RESULTS_PER_SEARCH:
-                    # shortcut: no paging yet, so a full page undercounts older days; page with offset if this shows up.
-                    error = f"a search hit the {RESULTS_PER_SEARCH}-result limit, so older posts may be missing"
-                posts = [post for item in results if (post := to_post(item, batch))]
-                # The oriane_id primary key dedupes repeats within and across searches.
-                new_posts += store.upsert_posts(con, posts, store.iso(now))
+            for batch in batches:
+                fetched = 0
+                for _ in range(MAX_PAGES_PER_BATCH):
+                    if budget <= 0:
+                        out_of_budget = True
+                        break
+                    budget -= 1
+                    ran += 1
+                    store.charge_search(con, poll_id)
+                    payload = await oriane.search(
+                        client, settings, build_query(batch, after),
+                        sort=SORT, projection="default", limit=RESULTS_PER_SEARCH, offset=fetched,
+                    )
+                    results = payload["data"]["results"]
+                    fetched += len(results)
+                    posts = [post for item in results if (post := to_post(item, batch))]
+                    # The oriane_id primary key dedupes repeats within and across searches and pages.
+                    new_posts += store.upsert_posts(con, posts, store.iso(now))
+                    total = (payload.get("metadata") or {}).get("pagination", {}).get("totalCount", fetched)
+                    if not results or fetched >= total:
+                        break
+                else:
+                    capped += 1  # shortcut: results past the page cap are dropped; raise MAX_PAGES_PER_BATCH if this shows up.
+                if out_of_budget:
+                    break
+            problems = [
+                *([f"search cap reached after {ran} searches, so some results were not fetched"] if out_of_budget else []),
+                *([f"{capped} of {len(batches)} searches have more than {MAX_PAGES_PER_BATCH} pages, so older posts may be missing"] if capped else []),
+            ]
+            error = "; ".join(problems) or None
         except httpx.HTTPStatusError as failure:
             error = f"Oriane returned HTTP {failure.response.status_code}"
         except (httpx.RequestError, ValueError, KeyError, TypeError, RuntimeError) as failure:
