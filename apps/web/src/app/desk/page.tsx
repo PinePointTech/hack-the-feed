@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { api, settle } from "@/lib/api";
 import { DataPulled } from "@/components/DataPulled";
 import { LiveUnavailable } from "@/components/LiveUnavailable";
@@ -30,6 +31,7 @@ export default async function Desk() {
           <p className="text-[1.125rem] text-ink-2">Ordered by trend: rising first, then the biggest change in video count.</p>
           <span className="mono text-sm text-ink-2">{windowWithYear(data.window)}</span>
           <DataPulled at={data.generated_at} />
+          <Link href="/desk/review" className="font-semibold underline underline-offset-2">Review new myths</Link>
         </div>
       </header>
       {myths.length === 0 ? (

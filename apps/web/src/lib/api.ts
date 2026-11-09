@@ -1,5 +1,5 @@
 import type { Radar, MythDetail, Brief, BriefRequest, CheckRequest, CheckResponse, QAReport,
-  PublishRequest, PublishedDebunk, Impact, Calendar } from "@/contracts/types";
+  PublishRequest, PublishedDebunk, Impact, Calendar, MythCandidates, ConfirmedMyth } from "@/contracts/types";
 // Radar, myth, impact and calendar are live only. Fixtures remain for brief, check, qa and published (studio and receipts).
 import briefFx from "@/contracts/fixtures/brief-lymphatic-detox.json";
 import checkFx from "@/contracts/fixtures/check.json";
@@ -107,4 +107,7 @@ export const api = {
   // Live feed: no fixture fallback, a down brain must surface as an error. live() ignores NEXT_PUBLIC_USE_MOCKS on purpose.
   feed: () => live<FeedResponse>("/feed?limit=50", undefined, 15000),
   poll: () => live<PollResponse>("/poll", { method: "POST" }, 90000),
+  // Candidate myths: live only, no fixtures. A person confirms; nothing here confirms on its own.
+  candidates: () => read<MythCandidates>("/myths/candidates"),
+  confirmMyth: (id: string) => live<ConfirmedMyth>(`/myths/${encodeURIComponent(id)}/confirm`, { method: "POST" }, 15000),
 };
