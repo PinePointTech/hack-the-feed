@@ -10,6 +10,7 @@ import publishedFx from "@/data/published-lymphatic-detox.json";
 import impactFx from "@/data/impact.json";
 import calendarFx from "@/data/calendar.json";
 import { mythFromFixtures, checkFromFixtures, brainErrorCode } from "./fixture-logic";
+import type { FeedResponse, PollResponse } from "./feed";
 
 const BRAIN = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8000";
 const MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
@@ -95,4 +96,7 @@ export const api = {
     return get<PublishedDebunk>(`${path}.json`, undefined, () => fx<PublishedDebunk>(publishedFx), 15000);
   },
   calendar: () => call<Calendar>("/calendar", undefined, () => fx<Calendar>(calendarFx), 15000),
+  // Live feed: no fixture fallback, a down brain must surface as an error. live() ignores NEXT_PUBLIC_USE_MOCKS on purpose.
+  feed: () => live<FeedResponse>("/feed?limit=50", undefined, 15000),
+  poll: () => live<PollResponse>("/poll", { method: "POST" }, 90000),
 };

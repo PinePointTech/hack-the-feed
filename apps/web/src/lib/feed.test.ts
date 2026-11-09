@@ -1,0 +1,44 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { canNameCreator, mergeFeed, mythName, type FeedPost } from "./feed.ts";
+
+// Built inside the test only to exercise the merge. Never rendered, never shipped as data.
+const post = (id: string, over: Partial<FeedPost> = {}): FeedPost => ({
+  oriane_id: id, platform: "tiktok", url: null, handle: null, display_name: null, thumbnail_url: null,
+  views: null, published_at: null, fetched_at: "2026-11-08T19:45:00Z", snippet: "s", snippet_source: null,
+  matched_query: "q", label: null, ...over,
+});
+
+test("new posts are returned as fresh, newest first, and not merged into the screen", () => {
+  const { posts, fresh } = mergeFeed([post("a")], [post("c"), post("b"), post("a")]);
+  assert.deepEqual(posts.map((p) => p.oriane_id), ["a"]);
+  assert.deepEqual(fresh.map((p) => p.oriane_id), ["c", "b"]);
+});
+
+test("a post already on screen is never fresh and keeps its place", () => {
+  const { posts, fresh } = mergeFeed([post("b"), post("a")], [post("a"), post("b")]);
+  assert.deepEqual(posts.map((p) => p.oriane_id), ["b", "a"]);
+  assert.equal(fresh.length, 0);
+});
+
+test("a label that arrives later replaces the copy on screen", () => {
+  const label = { health_claim: true, myth_id: "mouth-taping", stance: "promotes" as const, confidence: 0.9, model: "m" };
+  const { posts } = mergeFeed([post("a")], [post("a", { label })]);
+  assert.equal(posts[0].label?.myth_id, "mouth-taping");
+});
+
+test("a post that dropped out of the latest page stays on screen", () => {
+  const { posts, fresh } = mergeFeed([post("old")], [post("new")]);
+  assert.deepEqual(posts.map((p) => p.oriane_id), ["old"]);
+  assert.deepEqual(fresh.map((p) => p.oriane_id), ["new"]);
+});
+
+test("a creator is named only at 100k views or more", () => {
+  assert.equal(canNameCreator({ views: 100_000 }), true);
+  assert.equal(canNameCreator({ views: 99_999 }), false);
+  assert.equal(canNameCreator({ views: null }), false);
+});
+
+test("mythName makes a readable chip label", () => {
+  assert.equal(mythName("mouth-taping"), "Mouth taping");
+});
