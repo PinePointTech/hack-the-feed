@@ -3,20 +3,22 @@ import hmac
 import json
 import logging
 import os
+import sqlite3
 import time
 from collections.abc import Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing, suppress
 from dataclasses import replace
+from datetime import datetime, timezone
 from xml.etree.ElementTree import ParseError
 
 import httpx
-from fastapi import FastAPI, File, Form, Request, Response, UploadFile
+from fastapi import FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, fact_check, oriane, publish, qa, radar, reporting
+from . import brief, check, fact_check, oriane, poller, publish, qa, radar, reporting, store
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -105,6 +107,24 @@ def create_app(
         # Jev is not wired into this brain, so ok never waits on it.
         return Health(ok=oriane and openai, oriane=oriane, gmi=gmi, jev=False)
 
+    async def poll_now(app: FastAPI) -> tuple[bool, int]:
+        async with app.state.poll_lock:
+            return await poller.run_poll(app.state.client, settings)
+
+    async def poll_loop(app: FastAPI) -> None:
+        # Sleeps until the gate opens again, so a restart does not shift the 15 minute cadence.
+        while True:
+            wait = settings.poll_interval_minutes * 60
+            try:
+                await poll_now(app)
+                with closing(store.connect()) as con:
+                    _, next_poll = poller.schedule(con, settings)
+                if next_poll:
+                    wait = (store.parse_iso(next_poll) - datetime.now(timezone.utc)).total_seconds()
+            except (sqlite3.Error, OSError, ValueError) as error:
+                logger.warning("Poll loop failed (%s)", type(error).__name__)
+            await asyncio.sleep(max(wait, 1))
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         async with httpx.AsyncClient(timeout=10, transport=transport) as client:
@@ -114,9 +134,16 @@ def create_app(
             app.state.video_qa = qa.VideoQA(settings, app.state.line_checker)
             app.state.health_lock = asyncio.Lock()
             app.state.radar_lock = asyncio.Lock()
+            app.state.poll_lock = asyncio.Lock()
             app.state.health = await probe_health(client)
             app.state.health_expires_at = time.monotonic() + HEALTH_TTL
-            yield
+            loop = asyncio.create_task(poll_loop(app))
+            try:
+                yield
+            finally:
+                loop.cancel()
+                with suppress(asyncio.CancelledError):
+                    await loop
 
     app = FastAPI(title="MyBuster Brain", version=VERSION, lifespan=lifespan)
     app.add_middleware(
@@ -271,6 +298,31 @@ def create_app(
             return json.loads((oriane.DATA_DIR / "calendar.json").read_bytes())
         except FileNotFoundError:
             return reporting.build_calendar(radar.read_radar())
+
+    @app.post("/poll")
+    async def post_poll(request: Request):
+        try:
+            ran, new_posts = await poll_now(request.app)
+        except (sqlite3.Error, OSError, ValueError) as error:
+            logger.warning("Poll failed (%s)", type(error).__name__)
+            return api_error(503, "poll_unavailable", "The poll could not run.")
+        with closing(store.connect()) as con:
+            last_poll_at, next_poll_at = poller.schedule(con, settings)
+        return {"ran": ran, "last_poll_at": last_poll_at, "next_poll_at": next_poll_at, "new_posts": new_posts}
+
+    @app.get("/feed")
+    def get_feed(since: str | None = None, limit: int = Query(50, ge=1, le=100)):
+        try:
+            since = store.iso(store.parse_iso(since)) if since else None
+        except ValueError:
+            return api_error(422, "invalid_request", "since must be an ISO 8601 timestamp.")
+        with closing(store.connect()) as con:
+            last_poll_at, next_poll_at = poller.schedule(con, settings)
+            posts = store.list_feed(con, since=since, limit=limit)
+        return {
+            "generated_at": store.iso(datetime.now(timezone.utc)),
+            "last_poll_at": last_poll_at, "next_poll_at": next_poll_at, "posts": posts,
+        }
 
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:

@@ -12,6 +12,8 @@ class Settings:
     openai_base_url: str = "https://api.openai.com/v1"
     gmi_key: str = field(default="", repr=False)
     gmi_base_url: str = "https://api.gmi-serving.com/v1"
+    poll_interval_minutes: int = 15
+    oriane_max_searches_per_hour: int = 20
 
     @property
     def chat_model(self) -> str:
@@ -37,6 +39,8 @@ class Settings:
             openai_base_url=(os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/"),
             gmi_key=os.getenv("GMI_API_KEY", ""),
             gmi_base_url=(os.getenv("GMI_BASE_URL") or "https://api.gmi-serving.com/v1").rstrip("/"),
+            poll_interval_minutes=int(os.getenv("POLL_INTERVAL_MINUTES") or 15),
+            oriane_max_searches_per_hour=int(os.getenv("ORIANE_MAX_SEARCHES_PER_HOUR") or 20),
         )
 
 
