@@ -1,14 +1,21 @@
 # Only the brain image builds from this context (docker build -f services/brain/Dockerfile .).
 # Allowlist what it copies so .env files, the database and node_modules never enter the build.
-*
-# railway up uploads by these rules too, so it needs the build recipe.
+# railway up reads this file with gitignore rules, which cannot re-include a file inside an excluded
+# folder, so each parent folder is re-included first and then narrowed.
+/*
 !railway.json
+!services/
+/services/*
+!services/brain/
+/services/brain/*
 !services/brain/Dockerfile
 !services/brain/pyproject.toml
 !services/brain/uv.lock
-!services/brain/app
-!contracts/fixtures
-!data
+!services/brain/app/
+!contracts/
+/contracts/*
+!contracts/fixtures/
+!data/
 data/mybuster.db*
-data/cache
+data/cache/
 **/__pycache__
