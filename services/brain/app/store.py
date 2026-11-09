@@ -42,6 +42,26 @@ CREATE TABLE IF NOT EXISTS polls (
     new_posts INTEGER NOT NULL DEFAULT 0,
     error TEXT
 );
+CREATE TABLE IF NOT EXISTS myths (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    claim TEXT NOT NULL,
+    harm_tier TEXT NOT NULL,
+    harm_reason TEXT NOT NULL,
+    phrases TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'confirmed'
+);
+CREATE TABLE IF NOT EXISTS snapshots (
+    day TEXT NOT NULL,
+    myth_id TEXT NOT NULL,
+    topic_video_count INTEGER NOT NULL,
+    topic_views INTEGER NOT NULL,
+    promote_views INTEGER NOT NULL,
+    debunk_views INTEGER NOT NULL,
+    taken_at TEXT NOT NULL,
+    PRIMARY KEY (day, myth_id)
+);
 """
 
 # Column order of a feed post, as in CONTRACT.md (label is added after these).

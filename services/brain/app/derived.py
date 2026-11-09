@@ -1,0 +1,239 @@
+"""Radar, myth detail, impact, calendar and daily snapshots computed from the SQLite store.
+
+Every number comes from stored posts and labels. The contracts radar fixture is read once, on first
+run, to seed the confirmed myths (editorial text and match phrases only, never counts).
+"""
+
+import json
+import sqlite3
+from collections import Counter
+from datetime import date, datetime, timedelta
+
+from . import oriane, store
+
+FIXTURE = oriane.DATA_DIR.parent / "contracts" / "fixtures" / "radar.json"
+# First-run seed: the phrases (as polled, see data/watchlist.json) that attribute an unlabeled post to a myth.
+SEED_PHRASES = {
+    "lymphatic-detox": ["lymphatic drainage"],
+    "mouth-taping": ["mouth taping", "mouth tape", "tape my mouth", "taping my mouth"],
+    "garlic-tumor": ["garlic tumor", "garlic cancer"],
+}
+WINDOW_DAYS = 7  # the poller searches this far back, so every window post has been searchable
+MIN_RISING_POSTS = 3  # shortcut: fewer posts in the window is noise, not a trend; tune with real poll history
+TREND_PCT = 10
+VIDEOS_SHOWN = 10
+QUOTE_SOURCES = {"transcript": "transcript", "caption": "caption", "on_screen": "on_screen_text"}
+
+
+def windows(now: datetime) -> tuple[dict, dict]:
+    """(current, previous) as inclusive date windows ending today."""
+    today = now.date()
+    span = timedelta(days=WINDOW_DAYS)
+    current = {"from": (today - span + timedelta(days=1)).isoformat(), "to": today.isoformat()}
+    previous = {"from": (today - 2 * span + timedelta(days=1)).isoformat(), "to": (today - span).isoformat()}
+    return current, previous
+
+
+def confirmed_myths(con: sqlite3.Connection) -> list[dict]:
+    # shortcut: an empty table counts as first run, so emptying it by hand re-seeds it.
+    if con.execute("SELECT 1 FROM myths LIMIT 1").fetchone() is None and FIXTURE.is_file():
+        with con:
+            for myth in json.loads(FIXTURE.read_bytes())["myths"]:
+                con.execute(
+                    "INSERT OR IGNORE INTO myths (id, title, topic, claim, harm_tier, harm_reason, phrases, status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed')",
+                    (myth["id"], myth["title"], myth["topic"], myth["claim"], myth["harm_tier"],
+                     myth["harm_reason"], json.dumps(SEED_PHRASES.get(myth["id"], [myth["topic"]]))),
+                )
+    return [
+        {**row, "phrases": [phrase.lower() for phrase in json.loads(row["phrases"])]}
+        for row in map(dict, con.execute("SELECT * FROM myths WHERE status = 'confirmed' ORDER BY rowid"))
+    ]
+
+
+def load_posts(con: sqlite3.Connection, since: str) -> list[dict]:
+    rows = con.execute(
+        "SELECT p.*, l.oriane_id IS NOT NULL AS labeled, l.myth_id, l.stance, l.confidence "
+        "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
+        "WHERE substr(COALESCE(p.published_at, p.fetched_at), 1, 10) >= ?",
+        (since,),
+    )
+    return [{**row, "day": (row["published_at"] or row["fetched_at"])[:10], "views": row["views"] or 0}
+            for row in map(dict, rows)]
+
+
+def posts_of(myth: dict, posts: list[dict]) -> list[dict]:
+    """A label decides when there is one; otherwise the phrase the post was found with does."""
+    return [
+        post for post in posts
+        if (post["myth_id"] == myth["id"] and post["stance"] != "unrelated" if post["labeled"]
+            else post["matched_query"].lower() in myth["phrases"])
+    ]
+
+
+def inside(posts: list[dict], window: dict) -> list[dict]:
+    return [post for post in posts if window["from"] <= post["day"] <= window["to"]]
+
+
+def video_ref(post: dict) -> dict:
+    raw = json.loads(post["raw_json"]) or {}
+    ref = {
+        "oriane_id": post["oriane_id"], "platform": post["platform"], "url": post["url"],
+        "handle": post["handle"], "display_name": post["display_name"],
+        "followers": raw.get("profileFollowersCount"), "views": post["views"],
+        "shares": raw.get("sharesCount"), "interactions": raw.get("interactionsCount"),
+        "published_at": post["published_at"], "thumbnail_url": post["thumbnail_url"],
+        "quote": post["snippet"], "quote_source": QUOTE_SOURCES.get(post["snippet_source"], "caption"),
+        "stance": post["stance"], "stance_confidence": post["confidence"],
+        # Never true here: the under-18 and own-illness checks are not stored, so we cannot clear a name.
+        "nameable": False,
+    }
+    return {key: value for key, value in ref.items() if value is not None}
+
+
+def trend_of(count: int, previous: int) -> tuple[str, int | None]:
+    if not previous:
+        return "unknown", None
+    pct = round((count - previous) / previous * 100)
+    return ("rising" if pct > TREND_PCT else "cooling" if pct < -TREND_PCT else "steady"), pct
+
+
+def summary_of(myth: dict, mine: list[dict], current: dict, previous: dict, snapshot_at: str) -> dict:
+    now_posts, before = inside(mine, current), inside(mine, previous)
+    trend, pct = trend_of(len(now_posts), len(before))
+    summary = {
+        "id": myth["id"], "title": myth["title"], "topic": myth["topic"], "claim": myth["claim"],
+        "harm_tier": myth["harm_tier"], "harm_reason": myth["harm_reason"], "trend": trend,
+        "window": current, "topic_video_count": len(now_posts),
+        "topic_views": sum(post["views"] for post in now_posts),
+        "prev_window": previous, "prev_topic_video_count": len(before),
+        "prev_topic_views": sum(post["views"] for post in before),
+        "match_note": "Posts found with " + ", ".join(f'"{p}"' for p in myth["phrases"])
+                      + " unless a label assigns them elsewhere. Labels decide the stance.",
+        "data_source": "oriane_live", "snapshot_at": snapshot_at,
+    }
+    if pct is not None:
+        summary["trend_pct"] = pct
+    if promoters := [post for post in now_posts if post["stance"] == "promotes"]:
+        summary["top_video"] = video_ref(max(promoters, key=lambda post: post["views"]))
+    return summary
+
+
+def snapshot_time(con: sqlite3.Connection, now: datetime) -> str:
+    return store.last_poll_started(con) or store.iso(now)
+
+
+def radar(con: sqlite3.Connection, now: datetime) -> dict:
+    current, previous = windows(now)
+    posts, at = load_posts(con, previous["from"]), snapshot_time(con, now)
+    myths = [summary_of(m, posts_of(m, posts), current, previous, at) for m in confirmed_myths(con)]
+    return {"generated_at": store.iso(now), "window": current, "myths": myths}
+
+
+def myth_detail(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
+    myth = next((m for m in confirmed_myths(con) if m["id"] == myth_id), None)
+    if myth is None:
+        return None
+    current, previous = windows(now)
+    mine = posts_of(myth, load_posts(con, previous["from"]))
+    detail = summary_of(myth, mine, current, previous, snapshot_time(con, now))
+    now_posts = inside(mine, current)
+
+    def top(stance: str) -> list[dict]:
+        ranked = sorted((p for p in now_posts if p["stance"] == stance), key=lambda p: -p["views"])
+        return [video_ref(post) for post in ranked[:VIDEOS_SHOWN]]
+
+    labeled = [post for post in now_posts if post["labeled"]]
+    detail.update(videos=top("promotes"), counter_voices=top("debunks"),
+                  stance_counts=dict(Counter(post["stance"] for post in labeled)))
+    if labeled:
+        detail["stance_sample_size"] = len(labeled)
+    return detail
+
+
+def reach(posts: list[dict]) -> dict:
+    return {"videos": len(posts), "views": sum(post["views"] for post in posts)}
+
+
+def impact(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
+    myth = next((m for m in confirmed_myths(con) if m["id"] == myth_id), None)
+    if myth is None:
+        return None
+    current, previous = windows(now)
+    labeled = [p for p in inside(posts_of(myth, load_posts(con, previous["from"])), current) if p["labeled"]]
+    result = {"myth_id": myth_id, "window": current, "myth_reach": reach([p for p in labeled if p["stance"] == "promotes"])}
+    if not labeled:
+        result["note"] = "Pending: no posts about this myth are labeled yet, so response reach is not measured."
+        return result
+    debunks = reach([p for p in labeled if p["stance"] == "debunks"])
+    result["response_reach"] = debunks
+    note = (f"Based on {len(labeled)} labeled posts from {current['from']} through {current['to']}. "
+            "Reach sums the views of posts labeled promotes or debunks.")
+    if result["myth_reach"]["views"]:
+        result["response_ratio"] = debunks["views"] / result["myth_reach"]["views"]
+        note += " Response ratio divides debunk views by promoter views."
+    else:
+        note += " No post is labeled promotes, so there is no ratio."
+    result["note"] = note
+    return result
+
+
+def daily_counts(posts: list[dict], window: dict) -> list[int]:
+    start = date.fromisoformat(window["from"])
+    days = Counter(post["day"] for post in posts)
+    return [days[(start + timedelta(days=i)).isoformat()] for i in range(WINDOW_DAYS)]
+
+
+def project_next_week(counts: list[int]) -> tuple[float, int]:
+    """Least-squares line through the daily counts: (slope per day, posts expected over the next 7 days)."""
+    n = len(counts)
+    mean_x, mean_y = (n - 1) / 2, sum(counts) / n
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in enumerate(counts)) / sum((x - mean_x) ** 2 for x in range(n))
+    line = lambda x: mean_y + slope * (x - mean_x)  # noqa: E731
+    return slope, round(sum(max(line(x), 0) for x in range(n, 2 * n)))
+
+
+def week_label(monday: date) -> str:
+    sunday = monday + timedelta(days=6)
+    return f"{monday:%b} {monday.day} to {sunday:%b} {sunday.day}, {sunday.year}"
+
+
+def calendar(con: sqlite3.Connection, now: datetime) -> dict:
+    current, previous = windows(now)
+    posts, at = load_posts(con, previous["from"]), snapshot_time(con, now)
+    monday = now.date() + timedelta(days=7 - now.weekday())
+    this_week, watchlist = [], []
+    for myth in confirmed_myths(con):
+        mine = posts_of(myth, posts)
+        summary = summary_of(myth, mine, current, previous, at)
+        counts = daily_counts(inside(mine, current), current)
+        slope, projected = project_next_week(counts)
+        rising = slope > 0 and sum(counts) >= MIN_RISING_POSTS
+        item = {
+            "topic": myth["title"], "myth_id": myth["id"], "harm_tier": myth["harm_tier"],
+            "trend": summary["trend"], "window": week_label(monday), "basis": "oriane_trend",
+            "video_count": summary["topic_video_count"], "views": summary["topic_views"],
+            "script_available": any((oriane.DATA_DIR / "briefs").glob(f"{myth['id']}.*.json")),
+            "why": (f"Daily posts rose over {current['from']} through {current['to']} "
+                    f"({sum(counts)} posts). The trend line projects {projected} posts next week."
+                    if rising else
+                    f"Daily posts are not rising over {current['from']} through {current['to']} "
+                    f"({sum(counts)} posts). Watching."),
+        }
+        (this_week if rising else watchlist).append(item)
+    return {"week_of": monday.isoformat(), "this_week": this_week, "watchlist": watchlist}
+
+
+def write_snapshots(con: sqlite3.Connection, now: datetime) -> None:
+    """One row per confirmed myth per day; later polls on the same day replace it."""
+    current, previous = windows(now)
+    posts = load_posts(con, previous["from"])
+    with con:
+        for myth in confirmed_myths(con):
+            mine = inside(posts_of(myth, posts), current)
+            views = lambda stance: sum(p["views"] for p in mine if p["stance"] == stance)  # noqa: E731
+            con.execute(
+                "INSERT OR REPLACE INTO snapshots VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (now.date().isoformat(), myth["id"], len(mine), sum(p["views"] for p in mine),
+                 views("promotes"), views("debunks"), store.iso(now)),
+            )
