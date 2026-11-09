@@ -388,9 +388,9 @@ def test_evidence_options_are_sentences_of_four_words_nearest_the_phrase_each_wi
     assert "evidence" not in labeler.questions({}, [])  # no sentence, no question
 
 
-def test_at_most_12_evidence_options(env):
-    seed_raw((1, 20000, "q", {"caption": " ".join(f"This is sentence number {i}." for i in range(20))}))
-    assert len(labeler.evidence_sentences(stored(1))) == 12
+def test_evidence_options_are_capped(env):
+    seed_raw((1, 20000, "q", {"caption": " ".join(f"This is sentence number {i}." for i in range(labeler.EVIDENCE_OPTIONS + 5))}))
+    assert len(labeler.evidence_sentences(stored(1))) == labeler.EVIDENCE_OPTIONS
 
 
 def test_the_chosen_sentence_is_stored_with_its_source_and_basis_and_reaches_the_feed(env):

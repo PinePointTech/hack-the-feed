@@ -1,61 +1,52 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { labelWhy, NO_EVIDENCE_LINE, TEXT_ONLY_LINE } from "./label-why.ts";
-import { stanceChip, FLAGGED_LINE, NOT_FLAGGED_LINE } from "./label-why.ts";
-import type { FeedLabel } from "./feed.ts";
+import { postView, verdictOf, TEXT_ONLY_NOTE, OLD_LABEL_NOTE } from "./label-why.ts";
+import type { FeedLabel, FeedPost } from "./feed.ts";
 
 const label = (over: Partial<FeedLabel> = {}): FeedLabel => ({ health_claim: true, myth_id: null, stance: "promotes", confidence: 0.9, model: "m", ...over });
+const post = (l: FeedLabel | null, over: Partial<FeedPost> = {}): FeedPost => ({
+  oriane_id: "cnt_1", platform: "tiktok", url: null, handle: null, display_name: null, thumbnail_url: null, views: 1,
+  published_at: null, fetched_at: "2026-11-09T00:00:00Z", snippet: "Matched line.", snippet_source: "caption", matched_query: "q",
+  label: l, ...over,
+});
+const name = (id: string) => `Myth ${id}`;
+const newLabel = (over: Partial<FeedLabel> = {}) => label({ basis: "transcript", evidence: { quote: "It melts fat.", source: "transcript" }, commercial: false, flagged: false, ...over });
 
-test("each stance has its fixed line", () => {
-  assert.equal(labelWhy(label({ stance: "promotes" })).stanceLine, "Presents the claim as true or tells people to act on it.");
-  assert.equal(labelWhy(label({ stance: "debunks" })).stanceLine, "Disputes or corrects the claim.");
-  assert.equal(labelWhy(label({ stance: "ad" })).stanceLine, "Sells or promotes a product or service.");
-  assert.equal(labelWhy(label({ stance: "unrelated" })).stanceLine, "Takes no position on a health claim.");
-  assert.equal(labelWhy(label({ stance: "neutral" })).stanceLine, "Takes no position on a health claim.");
+test("only a promoted claim judged dubious is flagged", () => {
+  assert.equal(verdictOf(newLabel({ flagged: true })), "flagged");
+  assert.equal(verdictOf(newLabel({ flagged: false })), "claim");
+  assert.equal(verdictOf(newLabel({ stance: "debunks", flagged: false })), "corrects");
+  for (const stance of ["ad", "unrelated", "neutral"] as const) assert.equal(verdictOf(newLabel({ stance })), "no_claim");
+  assert.equal(verdictOf(null), "pending");
 });
 
-test("an old label without basis or evidence shows only the stance line", () => {
-  const w = labelWhy(label({ myth_id: "mouth-taping" }));
-  assert.deepEqual({ ...w, stanceLine: "" }, { stanceLine: "", flagLine: null, evidence: null, basisNote: null, mythHref: null });
-});
-
-test("evidence shows its quote and a fixed source line", () => {
-  const src = { transcript: "From the spoken transcript", caption: "From the caption", on_screen: "From on-screen text" } as const;
-  for (const source of Object.keys(src) as (keyof typeof src)[]) {
-    assert.deepEqual(labelWhy(label({ basis: "transcript", evidence: { quote: "Tape it shut.", source } })).evidence, { quote: "Tape it shut.", sourceLine: src[source] });
-  }
-});
-
-test("null evidence says no single sentence supports the label", () => {
-  assert.deepEqual(labelWhy(label({ basis: "transcript", evidence: null })).evidence, { none: NO_EVIDENCE_LINE });
-  assert.equal(NO_EVIDENCE_LINE, "No single sentence supports this label");
-});
-
-test("an empty quote or unknown source never shows a quote", () => {
-  assert.deepEqual(labelWhy(label({ basis: "text_only", evidence: { quote: "", source: "caption" } })).evidence, { none: NO_EVIDENCE_LINE });
+test("the evidence sentence is shown in place of the matched line, with where it came from", () => {
+  const v = postView(post(newLabel({ flagged: true })), name);
+  assert.deepEqual([v.title, v.quote], ["Flagged", { text: "It melts fat.", from: "Said in the video" }]);
+  assert.deepEqual(postView(post(newLabel({ evidence: null })), name).quote, { text: "Matched line.", from: "In the caption" });
+  assert.deepEqual(postView(post(null, { snippet_source: null }), name).quote, { text: "Matched line.", from: "From the post" });
   // @ts-expect-error a newer brain could send a source this build does not know
-  assert.deepEqual(labelWhy(label({ basis: "text_only", evidence: { quote: "x", source: "audio" } })).evidence, { none: NO_EVIDENCE_LINE });
+  assert.equal(postView(post(newLabel({ evidence: { quote: "x", source: "audio" } })), name).quote.text, "Matched line.");
 });
 
-test("text_only basis adds the no-transcript note, transcript basis does not", () => {
-  assert.equal(labelWhy(label({ basis: "text_only", evidence: null })).basisNote, TEXT_ONLY_LINE);
-  assert.equal(TEXT_ONLY_LINE, "Judged from the caption and on-screen text only. Oriane has no transcript for this video yet.");
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null })).basisNote, null);
+test("selling is its own tag: Selling something on a claim, Ad when there is no claim", () => {
+  assert.equal(postView(post(newLabel({ flagged: true, commercial: true })), name).selling, "Selling something");
+  assert.equal(postView(post(newLabel({ stance: "ad", commercial: true })), name).selling, "Ad");
+  assert.equal(postView(post(label({ stance: "ad" })), name).selling, "Ad"); // old label, no commercial field
+  assert.equal(postView(post(newLabel()), name).selling, null);
+  assert.equal(postView(post(null), name).selling, null);
 });
 
-test("a myth id links to its desk page, and none means no link", () => {
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "mouth-taping", myth_confirmed: true })).mythHref, "/desk/myth/mouth-taping");
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "sea-moss", myth_confirmed: false })).mythHref, null);  // candidates have no page
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "a b/c", myth_confirmed: true })).mythHref, "/desk/myth/a%20b%2Fc");
-  assert.equal(labelWhy(label({ basis: "transcript", evidence: null })).mythHref, null);
+test("notes say when only the caption was read or the label is from the older method", () => {
+  assert.equal(postView(post(newLabel({ basis: "text_only" })), name).note, TEXT_ONLY_NOTE);
+  assert.equal(postView(post(newLabel()), name).note, null);
+  const old = postView(post(label()), name);
+  assert.deepEqual([old.verdict, old.note], ["claim", OLD_LABEL_NOTE]);
+  assert.match(old.detail, /Not yet checked against the evidence/);
 });
 
-test("only a promoted dubious claim is flagged red", () => {
-  assert.deepEqual(stanceChip(label({ stance: "promotes", flagged: true })), { text: "Flagged", flagged: true });
-  assert.deepEqual(stanceChip(label({ stance: "promotes", flagged: false })), { text: "Makes a claim", flagged: false });
-  assert.deepEqual(stanceChip(label({ stance: "promotes" })), { text: "Promotes", flagged: true });  // old label, no flag yet
-  assert.deepEqual(stanceChip(label({ stance: "ad", flagged: false })), { text: "Ad", flagged: false });
-  assert.equal(labelWhy(label({ stance: "promotes", flagged: true, basis: "transcript", evidence: null })).flagLine, FLAGGED_LINE);
-  assert.equal(labelWhy(label({ stance: "promotes", flagged: false })).flagLine, NOT_FLAGGED_LINE);
-  assert.equal(labelWhy(label({ stance: "debunks", flagged: false })).flagLine, null);
+test("only a confirmed myth gets a link", () => {
+  assert.deepEqual(postView(post(newLabel({ myth_id: "mouth-taping", myth_confirmed: true })), name).myth, { name: "Myth mouth-taping", href: "/desk/myth/mouth-taping" });
+  assert.equal(postView(post(newLabel({ myth_id: "sea-moss", myth_confirmed: false })), name).myth, null);
+  assert.equal(postView(post(newLabel({ myth_id: "a b/c", myth_confirmed: true })), name).myth?.href, "/desk/myth/a%20b%2Fc");
 });

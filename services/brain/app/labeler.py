@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 NO_MYTH = "none"
 DUBIOUS_MIN = store.DUBIOUS_MIN
 STANDALONE_MIN = 0.5
-PROMPT_VERSION = "two-axes-1"  # bump when a question changes, so old labels stay explainable
+PROMPT_VERSION = "two-axes-2"  # bump when a question changes, so old labels stay explainable
 CONTEXT_MAX = 6000
 REST_MAX = 1500  # caption and on-screen text always keep this much room, so a long transcript cannot hide an offer
-EVIDENCE_OPTIONS = 12
+EVIDENCE_OPTIONS = 20
 EVIDENCE_MIN_WORDS = 4
 COMMERCIAL_MIN = 0.5
 CLAIM_STANCES = {
@@ -114,9 +114,10 @@ def questions(myths: dict[str, str], evidence: list[tuple[str, str]] = ()) -> di
         asked["evidence"] = {
             "type": "choice",
             "instructions": (
-                "Which listed sentence, in the post's own words, best shows what the post does with claim_sentence: "
-                "states the claim, disputes it or, if the post only sells, makes the offer? Pick none if no listed "
-                "sentence shows it."
+                "Which listed sentence, in the post's own words, states the health claim the post makes or disputes: "
+                "what the practice or product does to the body or health? A sales line, price, call to action, "
+                "greeting, question or request to share or comment is not a claim, even in a post that sells. "
+                "Pick none if no listed sentence states a health effect."
             ),
             "options": {**{f"s{i}": f"({source}) {sentence}" for i, (source, sentence) in enumerate(evidence, 1)},
                         NO_MYTH: "No listed sentence shows it."},
