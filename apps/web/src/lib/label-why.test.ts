@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { labelWhy, NO_EVIDENCE_LINE, TEXT_ONLY_LINE } from "./label-why.ts";
+import { stanceChip, FLAGGED_LINE, NOT_FLAGGED_LINE } from "./label-why.ts";
 import type { FeedLabel } from "./feed.ts";
 
 const label = (over: Partial<FeedLabel> = {}): FeedLabel => ({ health_claim: true, myth_id: null, stance: "promotes", confidence: 0.9, model: "m", ...over });
@@ -15,7 +16,7 @@ test("each stance has its fixed line", () => {
 
 test("an old label without basis or evidence shows only the stance line", () => {
   const w = labelWhy(label({ myth_id: "mouth-taping" }));
-  assert.deepEqual({ ...w, stanceLine: "" }, { stanceLine: "", evidence: null, basisNote: null, mythHref: null });
+  assert.deepEqual({ ...w, stanceLine: "" }, { stanceLine: "", flagLine: null, evidence: null, basisNote: null, mythHref: null });
 });
 
 test("evidence shows its quote and a fixed source line", () => {
@@ -47,4 +48,14 @@ test("a myth id links to its desk page, and none means no link", () => {
   assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "sea-moss", myth_confirmed: false })).mythHref, null);  // candidates have no page
   assert.equal(labelWhy(label({ basis: "transcript", evidence: null, myth_id: "a b/c", myth_confirmed: true })).mythHref, "/desk/myth/a%20b%2Fc");
   assert.equal(labelWhy(label({ basis: "transcript", evidence: null })).mythHref, null);
+});
+
+test("only a promoted dubious claim is flagged red", () => {
+  assert.deepEqual(stanceChip(label({ stance: "promotes", flagged: true })), { text: "Flagged", flagged: true });
+  assert.deepEqual(stanceChip(label({ stance: "promotes", flagged: false })), { text: "Makes a claim", flagged: false });
+  assert.deepEqual(stanceChip(label({ stance: "promotes" })), { text: "Promotes", flagged: true });  // old label, no flag yet
+  assert.deepEqual(stanceChip(label({ stance: "ad", flagged: false })), { text: "Ad", flagged: false });
+  assert.equal(labelWhy(label({ stance: "promotes", flagged: true, basis: "transcript", evidence: null })).flagLine, FLAGGED_LINE);
+  assert.equal(labelWhy(label({ stance: "promotes", flagged: false })).flagLine, NOT_FLAGGED_LINE);
+  assert.equal(labelWhy(label({ stance: "debunks", flagged: false })).flagLine, null);
 });

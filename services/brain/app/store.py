@@ -172,6 +172,7 @@ def upsert_label(
         )
 
 
+DUBIOUS_MIN = 0.6  # labeler seeds candidates and the feed flags posts at this dubious score
 RECENT = timedelta(hours=72)  # "new" is measured from the newest post Oriane has, not the wall clock (it lags days)
 TOP_SLOTS, PER_HANDLE = 20, 2
 
@@ -204,7 +205,7 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     2 of the first 20 slots, and posts labeled unrelated come last.
     """
     rows = con.execute(
-        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, l.commercial, "
+        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, l.commercial, l.dubious, "
         "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id WHERE (? IS NULL OR p.fetched_at > ?)",
         (since, since),
@@ -250,6 +251,8 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
         }
         if post["label"] and row["commercial"] is not None:  # labels from before the two axes lack it
             post["label"]["commercial"] = bool(row["commercial"])
+            # The bad content flag the eval measures: the creator pushes a claim the model judges dubious.
+            post["label"]["flagged"] = row["stance"] == "promotes" and (row["dubious"] or 0) >= DUBIOUS_MIN
         if post["label"] and row["basis"]:  # labels from before the evidence prompt carry neither field
             post["label"]["basis"] = row["basis"]
             post["label"]["evidence"] = (

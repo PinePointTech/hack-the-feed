@@ -94,7 +94,7 @@ def test_label_fields_are_stored_and_reach_the_feed(env):
     assert labels() == [("cnt_1", 1, myth, "debunks", 0.8, MODEL)]
     with closing(store.connect()) as con:
         assert store.list_feed(con)[0]["label"] == {
-            "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL, "myth_confirmed": False,
+            "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL, "myth_confirmed": False, "flagged": False,
             "commercial": False, "basis": "transcript", "evidence": None,
         }
     assert rows("SELECT id FROM myths") == []  # a known myth makes no candidate
@@ -325,7 +325,7 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
                 and time.monotonic() < deadline:
             time.sleep(0.05)
         assert posts["cnt_1"]["label"] == {
-            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False,
+            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False, "flagged": True,
             "commercial": False, "basis": "text_only", "evidence": None,  # the stub judge picks none
         }
         assert posts["cnt_2"]["label"] is None  # under the view floor
@@ -501,3 +501,15 @@ def test_labels_from_the_previous_prompt_version_are_relabeled(env):
                            model="old", labeled_at=store.iso(T0), prompt_version="evidence-quote-1")
     assert labeler.PROMPT_VERSION != "evidence-quote-1"
     assert label(FakeJudge(), now=T0 + timedelta(hours=2)) == 1
+
+
+def test_the_feed_flags_only_promoted_claims_judged_dubious(env):
+    seed((1, 20000, "a"), (2, 20000, "b"), (3, 20000, "c"), (4, 20000, "d"))
+    with closing(store.connect()) as con:
+        for n, stance, dubious, commercial in ((1, "promotes", 0.9, True), (2, "promotes", 0.2, False),
+                                              (3, "debunks", 0.9, False), (4, "promotes", 0.9, None)):
+            store.upsert_label(con, f"cnt_{n}", health_claim=True, myth_id=None, stance=stance, confidence=0.9,
+                               model=MODEL, labeled_at=store.iso(T0), dubious=dubious, commercial=commercial)
+        labels = {p["oriane_id"]: p["label"] for p in store.list_feed(con)}
+    assert [labels[f"cnt_{n}"].get("flagged") for n in (1, 2, 3)] == [True, False, False]
+    assert "flagged" not in labels["cnt_4"]  # a label from before the two axes carries no flag
