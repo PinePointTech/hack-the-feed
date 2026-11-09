@@ -94,6 +94,31 @@ def to_post(item: dict, phrases: list[str]) -> dict | None:
     }
 
 
+def has_transcript(item: dict) -> bool:
+    return any(source == "transcript" and text.strip() for source, text in texts_of(item))
+
+
+async def refresh_transcripts(
+    con, client: httpx.AsyncClient, settings: Settings, poll_id: int, now: datetime, phrases: list[str],
+) -> int:
+    """Re-fetch stored videos that still lack a transcript (one search, up to 100 posts), since Oriane adds
+    transcripts weeks after a post. Posts that gain one are queued for relabeling. Returns how many gained one."""
+    ids = store.posts_missing_transcripts(con, now, settings.label_min_views, RESULTS_PER_SEARCH)
+    if not ids:
+        return 0
+    store.charge_search(con, poll_id)
+    payload = await oriane.search(
+        client, settings, {"operator": "and", "filters": {"id": {"includes": ids}}},
+        projection="default", limit=RESULTS_PER_SEARCH,
+    )
+    # Only a stored post's refreshed raw counts: a result that no longer matches a phrase is not upserted.
+    posts = [post for item in payload["data"]["results"] if item.get("id") in ids and (post := to_post(item, phrases))]
+    store.upsert_posts(con, posts, store.iso(now))
+    gained = [post["oriane_id"] for post in posts if has_transcript(post["raw"])]
+    store.record_text_check(con, ids, gained, store.iso(now))
+    return len(gained)
+
+
 def schedule(con, settings: Settings) -> tuple[str | None, str | None]:
     """(last_poll_at, next_poll_at), both measured from the last poll start."""
     last = store.last_poll_started(con)
@@ -148,6 +173,8 @@ async def run_poll(
                     capped += poll_id % DEEP_EVERY == 1  # shortcut: results past the page cap are dropped; raise MAX_PAGES_PER_BATCH if this shows up.
                 if out_of_budget:
                     break
+            if not out_of_budget and budget > 0:
+                await refresh_transcripts(con, client, settings, poll_id, now, phrases)
             problems = [
                 *([f"search cap reached after {ran} searches, so some results were not fetched"] if out_of_budget else []),
                 *([f"{capped} of {len(batches)} searches have more than {MAX_PAGES_PER_BATCH} pages, so older posts may be missing"] if capped else []),

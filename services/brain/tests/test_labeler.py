@@ -21,8 +21,9 @@ def settings(**changes):
 
 
 def answers(health: float = 0.9, myth: str = labeler.NO_MYTH, stance: str = "promotes", dubious: float = 0.9,
-            standalone: float = 0.9) -> dict:
+            standalone: float = 0.9, evidence: str | None = None) -> dict:
     return {
+        **({"evidence": {"choice": evidence, "probabilities": {evidence: 1.0}}} if evidence else {}),
         "health_claim": {"noul": health},
         "dubious": {"noul": dubious},
         "standalone_claim": {"noul": standalone},
@@ -47,12 +48,17 @@ class FakeJudge:
 
 
 def seed(*posts: tuple[int, int | None, str]) -> None:
-    """(n, views, matched_query) -> a stored post whose snippet is 'claim n'."""
+    """(n, views, matched_query) -> a stored post whose snippet is 'claim n', with a transcript and a caption."""
+    seed_raw(*[(n, views, query, {"caption": f"caption {n}", "media": [{"type": "video", "transcript": f"transcript {n}"}]})
+               for n, views, query in posts])
+
+
+def seed_raw(*posts: tuple[int, int | None, str, dict]) -> None:
     with closing(store.connect()) as con:
         store.upsert_posts(con, [
             {"oriane_id": f"cnt_{n}", "platform": "tiktok", "views": views, "snippet": f"claim {n}",
-             "matched_query": query, "raw": {"caption": f"caption {n}"}}
-            for n, views, query in posts
+             "matched_query": query, "raw": raw}
+            for n, views, query, raw in posts
         ], store.iso(T0))
 
 
@@ -80,7 +86,8 @@ def test_label_fields_are_stored_and_reach_the_feed(env):
     assert labels() == [("cnt_1", 1, myth, "debunks", 0.8, MODEL)]
     with closing(store.connect()) as con:
         assert store.list_feed(con)[0]["label"] == {
-            "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL,
+            "health_claim": True, "myth_id": myth, "stance": "debunks", "confidence": 0.8, "model": MODEL, "myth_confirmed": False,
+            "basis": "transcript", "evidence": None,
         }
     assert rows("SELECT id FROM myths") == []  # a known myth makes no candidate
 
@@ -90,7 +97,7 @@ def test_the_judge_sees_the_claim_the_post_text_and_every_known_myth(env):
     fake = FakeJudge()
     label(fake)
     state, questions = fake.calls[0]
-    assert state == {"claim_sentence": "claim 1", "matched_phrase": "sea moss", "post_text": "caption 1"}
+    assert state == {"claim_sentence": "claim 1", "matched_phrase": "sea moss", "post_text": "transcript 1 caption 1"}
     assert set(questions["myth"]["options"]) == {*brief.MYTHS, labeler.NO_MYTH}
     assert set(questions["stance"]["options"]) == {"promotes", "debunks", "ad", "unrelated"}
 
@@ -160,9 +167,10 @@ def test_an_existing_database_gains_the_new_label_columns_once(env, tmp_path):
     legacy.close()
     for _ in range(2):  # a second connect is a no-op
         with closing(store.connect(old)) as con:
-            assert [tuple(r) for r in con.execute("SELECT oriane_id, dubious, standalone_claim, prompt_version FROM labels")] == [
-                ("cnt_old", None, None, None),
-            ]
+            assert [tuple(r) for r in con.execute(
+                "SELECT oriane_id, dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source FROM labels"
+            )] == [("cnt_old", None, None, None, None, None, None)]
+            assert "text_checked_at" in [r["name"] for r in con.execute("PRAGMA table_info(posts)")]
 
 
 def test_a_phrase_a_confirmed_myth_owns_never_becomes_a_candidate(env):
@@ -286,6 +294,8 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
             "standalone_claim": {"noul": 0.9},
             "myth": {"choice": "none", "probabilities": {name: float(name == "none") for name in asked["myth"]["options"]}},
             "stance": {"choice": "promotes", "probabilities": {name: float(name == "promotes") for name in asked["stance"]["options"]}},
+            **({"evidence": {"choice": "none", "probabilities": {name: float(name == "none") for name in asked["evidence"]["options"]}}}
+               if "evidence" in asked else {}),
         }
         return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps({"answers": reply})}}]})
 
@@ -301,8 +311,101 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
                 and time.monotonic() < deadline:
             time.sleep(0.05)
         assert posts["cnt_1"]["label"] == {
-            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL,
+            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False,
+            "basis": "text_only", "evidence": None,  # the stub judge picks none
         }
         assert posts["cnt_2"]["label"] is None  # under the view floor
         # The seeded mouth-taping myth owns "mouth tape", so no duplicate candidate appears.
         assert client.get("/myths/candidates").json()["candidates"] == []
+
+
+RAW = {
+    "caption": "Sea moss is great for you!",
+    "media": [{"type": "video", "transcript": "Hi all. Sea moss cures every disease you have. Short one.\nWe take it daily for gut health",
+               "onScreenText": ["Buy sea moss now today"]}],
+}
+
+
+def stored(n: int) -> dict:
+    with closing(store.connect()) as con:
+        return next(p for p in store.unlabeled_posts(con, 10, 0) if p["oriane_id"] == f"cnt_{n}")
+
+
+def test_state_puts_the_transcript_first_then_caption_then_on_screen_and_keeps_6000_characters(env):
+    seed_raw((1, 20000, "q", {"caption": "CAP", "media": [{"transcript": "TRANSCRIPT", "onScreenText": ["SCREEN"]}]}),
+             (2, 20000, "q", {"caption": "CAP", "media": [{"transcript": "T" * 7000}]}))
+    assert json.loads(labeler.state_for(stored(1)))["post_text"] == "TRANSCRIPT CAP SCREEN"
+    assert json.loads(labeler.state_for(stored(2)))["post_text"] == "T" * 6000
+
+
+def test_evidence_options_are_sentences_of_four_words_nearest_the_phrase_each_with_its_source(env):
+    seed_raw((1, 20000, "sea moss", RAW))
+    assert labeler.evidence_sentences(stored(1)) == [
+        ("transcript", "Sea moss cures every disease you have."),
+        ("caption", "Sea moss is great for you!"),
+        ("on_screen", "Buy sea moss now today"),
+        ("transcript", "We take it daily for gut health"),  # farther from the phrase, so after its hits
+    ]
+    asked = labeler.questions({}, labeler.evidence_sentences(stored(1)))["evidence"]
+    assert asked["type"] == "choice"
+    assert asked["options"] == {
+        "s1": "(transcript) Sea moss cures every disease you have.", "s2": "(caption) Sea moss is great for you!",
+        "s3": "(on_screen) Buy sea moss now today", "s4": "(transcript) We take it daily for gut health",
+        "none": "No listed sentence shows it.",
+    }
+    assert "evidence" not in labeler.questions({}, [])  # no sentence, no question
+
+
+def test_at_most_12_evidence_options(env):
+    seed_raw((1, 20000, "q", {"caption": " ".join(f"This is sentence number {i}." for i in range(20))}))
+    assert len(labeler.evidence_sentences(stored(1))) == 12
+
+
+def test_the_chosen_sentence_is_stored_with_its_source_and_basis_and_reaches_the_feed(env):
+    seed_raw((1, 20000, "sea moss", RAW))
+    label(FakeJudge(lambda state, questions: answers(evidence="s2")))
+    assert rows("SELECT basis, evidence_quote, evidence_source FROM labels") == [("transcript", "Sea moss is great for you!", "caption")]
+    with closing(store.connect()) as con:
+        assert store.list_feed(con)[0]["label"]["evidence"] == {"quote": "Sea moss is great for you!", "source": "caption"}
+
+
+def test_a_label_without_a_transcript_is_text_only_and_none_means_no_quote(env):
+    seed_raw((1, 20000, "sea moss", {"caption": "Sea moss is great for you!"}))
+    label(FakeJudge(lambda state, questions: answers(evidence="none")))
+    assert rows("SELECT basis, evidence_quote, evidence_source FROM labels") == [("text_only", None, None)]
+
+
+def test_an_unrelated_or_non_health_label_carries_no_quote(env):
+    seed_raw((1, 20000, "sea moss", RAW), (2, 20000, "sea moss", RAW))
+    replies = {"claim 1": answers(stance="unrelated", evidence="s1"), "claim 2": answers(health=0.1, evidence="s1")}
+    label(FakeJudge(lambda state, questions: replies[state["claim_sentence"]]))
+    assert rows("SELECT evidence_quote FROM labels") == [(None,), (None,)]
+
+
+def test_a_quote_that_is_not_in_the_source_text_is_dropped(env):
+    seed_raw((1, 20000, "sea moss", RAW))
+    post = stored(1)
+    assert labeler.evidence_of(post, [("caption", "Sea moss is great for you!")], {"evidence": {"choice": "s1"}}) == (
+        "Sea moss is great for you!", "caption")
+    assert labeler.evidence_of(post, [("caption", "Sea moss is awful for you!")], {"evidence": {"choice": "s1"}}) == (None, None)
+    assert labeler.evidence_of(post, [("transcript", "Sea moss is great for you!")], {"evidence": {"choice": "s1"}}) == (None, None)
+
+
+def test_a_candidate_needs_a_transcript_or_an_evidence_quote(env):
+    seed_raw(
+        (1, 20000, "caption only", {"caption": "Sea moss is great for you!"}),
+        (2, 20000, "caption quote", {"caption": "Sea moss is great for you!"}),
+        (3, 20000, "transcript only", RAW),
+    )
+    replies = {"claim 1": answers(), "claim 2": answers(evidence="s1"), "claim 3": answers()}
+    label(FakeJudge(lambda state, questions: replies[state["claim_sentence"]]))
+    assert rows("SELECT id FROM myths ORDER BY id") == [("caption-quote",), ("transcript-only",)]
+
+
+def test_a_label_from_before_the_evidence_prompt_has_neither_field_in_the_feed(env):
+    seed((1, 20000, "q"))
+    with closing(store.connect()) as con:
+        store.upsert_label(con, "cnt_1", health_claim=True, myth_id=None, stance="promotes", confidence=0.9,
+                           model="old", labeled_at=store.iso(T0))
+        assert "basis" not in store.list_feed(con)[0]["label"]
+        assert "evidence" not in store.list_feed(con)[0]["label"]

@@ -43,7 +43,10 @@ CREATE TABLE IF NOT EXISTS labels (
     labeled_at TEXT NOT NULL,
     dubious REAL,
     standalone_claim REAL,
-    prompt_version TEXT
+    prompt_version TEXT,
+    basis TEXT,
+    evidence_quote TEXT,
+    evidence_source TEXT
 );
 CREATE TABLE IF NOT EXISTS myths (
     id TEXT PRIMARY KEY,
@@ -104,11 +107,16 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
     con.executescript(SCHEMA)
-    have = {row["name"] for row in con.execute("PRAGMA table_info(labels)")}
-    for column, kind in (("dubious", "REAL"), ("standalone_claim", "REAL"), ("prompt_version", "TEXT")):
-        if column not in have:
-            with suppress(sqlite3.OperationalError):  # another connection added it first
-                con.execute(f"ALTER TABLE labels ADD COLUMN {column} {kind}")
+    for table, columns in (
+        ("labels", (("dubious", "REAL"), ("standalone_claim", "REAL"), ("prompt_version", "TEXT"),
+                    ("basis", "TEXT"), ("evidence_quote", "TEXT"), ("evidence_source", "TEXT"))),
+        ("posts", (("text_checked_at", "TEXT"),)),
+    ):
+        have = {row["name"] for row in con.execute(f"PRAGMA table_info({table})")}
+        for column, kind in columns:
+            if column not in have:
+                with suppress(sqlite3.OperationalError):  # another connection added it first
+                    con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
     return con
 
 
@@ -148,13 +156,15 @@ def upsert_label(
     con: sqlite3.Connection, oriane_id: str, *, health_claim: bool, myth_id: str | None,
     stance: str, confidence: float, model: str, labeled_at: str,
     dubious: float | None = None, standalone_claim: float | None = None, prompt_version: str | None = None,
+    basis: str | None = None, evidence_quote: str | None = None, evidence_source: str | None = None,
 ) -> None:
     with con:
         con.execute(
             "INSERT OR REPLACE INTO labels (oriane_id, health_claim, myth_id, stance, confidence, model, labeled_at, "
-            "dubious, standalone_claim, prompt_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (oriane_id, int(health_claim), myth_id, stance, confidence, model, labeled_at,
-             dubious, standalone_claim, prompt_version),
+             dubious, standalone_claim, prompt_version, basis, evidence_quote, evidence_source),
         )
 
 
@@ -190,7 +200,8 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     2 of the first 20 slots, and posts labeled unrelated come last.
     """
     rows = con.execute(
-        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model "
+        "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, "
+        "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id WHERE (? IS NULL OR p.fetched_at > ?)",
         (since, since),
     ).fetchall()
@@ -230,9 +241,25 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
         post["label"] = None if row["stance"] is None else {
             "health_claim": bool(row["health_claim"]), "myth_id": row["myth_id"],
             "stance": row["stance"], "confidence": row["confidence"], "model": row["model"],
+            # Only a confirmed myth has a page; a candidate id must not become a link.
+            "myth_confirmed": row["myth_status"] == "confirmed",
         }
+        if post["label"] and row["basis"]:  # labels from before the evidence prompt carry neither field
+            post["label"]["basis"] = row["basis"]
+            post["label"]["evidence"] = (
+                {"quote": row["evidence_quote"], "source": row["evidence_source"]} if row["evidence_quote"] else None
+            )
         feed.append(post)
     return feed
+
+
+# The label floor: enough views, or with no view count, enough interactions (raw interactionsCount, else
+# likes + comments + shares) at 20 per view. Takes min_views twice.
+_INTERACTIONS = (
+    "COALESCE(json_extract(p.raw_json, '$.interactionsCount'), COALESCE(json_extract(p.raw_json, '$.likesCount'), 0)"
+    " + COALESCE(json_extract(p.raw_json, '$.commentsCount'), 0) + COALESCE(json_extract(p.raw_json, '$.sharesCount'), 0))"
+)
+_ABOVE_FLOOR = f"CASE WHEN p.views IS NULL THEN {_INTERACTIONS} * 20 >= ? ELSE p.views >= ? END"
 
 
 def unlabeled_posts(
@@ -241,18 +268,39 @@ def unlabeled_posts(
     """Posts with no label yet (or, given prompt_version, a label from another prompt version; those come last), newest first, with at least min_views, or with no view count and
     interactions (raw interactionsCount, else likes + comments + shares) of at least min_views / 20.
     Rows include raw_json."""
-    interactions = (
-        "COALESCE(json_extract(p.raw_json, '$.interactionsCount'), COALESCE(json_extract(p.raw_json, '$.likesCount'), 0)"
-        " + COALESCE(json_extract(p.raw_json, '$.commentsCount'), 0) + COALESCE(json_extract(p.raw_json, '$.sharesCount'), 0))"
-    )
     rows = con.execute(
         "SELECT p.* FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
         "WHERE (l.oriane_id IS NULL OR (? IS NOT NULL AND l.prompt_version IS NOT ?)) "
-        f"AND CASE WHEN p.views IS NULL THEN {interactions} * 20 >= ? ELSE p.views >= ? END "
+        f"AND {_ABOVE_FLOOR} "
         "ORDER BY l.oriane_id IS NOT NULL, p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
         (prompt_version, prompt_version, min_views, min_views, limit),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def posts_missing_transcripts(
+    con: sqlite3.Connection, now: datetime, min_views: int, limit: int = 100,
+) -> list[str]:
+    """Ids of stored videos with no transcript text, published 2 to 60 days ago, at the label floor and not
+    checked in the last 24 h, most viewed first. Oriane adds transcripts weeks after a post, so these are re-fetched."""
+    rows = con.execute(
+        "SELECT p.oriane_id FROM posts p WHERE p.published_at BETWEEN ? AND ? "
+        "AND (p.text_checked_at IS NULL OR p.text_checked_at < ?) "
+        "AND EXISTS (SELECT 1 FROM json_each(p.raw_json, '$.media') m WHERE json_extract(m.value, '$.type') = 'video') "
+        "AND NOT EXISTS (SELECT 1 FROM json_each(p.raw_json, '$.media') m "
+        "WHERE COALESCE(json_extract(m.value, '$.transcript'), '') <> '') "
+        f"AND {_ABOVE_FLOOR} ORDER BY p.views DESC, p.oriane_id LIMIT ?",
+        (iso(now - timedelta(days=60)), iso(now - timedelta(days=2)), iso(now - timedelta(hours=24)),
+         min_views, min_views, limit),
+    ).fetchall()
+    return [row["oriane_id"] for row in rows]
+
+
+def record_text_check(con: sqlite3.Connection, checked: list[str], with_transcript: list[str], at: str) -> None:
+    """Stamp the posts just re-fetched; a post that gained a transcript loses its label's prompt version so it is labeled again."""
+    with con:
+        con.executemany("UPDATE posts SET text_checked_at = ? WHERE oriane_id = ?", [(at, i) for i in checked])
+        con.executemany("UPDATE labels SET prompt_version = NULL WHERE oriane_id = ?", [(i,) for i in with_transcript])
 
 
 def labeled_since(con: sqlite3.Connection, since: str) -> int:
