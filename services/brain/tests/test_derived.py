@@ -67,12 +67,12 @@ def test_radar_counts_windows_trend_and_top_promoter(con):
     add_myth(con, "m2", "sea moss")
     add_post(con, 1, "2026-11-03", 100, stance="debunks")
     add_post(con, 2, "2026-11-05", 5000, stance="promotes", source="on_screen")
-    add_post(con, 3, "2026-11-07", 300)  # unlabeled: found with the myth's phrase
+    add_post(con, 3, "2026-11-08", 300)  # unlabeled: found with the myth's phrase
     add_post(con, 4, "2026-10-28", 10)
     add_post(con, 5, "2026-10-30", 20)  # previous window
     add_post(con, 6, "2026-10-01", 999)  # before both windows
     add_post(con, 7, "2026-11-06", 111, stance="unrelated")  # labeled away from the myth
-    add_post(con, 8, "2026-11-06", 222, stance="neutral", myth_id=None)
+    add_post(con, 8, "2026-11-06", 222, stance="promotes", myth_id=None)  # labeled, no myth: the phrase decides
     add_post(con, 9, "2026-11-06", 333, query="sea moss")
 
     radar = derived.radar(con, NOW)
@@ -80,15 +80,32 @@ def test_radar_counts_windows_trend_and_top_promoter(con):
     m1, m2 = radar["myths"]
     assert MYTH_KEYS <= set(m1)
     assert m1["prev_window"] == {"from": "2026-10-26", "to": "2026-11-01"}
-    assert (m1["topic_video_count"], m1["topic_views"]) == (3, 5400)
+    assert (m1["topic_video_count"], m1["topic_views"]) == (4, 5622)
     assert (m1["prev_topic_video_count"], m1["prev_topic_views"]) == (2, 30)
-    assert (m1["trend"], m1["trend_pct"]) == ("rising", 50)
+    assert (m1["trend"], m1["trend_pct"]) == ("rising", 100)
     top = m1["top_video"]
     assert (top["oriane_id"], top["views"], top["stance"]) == ("cnt_2", 5000, "promotes")
     assert (top["quote"], top["quote_source"], top["followers"], top["shares"]) == ("quote 2", "on_screen_text", 1234, 7)
     assert top["nameable"] is False
     assert (m2["topic_video_count"], m2["topic_views"], m2["trend"]) == (1, 333, "unknown")
     assert "top_video" not in m2
+
+
+def test_windows_end_on_the_newest_day_oriane_has_posts_for(con):
+    add_myth(con, "m1", "mouth tape")
+    add_post(con, 1, "2026-11-05", 10)  # Oriane lags: nothing newer than Nov 5 on Nov 8
+    radar = derived.radar(con, NOW)
+    assert radar["window"] == {"from": "2026-10-30", "to": "2026-11-05"}
+    assert radar["myths"][0]["topic_video_count"] == 1
+
+
+def test_a_candidate_label_leaves_the_post_with_the_myth_that_owns_its_phrase(con):
+    add_myth(con, "m1", "mouth tape")
+    add_post(con, 1, "2026-11-08", 10, stance="promotes", myth_id="mouth-tape-candidate")
+    add_post(con, 2, "2026-11-08", 20, stance="promotes", myth_id="m2")  # assigned to another confirmed myth
+    add_myth(con, "m2", "sea moss")
+    m1, m2 = derived.radar(con, NOW)["myths"]
+    assert (m1["topic_video_count"], m2["topic_video_count"]) == (1, 1)
 
 
 def test_trend_is_cooling_or_steady_from_video_counts():
