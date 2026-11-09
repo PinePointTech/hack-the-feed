@@ -14,6 +14,8 @@ class Settings:
     gmi_base_url: str = "https://api.gmi-serving.com/v1"
     poll_interval_minutes: int = 15
     oriane_max_searches_per_hour: int = 20
+    label_min_views: int = 10000
+    label_max_per_hour: int = 200
 
     @property
     def chat_model(self) -> str:
@@ -41,6 +43,8 @@ class Settings:
             gmi_base_url=(os.getenv("GMI_BASE_URL") or "https://api.gmi-serving.com/v1").rstrip("/"),
             poll_interval_minutes=int(os.getenv("POLL_INTERVAL_MINUTES") or 15),
             oriane_max_searches_per_hour=int(os.getenv("ORIANE_MAX_SEARCHES_PER_HOUR") or 20),
+            label_min_views=int(os.getenv("LABEL_MIN_VIEWS") or 10000),
+            label_max_per_hour=int(os.getenv("LABEL_MAX_PER_HOUR") or 200),
         )
 
 

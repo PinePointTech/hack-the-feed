@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, fact_check, oriane, poller, publish, qa, radar, reporting, store
+from . import brief, check, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -109,7 +109,18 @@ def create_app(
 
     async def poll_now(app: FastAPI) -> tuple[bool, int]:
         async with app.state.poll_lock:
-            return await poller.run_poll(app.state.client, settings)
+            result = await poller.run_poll(app.state.client, settings)
+        # Labeling runs beside the request so POST /poll stays quick; one batch at a time.
+        task = app.state.label_task
+        if task is None or task.done():
+            app.state.label_task = asyncio.create_task(label_batch(app))
+        return result
+
+    async def label_batch(app: FastAPI) -> None:
+        try:
+            await labeler.label_pending(app.state.client, settings)
+        except (sqlite3.Error, OSError) as error:
+            logger.warning("Labeling failed (%s)", type(error).__name__)
 
     async def poll_loop(app: FastAPI) -> None:
         # Sleeps until the gate opens again, so a restart does not shift the 15 minute cadence.
@@ -135,6 +146,7 @@ def create_app(
             app.state.health_lock = asyncio.Lock()
             app.state.radar_lock = asyncio.Lock()
             app.state.poll_lock = asyncio.Lock()
+            app.state.label_task = None
             app.state.health = await probe_health(client)
             app.state.health_expires_at = time.monotonic() + HEALTH_TTL
             loop = asyncio.create_task(poll_loop(app))
@@ -144,6 +156,10 @@ def create_app(
                 loop.cancel()
                 with suppress(asyncio.CancelledError):
                     await loop
+                if app.state.label_task:
+                    app.state.label_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await app.state.label_task
 
     app = FastAPI(title="MyBuster Brain", version=VERSION, lifespan=lifespan)
     app.add_middleware(
@@ -274,6 +290,18 @@ def create_app(
         if refresh and (error := await refresh_radar(request)):
             return error
         return radar.read_radar()
+
+    # Registered before /myths/{myth_id} so "candidates" is not read as a myth ID.
+    @app.get("/myths/candidates")
+    def get_myth_candidates():
+        with closing(store.connect()) as con:
+            return {"candidates": store.list_candidates(con)}
+
+    @app.post("/myths/{myth_id}/confirm")
+    def confirm_myth(myth_id: str):
+        with closing(store.connect()) as con:
+            myth = store.confirm_myth(con, myth_id, store.iso(datetime.now(timezone.utc)))
+        return myth or api_error(404, "myth_not_found", "Unknown candidate myth ID.")
 
     @app.get("/myths/{myth_id}")
     async def get_myth(myth_id: str, request: Request, refresh: bool = False):
