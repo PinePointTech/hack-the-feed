@@ -4,6 +4,7 @@ const links = [
   { href: "/calendar", label: "Calendar" },
   { href: "/feed", label: "Live feed" },
   { href: "/desk", label: "Creator mode" },
+  { href: "/desk/review", label: "Review myths" },
   { href: "/desk/impact/lymphatic-detox", label: "Impact" },
 ];
 
