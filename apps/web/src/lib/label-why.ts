@@ -1,55 +1,67 @@
-// "Why this label" copy for a feed card. Fixed human copy keyed by contract fields only, never model prose. Pure, no "@/..." imports so node --test can run it.
-import type { FeedLabel } from "./feed.ts";
+// What a feed card says about a post, in plain words. Fixed human copy keyed by contract fields only, never
+// model prose. Pure, no "@/..." imports so node --test can run it.
+import type { FeedLabel, FeedPost } from "./feed.ts";
 
-const STANCE_LINE: Record<FeedLabel["stance"], string> = {
-  promotes: "Presents the claim as true or tells people to act on it.",
-  debunks: "Disputes or corrects the claim.",
-  ad: "Sells or promotes a product or service.",
-  unrelated: "Takes no position on a health claim.",
-  neutral: "Takes no position on a health claim.",
+export type Verdict = "flagged" | "claim" | "corrects" | "no_claim" | "pending";
+
+const VERDICT: Record<Verdict, { title: string; detail: string }> = {
+  flagged: { title: "Flagged", detail: "Pushes a health claim that mainstream evidence does not support." },
+  claim: { title: "Makes a health claim", detail: "The claim is modest or has support, so it is not flagged." },
+  corrects: { title: "Corrects a claim", detail: "Disputes or corrects a health claim." },
+  no_claim: { title: "No health claim", detail: "Mentions the topic but makes no health claim." },
+  pending: { title: "Not checked yet", detail: "Posts with enough views are checked after each pull." },
 };
 
-const SOURCE_LINE = {
-  transcript: "From the spoken transcript",
-  caption: "From the caption",
-  on_screen: "From on-screen text",
-} as const;
+/** Filter order and button text for the feed. */
+export const FILTERS: { key: Verdict | "all"; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "flagged", label: "Flagged" },
+  { key: "claim", label: "Makes a claim" },
+  { key: "corrects", label: "Corrects" },
+  { key: "no_claim", label: "No claim" },
+  { key: "pending", label: "Not checked" },
+];
 
-export const NO_EVIDENCE_LINE = "No single sentence supports this label";
-export const TEXT_ONLY_LINE = "Judged from the caption and on-screen text only. Oriane has no transcript for this video yet.";
-export const FLAGGED_LINE = "Flagged: pushes a health claim that mainstream evidence does not support.";
-export const NOT_FLAGGED_LINE = "Not flagged: the claim it makes is modest or supported by evidence.";
+const FROM = { transcript: "Said in the video", caption: "In the caption", on_screen: "On screen" } as const;
 
-/** Chip text and style for a label. Only a flagged post gets the red chip; a modest claim is not alarming. */
-export function stanceChip(label: FeedLabel): { text: string; flagged: boolean } {
-  if (label.stance === "promotes" && label.flagged) return { text: "Flagged", flagged: true };
-  if (label.stance === "promotes" && label.flagged === false) return { text: "Makes a claim", flagged: false };
-  return { text: { promotes: "Promotes", debunks: "Debunks", ad: "Ad", unrelated: "Unrelated", neutral: "Neutral" }[label.stance], flagged: label.stance === "promotes" };
+export const TEXT_ONLY_NOTE = "Checked from the caption only. Oriane has no transcript for this video yet.";
+export const OLD_LABEL_NOTE = "Checked with an older method. It will be rechecked soon.";
+
+export function verdictOf(label: FeedLabel | null): Verdict {
+  if (!label) return "pending";
+  if (label.stance === "promotes") return label.flagged ? "flagged" : "claim";
+  if (label.stance === "debunks") return "corrects";
+  return "no_claim"; // ad, unrelated, neutral
 }
 
-export const MYTH_LINK_TEXT = "What the evidence says about this myth";
-
-export type LabelWhy = {
-  stanceLine: string;
-  /** Null when the label predates the flag. */
-  flagLine: string | null;
-  /** Null for an old label (no basis, no evidence): show the stance line only. */
-  evidence: { quote: string; sourceLine: string } | { none: string } | null;
-  basisNote: string | null;
-  mythHref: string | null;
+export type PostView = {
+  verdict: Verdict;
+  title: string;
+  detail: string;
+  /** "Selling something" when the post sells and the verdict is about a claim; "Ad" when it sells with no claim. */
+  selling: string | null;
+  quote: { text: string; from: string };
+  note: string | null;
+  myth: { name: string; href: string } | null;
 };
 
-export function labelWhy(label: FeedLabel): LabelWhy {
-  const stanceLine = STANCE_LINE[label.stance];
-  const flagLine = label.stance !== "promotes" || label.flagged === undefined ? null : label.flagged ? FLAGGED_LINE : NOT_FLAGGED_LINE;
-  if (label.basis === undefined && label.evidence === undefined) return { stanceLine, flagLine, evidence: null, basisNote: null, mythHref: null };
-  // An unrecognised source from a newer brain counts as no evidence, so we never show a quote under a wrong source.
-  const ev = label.evidence && label.evidence.quote && SOURCE_LINE[label.evidence.source] ? label.evidence : null;
+export function postView(post: FeedPost, mythName: (id: string) => string): PostView {
+  const label = post.label;
+  const verdict = verdictOf(label);
+  const sells = label?.commercial ?? label?.stance === "ad";
+  // The sentence the verdict rests on, when the labeler found one, beats the sentence the search matched.
+  const ev = label?.evidence && label.evidence.quote && FROM[label.evidence.source] ? label.evidence : null;
+  const quote = ev
+    ? { text: ev.quote, from: FROM[ev.source] }
+    : { text: post.snippet, from: post.snippet_source ? FROM[post.snippet_source] : "From the post" };
+  const old = !!label && label.flagged === undefined && label.stance === "promotes";
   return {
-    stanceLine,
-    flagLine,
-    evidence: ev ? { quote: ev.quote, sourceLine: SOURCE_LINE[ev.source] } : { none: NO_EVIDENCE_LINE },
-    basisNote: label.basis === "text_only" ? TEXT_ONLY_LINE : null,
-    mythHref: label.myth_id && label.myth_confirmed ? `/desk/myth/${encodeURIComponent(label.myth_id)}` : null,
+    verdict,
+    title: VERDICT[verdict].title,
+    detail: old ? "Makes a health claim. Not yet checked against the evidence." : VERDICT[verdict].detail,
+    selling: !sells || verdict === "pending" ? null : verdict === "no_claim" ? "Ad" : "Selling something",
+    quote,
+    note: old ? OLD_LABEL_NOTE : label?.basis === "text_only" ? TEXT_ONLY_NOTE : null,
+    myth: label?.myth_id && label.myth_confirmed ? { name: mythName(label.myth_id), href: `/desk/myth/${encodeURIComponent(label.myth_id)}` } : null,
   };
 }
