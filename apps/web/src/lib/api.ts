@@ -1,21 +1,22 @@
 import type { Radar, MythDetail, Brief, BriefRequest, CheckRequest, CheckResponse, QAReport,
   PublishRequest, PublishedDebunk, Impact, Calendar } from "@/contracts/types";
-// Fallbacks are the real pipeline outputs (apps/web/src/data, copied from data/), not hand-written fixtures.
-import radarFx from "@/data/radar.json";
-import mythFx from "@/data/myth-lymphatic-detox.json";
+// Radar, myth, impact and calendar are live only. Fixtures remain for brief, check, qa and published (studio and receipts).
 import briefFx from "@/contracts/fixtures/brief-lymphatic-detox.json";
 import checkFx from "@/contracts/fixtures/check.json";
 import qaFx from "@/contracts/fixtures/qa.json";
 import publishedFx from "@/data/published-lymphatic-detox.json";
-import impactFx from "@/data/impact.json";
-import calendarFx from "@/data/calendar.json";
-import { mythFromFixtures, checkFromFixtures, brainErrorCode } from "./fixture-logic";
+import { checkFromFixtures, brainErrorCode } from "./fixture-logic";
 import type { FeedResponse, PollResponse } from "./feed";
 
 const BRAIN = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8000";
 const MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
 export type Sourced<T> = { data: T; from: "live" | "fixture" };
 export type Result<T> = Sourced<T>;
+
+/** A non-2xx answer from the brain. `status` lets a page tell "no such myth" (404) from "brain broken". */
+export class BrainError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
 
 async function call<T>(path: string, init: RequestInit | undefined, fixture: () => T, ms: number): Promise<Sourced<T>> {
   if (MOCKS) return { data: fixture(), from: "fixture" };
@@ -46,7 +47,7 @@ async function live<T>(path: string, init: RequestInit | undefined, ms: number) 
   });
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
-    throw new Error(problem?.error?.message ?? `Brain returned HTTP ${response.status}.`);
+    throw new BrainError(problem?.error?.message ?? `Brain returned HTTP ${response.status}.`, response.status);
   }
   return { data: (await response.json()) as T, from: "live" as const,
     videoUrl: response.headers.get("Content-Location") };
@@ -61,12 +62,19 @@ const post = (body: unknown): RequestInit => ({
 });
 const fx = <T,>(x: unknown) => x as T;
 
-const mythFallback = (id: string) => mythFromFixtures(id, fx<MythDetail>(mythFx), fx<Radar>(radarFx));
 const checkFallback = (req: CheckRequest) => checkFromFixtures(req, fx<CheckResponse>(checkFx), fx<Brief>(briefFx));
 
+/** Awaits a live read without throwing: the data, or ok:false with the HTTP status (null when nothing answered). */
+export const settle = <T,>(read: Promise<Sourced<T>>) =>
+  read.then((r) => ({ ok: true as const, ...r }),
+    (e: unknown) => ({ ok: false as const, status: e instanceof BrainError ? e.status : null }));
+
+// Live reads ignore NEXT_PUBLIC_USE_MOCKS on purpose: a down brain must show "Live data unavailable", never sample data.
+const read = <T,>(path: string) => live<T>(path, undefined, 15000);
+
 export const api = {
-  radar: () => call<Radar>("/radar", undefined, () => fx<Radar>(radarFx), 15000),
-  myth: (id: string) => call<MythDetail>(`/myths/${id}`, undefined, () => mythFallback(id), 15000),
+  radar: () => read<Radar>("/radar"),
+  myth: (id: string) => read<MythDetail>(`/myths/${encodeURIComponent(id)}`),
   brief: async (req: BriefRequest): Promise<Sourced<Brief>> => {
     try {
       const result = MOCKS ? { data: fx<Brief>(briefFx), from: "fixture" as const }
@@ -87,7 +95,7 @@ export const api = {
     ? Promise.resolve({ data: fx<QAReport>(qaFx), from: "fixture" as const, videoUrl: null })
     : live<QAReport>("/qa", { method: "POST", body: form }, 120000),
   publish: (req: PublishRequest) => live<PublishedDebunk>("/publish", post(req), 30000),
-  impact: (id: string) => call<Impact>(`/impact/${id}`, undefined, () => fx<Impact>(impactFx), 15000),
+  impact: (id: string) => read<Impact>(`/impact/${encodeURIComponent(id)}`),
   published: async (id: string): Promise<Sourced<PublishedDebunk>> => {
     const path = `/published/${encodeURIComponent(id)}`;
     if (!MOCKS) {
@@ -95,7 +103,7 @@ export const api = {
     }
     return get<PublishedDebunk>(`${path}.json`, undefined, () => fx<PublishedDebunk>(publishedFx), 15000);
   },
-  calendar: () => call<Calendar>("/calendar", undefined, () => fx<Calendar>(calendarFx), 15000),
+  calendar: () => read<Calendar>("/calendar"),
   // Live feed: no fixture fallback, a down brain must surface as an error. live() ignores NEXT_PUBLIC_USE_MOCKS on purpose.
   feed: () => live<FeedResponse>("/feed?limit=50", undefined, 15000),
   poll: () => live<PollResponse>("/poll", { method: "POST" }, 90000),

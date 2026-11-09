@@ -6,7 +6,8 @@ import { exact } from "@/lib/format";
 import { day } from "@/lib/view-model";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
-import { FixtureBadge } from "@/components/FixtureBadge";
+import { DataPulled } from "@/components/DataPulled";
+import { LiveUnavailable } from "@/components/LiveUnavailable";
 
 // v2 contact-sheet poster colors (design/preview/v2.html .poster--*)
 const POSTER: Record<HarmTier, string> = {
@@ -16,15 +17,15 @@ const POSTER: Record<HarmTier, string> = {
 };
 
 export function CalendarView() {
-  const { data, from, reuseScript } = useCalendar();
+  const { data, failed, reuseScript } = useCalendar();
 
-  if (!data || !from)
+  if (failed) return <LiveUnavailable what="the calendar" />;
+  if (!data)
     return (
       <main className="wrap py-10">
         <p className="text-lg text-ink-2">Loading the calendar</p>
       </main>
     );
-  const fixture = from === "fixture";
   return (
     <main className="wrap grid gap-16 pt-10 pb-20 min-[700px]:pt-16">
       <header className="grid max-w-[46rem] gap-3.5">
@@ -35,12 +36,12 @@ export function CalendarView() {
           <span className="mono text-sm text-ink-2">
             Week of {day(data.week_of)}, {data.week_of.slice(0, 4)}
           </span>
-          <FixtureBadge from={from} />
+          <DataPulled at={data.generated_at} />
         </div>
         <p className="text-lg text-ink-2">This week&apos;s health myths, one week ahead.</p>
       </header>
-      <Section title="This week" items={data.this_week} fixture={fixture} onReuse={reuseScript} />
-      <Section title="Watchlist" items={data.watchlist} fixture={fixture} placeholder={fixture} onReuse={reuseScript} />
+      <Section title="This week" items={data.this_week} onReuse={reuseScript} />
+      <Section title="Watchlist" items={data.watchlist} onReuse={reuseScript} />
     </main>
   );
 }
@@ -50,14 +51,10 @@ type Reuse = (mythId: string) => void;
 function Section({
   title,
   items,
-  fixture,
-  placeholder,
   onReuse,
 }: {
   title: string;
   items: CalendarItem[];
-  fixture: boolean;
-  placeholder?: boolean;
   onReuse: Reuse;
 }) {
   return (
@@ -66,14 +63,13 @@ function Section({
         <h2 className="text-[1.75rem] leading-[1.1] font-extrabold tracking-[-0.02em] [font-variation-settings:'opsz'_48]">
           {title}
         </h2>
-        {placeholder && <span className="databadge">placeholder</span>}
       </div>
       {items.length === 0 ? (
         <p className="text-ink-2">Nothing here yet.</p>
       ) : (
         <ol className="m-0 grid list-none gap-4 p-0 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3">
           {items.map((it, i) => (
-            <Item key={it.topic} n={i + 1} it={it} fixture={fixture} onReuse={onReuse} />
+            <Item key={it.topic} n={i + 1} it={it} onReuse={onReuse} />
           ))}
         </ol>
       )}
@@ -81,7 +77,7 @@ function Section({
   );
 }
 
-function Item({ n, it, fixture, onReuse }: { n: number; it: CalendarItem; fixture: boolean; onReuse: Reuse }) {
+function Item({ n, it, onReuse }: { n: number; it: CalendarItem; onReuse: Reuse }) {
   return (
     <li className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)] overflow-hidden rounded-frame border border-ink">
       <div
@@ -96,7 +92,6 @@ function Item({ n, it, fixture, onReuse }: { n: number; it: CalendarItem; fixtur
         <h3 className="text-lg leading-[1.2] font-bold tracking-[-0.01em] [font-variation-settings:'opsz'_24]">{it.topic}</h3>
         <div className="flex flex-wrap items-center gap-1.5">
           {it.harm_tier && <HarmChip tier={it.harm_tier} />}
-          {it.harm_tier && fixture && <span className="databadge">placeholder</span>}
           {it.trend && <TrendBadge trend={it.trend} />}
           <span className="inline-flex items-center rounded-pill border border-ink-2 px-2.5 text-[0.8125rem] leading-normal font-semibold text-ink-2">
             {it.basis === "curated" ? "Curated" : "Oriane trend"}

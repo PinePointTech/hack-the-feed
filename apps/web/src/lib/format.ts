@@ -14,3 +14,9 @@ export const pct = (n: number) => `${n > 0 ? "+" : ""}${Math.round(n)}%`; // -22
 // docs/03-CONTRACTS.md: supported >= 0.8, weak 0.5 to 0.8, unsupported < 0.5
 export const statusFor = (support: number): "supported" | "weak" | "unsupported" =>
   support >= 0.8 ? "supported" : support >= 0.5 ? "weak" : "unsupported";
+
+const pulledFmt = new Intl.DateTimeFormat("en-US", {
+  month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC",
+});
+/** "2026-11-08T23:49:00Z" -> "Nov 8, 2026, 11:49 PM UTC". Fixed zone so the server and the browser print the same text. */
+export const pulledAt = (iso: string) => `${pulledFmt.format(new Date(iso))} UTC`;

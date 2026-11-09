@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { api } from "@/lib/api";
+import { api, settle } from "@/lib/api";
 import { exact } from "@/lib/format";
 import { pendingOr, windowLabel } from "@/lib/view-model";
-import { FixtureBadge } from "@/components/FixtureBadge";
+import { DataPulled } from "@/components/DataPulled";
+import { LiveUnavailable } from "@/components/LiveUnavailable";
 import { AudiencePanel } from "@/components/AudiencePanel";
 import { QuoteCard } from "@/components/QuoteCard";
 import { DebunkVideo } from "@/components/DebunkVideo";
@@ -45,11 +47,15 @@ const videos = (r: { videos: number } | undefined, win: string) => (r ? `${exact
 
 export default async function ImpactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [{ data: d, from }, { data: m }] = await Promise.all([api.impact(id), api.myth(id)]);
+  const [impact, myth] = await Promise.all([settle(api.impact(id)), settle(api.myth(id))]);
+  if (!myth.ok && myth.status === 404) notFound(); // unknown myth id
+  if (!impact.ok && impact.status === 404) return <main className="wrap py-10"><h1>Impact</h1><p>Response reach is pending for this myth.</p></main>;
+  if (!impact.ok || !myth.ok) return <LiveUnavailable what="the impact numbers" />;
+  const { data: d } = impact;
+  const { data: m } = myth;
   if (d.myth_id !== id) return <main className="wrap py-10"><h1>Impact</h1><p>Response reach is pending for this myth.</p></main>;
   const win = `${windowLabel(d.window)}, ${d.window.to.slice(0, 4)}`;
   const o = d.our_debunk;
-  const fixture = from === "fixture";
   return (
     <main className="pt-10 min-[700px]:pt-16">
       <header className="wrap grid gap-3.5 pb-12">
@@ -59,7 +65,7 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <span className="mono text-sm text-ink-2">{win}</span>
-          <FixtureBadge from={from} />
+          <DataPulled at={d.generated_at} />
         </div>
       </header>
 
@@ -74,8 +80,7 @@ export default async function ImpactPage({ params }: { params: Promise<{ id: str
           <Readout
             label="Myth reach views"
             big={views(d.myth_reach)}
-            sub={fixture ? `${videos(d.myth_reach, win)}. Example from the claim search.` : videos(d.myth_reach, win)}
-            placeholder={fixture}
+            sub={videos(d.myth_reach, win)}
           />
           <Readout
             label="Response reach views"

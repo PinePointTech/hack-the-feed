@@ -1,19 +1,5 @@
 // Pure fixture fallbacks. No "@/..." imports so node --test can run this file directly.
-import type { Radar, MythDetail, Brief, CheckRequest, CheckResponse, LineCheck } from "../contracts/types";
-
-export function mythFromFixtures(id: string, myth: MythDetail, radar: Radar): MythDetail {
-  if (id === myth.id) return myth;
-  const m = radar.myths.find((x) => x.id === id);
-  if (!m) return myth;
-  // Never invent numbers: only what the radar summary has. Its top video is real, so list it by its stance.
-  const top = m.top_video ? [m.top_video] : [];
-  return {
-    ...m,
-    videos: top.filter((v) => v.stance === "promotes"),
-    counter_voices: top.filter((v) => v.stance === "debunks"),
-    stance_counts: {},
-  };
-}
+import type { Brief, CheckRequest, CheckResponse, LineCheck } from "../contracts/types";
 
 export const normalizeLine = (s: string) =>
   s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim().toLowerCase().replace(/\.$/, "");

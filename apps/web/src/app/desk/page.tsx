@@ -1,5 +1,6 @@
-import { api } from "@/lib/api";
-import { FixtureBadge } from "@/components/FixtureBadge";
+import { api, settle } from "@/lib/api";
+import { DataPulled } from "@/components/DataPulled";
+import { LiveUnavailable } from "@/components/LiveUnavailable";
 import { MythCard } from "./_components/MythCard";
 import { RadarViewed } from "./_components/RadarViewed";
 import { windowWithYear } from "./_components/window";
@@ -13,7 +14,9 @@ const byTrend = (a: MythSummary, b: MythSummary) =>
   (b.claim_views ?? 0) - (a.claim_views ?? 0);
 
 export default async function Desk() {
-  const { data, from } = await api.radar();
+  const res = await settle(api.radar());
+  if (!res.ok) return <LiveUnavailable what="the myth radar" />;
+  const { data, from } = res;
   const myths = [...data.myths].sort(byTrend);
   return (
     <main className="wrap grid gap-8 pt-10 pb-24 min-[1100px]:pt-14">
@@ -26,7 +29,7 @@ export default async function Desk() {
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
           <p className="text-[1.125rem] text-ink-2">Ordered by trend: rising first, then the biggest change in video count.</p>
           <span className="mono text-sm text-ink-2">{windowWithYear(data.window)}</span>
-          <FixtureBadge from={from} />
+          <DataPulled at={data.generated_at} />
         </div>
       </header>
       {myths.length === 0 ? (
@@ -35,7 +38,7 @@ export default async function Desk() {
         <ol className="m-0 grid list-none grid-cols-1 gap-5 p-0 min-[1100px]:grid-cols-3 min-[1100px]:items-start min-[1100px]:[&>li:nth-child(3n+2)]:mt-14 min-[1100px]:[&>li:nth-child(3n+3)]:mt-6">
           {myths.map((m, i) => (
             <li key={m.id} className="min-w-0">
-              <MythCard myth={m} rank={i + 1} fixture={from === "fixture"} />
+              <MythCard myth={m} rank={i + 1} />
             </li>
           ))}
         </ol>
