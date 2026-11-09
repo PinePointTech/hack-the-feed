@@ -210,3 +210,12 @@ def test_background_loop_polls_on_start_and_post_poll_respects_the_gate(env):
         assert refreshed["ran"] is False and refreshed["new_posts"] == 0
         assert refreshed["next_poll_at"] is not None and refreshed["last_poll_at"] is not None
         assert len(fake.requests) == calls
+
+
+def test_impact_and_calendar_carry_a_pull_time(tmp_path, monkeypatch):
+    monkeypatch.setenv("MYBUSTER_DB", str(tmp_path / "test.db"))
+    with TestClient(main.create_app(config(oriane_key=""))) as client:
+        for path in ("/calendar", "/radar"):
+            pulled = client.get(path).json()["generated_at"]
+            assert datetime.fromisoformat(pulled.replace("Z", "+00:00")) <= datetime.now(timezone.utc)
+

@@ -1,16 +1,10 @@
-"""Pull demo radar totals from Oriane and serve the checked-in snapshots."""
+"""Oriane query builders and the checked-in demo snapshots (the live routes read the database, see derived.py)."""
 
-import asyncio
 import json
-from datetime import datetime, timezone
-
-import httpx
 
 from . import oriane
-from .config import Settings
 
 DATA_DIR = oriane.DATA_DIR
-FIXTURE = DATA_DIR.parent / "contracts" / "fixtures" / "radar.json"
 CURRENT = {"from": "2026-10-07", "to": "2026-11-06"}
 PREVIOUS = {"from": "2026-09-07", "to": "2026-10-06"}
 FIELDS = ("transcript", "caption", "onScreenText")
@@ -86,13 +80,7 @@ def update_video(seed: dict, item: dict) -> dict | None:
 
 
 def read_radar() -> dict:
-    path = DATA_DIR / "radar.json"
-    try:
-        return json.loads(path.read_bytes())
-    except FileNotFoundError:
-        snapshot = json.loads(FIXTURE.read_bytes())
-        snapshot.pop("_fixture", None)
-        return snapshot
+    return json.loads((DATA_DIR / "radar.json").read_bytes())
 
 
 def detail_for(summary: dict) -> dict:
@@ -109,79 +97,3 @@ def read_myth(myth_id: str) -> dict:
         return json.loads((DATA_DIR / "myths" / f"{myth_id}.json").read_bytes())
     except FileNotFoundError:
         return detail_for(next(item for item in read_radar()["myths"] if item["id"] == myth_id))
-
-
-async def refresh_radar(client: httpx.AsyncClient, settings: Settings, *, refresh: bool = True) -> dict:
-    seeds = json.loads(FIXTURE.read_bytes())["myths"]
-    lookup = asyncio.Semaphore(3)
-
-    async def pull(query: dict, **params) -> dict:
-        async with lookup:
-            return await oriane.search(client, settings, query, cache=True, refresh=refresh, **params)
-
-    jobs = [
-        pull(window_query(window, TOPICS[seed["id"]]))
-        for seed in seeds for window in (CURRENT, PREVIOUS)
-    ]
-    jobs.extend([
-        pull(window_query(CURRENT, [*TOPICS["lymphatic-detox"], LYMPHATIC_CLAIM])),
-        pull(
-            {"operator": "and", "filters": {"id": {
-                "includes": [seed["top_video"]["oriane_id"] for seed in seeds],
-            }}},
-            projection="full", limit=len(seeds),
-        ),
-    ])
-    results = await asyncio.gather(*jobs, return_exceptions=True)
-    for result in results:
-        if isinstance(result, BaseException):
-            raise result
-
-    fetched_at = datetime.now(timezone.utc).isoformat()
-    videos = {item["id"]: item for item in results[-1]["data"]["results"]}
-    myths = []
-    for index, seed in enumerate(seeds):
-        current_count, current_views = counts(results[2 * index])
-        previous_count, previous_views = counts(results[2 * index + 1])
-        pct = round((current_count - previous_count) / previous_count * 100) if previous_count else None
-        trend = "unknown" if pct is None else "rising" if pct > 10 else "cooling" if pct < -10 else "steady"
-        summary = {
-            **seed,
-            "window": CURRENT, "prev_window": PREVIOUS,
-            "topic_video_count": current_count, "topic_views": current_views,
-            "prev_topic_video_count": previous_count, "prev_topic_views": previous_views,
-            "trend": trend, "data_source": "oriane_live", "snapshot_at": fetched_at,
-        }
-        summary.pop("trend_pct", None)
-        if pct is not None:
-            summary["trend_pct"] = pct
-        top = summary.pop("top_video")
-        if item := videos.get(top["oriane_id"]):
-            if video := update_video(top, item):
-                summary["top_video"] = video
-        if seed["id"] == "lymphatic-detox":
-            summary["claim_video_count"], summary["claim_views"] = counts(results[-2])
-            summary["claim_interactions"] = results[-2]["data"]["aggregations"]["totalInteractionsCount"]
-            summary["match_note"] = (
-                "Topic: exact phrase in transcript, caption or on-screen text. Claim: "
-                "topic matches that also contain one of the claim keywords in transcript or caption."
-            )
-        myths.append(summary)
-
-    snapshot = {"generated_at": fetched_at, "window": CURRENT, "myths": myths}
-    for summary in myths:
-        prior = read_myth(summary["id"])
-        detail = detail_for(summary)
-        if "stance_sample_size" in prior:
-            # A counts-only refresh preserves the previously classified sample.
-            summary.pop("top_video", None)
-            detail.pop("top_video", None)
-            for field in ("top_video", "harm_tier", "harm_reason"):
-                if field in prior:
-                    summary[field] = detail[field] = prior[field]
-            for field in ("videos", "counter_voices", "stance_counts", "stance_sample_size", "clinician_share"):
-                if field in prior:
-                    detail[field] = prior[field]
-        oriane.write_json(DATA_DIR / "myths" / f'{summary["id"]}.json', detail)
-    oriane.write_json(DATA_DIR / "radar.json", snapshot)
-    return snapshot

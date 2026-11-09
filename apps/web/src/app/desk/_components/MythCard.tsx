@@ -3,7 +3,6 @@ import type { HarmTier, MythSummary } from "@/contracts/types";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
 import { QuoteCard } from "@/components/QuoteCard";
-import { Placeholder } from "./Placeholder";
 import { Stat } from "./Stat";
 import { windowWithYear } from "./window";
 
@@ -14,7 +13,7 @@ const POSTER: Record<HarmTier, string> = {
 };
 
 // v2 contact-sheet frame: tier-colored poster with the rank, then the myth, its reach and its top quote.
-export function MythCard({ myth, rank, fixture }: { myth: MythSummary; rank: number; fixture: boolean }) {
+export function MythCard({ myth, rank }: { myth: MythSummary; rank: number }) {
   return (
     <article
       aria-labelledby={`myth-${myth.id}`}
@@ -39,7 +38,6 @@ export function MythCard({ myth, rank, fixture }: { myth: MythSummary; rank: num
             <span className="chip">Harm: {myth.harm_tier === "harmful" ? "Flagged" : "Not flagged"}</span>
             {myth.harm_tier !== "harmful" && <span>Verdict <HarmChip tier={myth.harm_tier} /></span>}
             <span>Trend <TrendBadge trend={myth.trend} pct={myth.trend_pct} /></span>
-            {fixture && <Placeholder what="draft title and harm tier until the brain sets them" />}
           </div>
         </div>
 

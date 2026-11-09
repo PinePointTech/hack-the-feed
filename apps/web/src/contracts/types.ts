@@ -241,6 +241,7 @@ export interface PublishedDebunk {
 // ---------- impact and calendar ----------
 export interface Impact {
   myth_id: string;
+  generated_at?: string; // ISO datetime the numbers were pulled; when the brain computed it
   window: DateWindow;
   myth_reach: { videos: number; views: number }; // stance = promotes
   response_reach?: { videos: number; views: number }; // stance = debunks
@@ -270,9 +271,74 @@ export interface CalendarItem {
 }
 
 export interface Calendar {
+  generated_at?: string; // ISO datetime the calendar was pulled; when the brain computed it
   week_of: string; // ISO date of the Monday
   this_week: CalendarItem[];
   watchlist: CalendarItem[];
+}
+
+// ---------- live feed ----------
+// GET  /feed?since=<ISO8601>&limit=<1..100, default 50> -> Feed (posts ordered by fetched_at desc, then views desc)
+// POST /poll -> PollResult (runs only if POLL_INTERVAL_MINUTES, default 15, passed since the last poll start)
+export interface Feed {
+  generated_at: string; // ISO 8601
+  last_poll_at: string | null;
+  next_poll_at: string | null;
+  posts: {
+    oriane_id: string;
+    platform: Platform;
+    url: string | null;
+    handle: string | null;
+    display_name: string | null;
+    thumbnail_url: string | null;
+    views: number | null;
+    published_at: string | null;
+    fetched_at: string;
+    snippet: string; // exact words from the Oriane text
+    snippet_source: "transcript" | "caption" | "on_screen" | null;
+    matched_query: string;
+    label: null | { // null until the labeler (T2) runs
+      health_claim: boolean;
+      myth_id: string | null;
+      stance: "promotes" | "debunks" | "ad" | "unrelated";
+      confidence: number; // 0 to 1
+      model: string;
+    };
+  }[];
+}
+
+export interface PollResult {
+  ran: boolean;
+  last_poll_at: string | null;
+  next_poll_at: string | null;
+  new_posts: number;
+}
+
+// The labeler (T2) fills Feed post labels after each poll. A label's myth_id is a built-in myth, a
+// confirmed myth or a candidate. Candidates never confirm themselves.
+// GET  /myths/candidates      -> MythCandidates (most posts first)
+// POST /myths/{id}/confirm    -> ConfirmedMyth (404 myth_not_found for an unknown ID; confirming twice is a no-op)
+export interface MythCandidates {
+  candidates: {
+    id: string; // slug of the watchlist phrase that matched
+    title: string; // that watchlist phrase
+    claim: string; // exact sentence from the first post that raised it
+    status: "candidate";
+    source_oriane_id: string | null;
+    created_at: string;
+    confirmed_at: null;
+    post_count: number; // labeled posts pointing at this candidate
+  }[];
+}
+
+export interface ConfirmedMyth {
+  id: string;
+  title: string;
+  claim: string;
+  status: "confirmed";
+  source_oriane_id: string | null;
+  created_at: string;
+  confirmed_at: string;
 }
 
 // ---------- misc ----------

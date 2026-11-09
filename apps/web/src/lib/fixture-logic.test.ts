@@ -2,42 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { mythFromFixtures, checkFromFixtures, brainErrorCode, normalizeLine } from "./fixture-logic.ts";
+import { checkFromFixtures, brainErrorCode, normalizeLine } from "./fixture-logic.ts";
 
 const load = (f: string) => JSON.parse(readFileSync(join(import.meta.dirname, "../contracts/fixtures", f), "utf8"));
-const radar = load("radar.json");
-const myth = load("myth-lymphatic-detox.json");
 const brief = load("brief-lymphatic-detox.json");
 const check = load("check.json");
-
-test("myth: lymphatic id returns the lymphatic fixture", () => {
-  assert.equal(mythFromFixtures("lymphatic-detox", myth, radar), myth);
-});
-
-test("myth: other radar id builds detail from summary, lists its real top video by stance, invents no numbers", () => {
-  const d = mythFromFixtures("garlic-tumor", myth, radar);
-  const summary = radar.myths.find((m: { id: string }) => m.id === "garlic-tumor");
-  assert.equal(d.id, "garlic-tumor");
-  assert.equal(d.title, summary.title);
-  assert.deepEqual(d.videos, [summary.top_video]); // its stance is "promotes" in radar.json
-  assert.deepEqual(d.counter_voices, []);
-  assert.deepEqual(d.stance_counts, {});
-});
-
-test("myth: a debunking top video goes to counter voices, not promoters", () => {
-  type M = { id: string; top_video?: Record<string, unknown> };
-  const flipped = {
-    ...radar,
-    myths: radar.myths.map((m: M) => (m.id === "mouth-taping" ? { ...m, top_video: { ...m.top_video, stance: "debunks" } } : m)),
-  };
-  const d = mythFromFixtures("mouth-taping", myth, flipped);
-  assert.deepEqual(d.videos, []);
-  assert.equal(d.counter_voices.length, 1);
-});
-
-test("myth: unknown id falls back to the lymphatic fixture", () => {
-  assert.equal(mythFromFixtures("nope", myth, radar), myth);
-});
 
 test("normalizeLine", () => {
   assert.equal(normalizeLine("  There’s  no evidence\nit causes weight loss. "), "there's no evidence it causes weight loss");

@@ -1,6 +1,5 @@
 import asyncio
 import hmac
-import json
 import logging
 import os
 import sqlite3
@@ -18,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
+from . import brief, check, derived, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -144,7 +143,6 @@ def create_app(
             app.state.fact_checker = fact_check.FactChecker(fact_check_settings)
             app.state.video_qa = qa.VideoQA(settings, app.state.line_checker)
             app.state.health_lock = asyncio.Lock()
-            app.state.radar_lock = asyncio.Lock()
             app.state.poll_lock = asyncio.Lock()
             app.state.label_task = None
             app.state.health = await probe_health(client)
@@ -169,6 +167,7 @@ def create_app(
         allow_headers=["*"],
         expose_headers=["Content-Location"],
     )
+
 
     def api_error(status: int, code: str, message: str) -> JSONResponse:
         return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
@@ -277,19 +276,22 @@ def create_app(
                 pass
         return api_error(404, "video_not_found", "No published video exists at this address.")
 
-    async def refresh_radar(request: Request):
-        async with request.app.state.radar_lock:
+    async def refresh_if_asked(request: Request, refresh: bool) -> None:
+        # refresh runs a poll, which still honors the poll interval and the search cap.
+        if refresh:
             try:
-                await radar.refresh_radar(request.app.state.client, settings)
-            except (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError) as error:
-                logger.warning("Radar refresh failed (%s)", type(error).__name__)
-                return api_error(503, "radar_unavailable", "Oriane refresh failed. Try the saved snapshot.")
+                await poll_now(request.app)
+            except (sqlite3.Error, OSError, ValueError) as error:
+                logger.warning("Refresh poll failed (%s)", type(error).__name__)
+
+    def derive(compute: Callable, *args):
+        with closing(store.connect()) as con:
+            return compute(con, *args, datetime.now(timezone.utc))
 
     @app.get("/radar")
     async def get_radar(request: Request, refresh: bool = False):
-        if refresh and (error := await refresh_radar(request)):
-            return error
-        return radar.read_radar()
+        await refresh_if_asked(request, refresh)
+        return derive(derived.radar)
 
     # Registered before /myths/{myth_id} so "candidates" is not read as a myth ID.
     @app.get("/myths/candidates")
@@ -305,27 +307,16 @@ def create_app(
 
     @app.get("/myths/{myth_id}")
     async def get_myth(myth_id: str, request: Request, refresh: bool = False):
-        if myth_id not in radar.TOPICS:
-            return api_error(404, "myth_not_found", "Unknown myth ID.")
-        if refresh and (error := await refresh_radar(request)):
-            return error
-        return radar.read_myth(myth_id)
+        await refresh_if_asked(request, refresh)
+        return derive(derived.myth_detail, myth_id) or api_error(404, "myth_not_found", "Unknown myth ID.")
 
     @app.get("/impact/{myth_id}")
     def get_impact(myth_id: str):
-        if myth_id not in radar.TOPICS:
-            return api_error(404, "myth_not_found", "Unknown myth ID.")
-        try:
-            return json.loads((oriane.DATA_DIR / "impact" / f"{myth_id}.json").read_bytes())
-        except FileNotFoundError:
-            return api_error(404, "impact_unavailable", "No measured stance sample exists for this myth.")
+        return derive(derived.impact, myth_id) or api_error(404, "myth_not_found", "Unknown myth ID.")
 
     @app.get("/calendar")
     def get_calendar():
-        try:
-            return json.loads((oriane.DATA_DIR / "calendar.json").read_bytes())
-        except FileNotFoundError:
-            return reporting.build_calendar(radar.read_radar())
+        return derive(derived.calendar)
 
     @app.post("/poll")
     async def post_poll(request: Request):

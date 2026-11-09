@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, settle } from "@/lib/api";
 import { exact } from "@/lib/format";
-import { isPlaceholder, sortMyths, windowLabel } from "@/lib/view-model";
-import { FixtureBadge } from "@/components/FixtureBadge";
+import { sortMyths, windowLabel } from "@/lib/view-model";
+import { DataPulled } from "@/components/DataPulled";
+import { LiveUnavailableNote } from "@/components/LiveUnavailable";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
 import { ClaimCheck } from "./_landing/ClaimCheck";
@@ -21,20 +22,22 @@ const STEPS = [
 ] as const;
 
 export default async function Home() {
-  const { data, from } = await api.radar();
-  const myths = sortMyths(data.myths);
-  const span = `${windowLabel(data.window)}, ${data.window.to.slice(0, 4)}`;
-  const draft = from === "fixture" && ["title", "harm_tier"].some((f) => isPlaceholder(data, `myths[].${f}`));
+  const res = await settle(api.radar());
+  const data = res.ok ? res.data : null;
+  const myths = data ? sortMyths(data.myths) : [];
+  const span = data ? `${windowLabel(data.window)}, ${data.window.to.slice(0, 4)}` : "";
 
   return (
     <ClaimCheck myths={myths}>
       <section className="wrap lp-feed" id="trending" aria-labelledby="feed-h">
         <div className="lp-feed-head">
           <h2 id="feed-h">Trends in the measured window</h2>
-          <span className="mono lp-window">{span} · Harm tier, then claim views</span>
-          <FixtureBadge from={from} />
+          {data && <span className="mono lp-window">{span} · Harm tier, then claim views</span>}
+          {data && <DataPulled at={data.generated_at} />}
         </div>
-        {myths.length === 0 ? (
+        {!data ? (
+          <LiveUnavailableNote what="the trends" />
+        ) : myths.length === 0 ? (
           <p className="lp-note">No myths found in this window.</p>
         ) : (
           <ol className="lp-frames">
@@ -51,11 +54,6 @@ export default async function Home() {
                   <span className="chip">Harm: {m.harm_tier === "harmful" ? "Flagged" : "Not flagged"}</span>
                   {m.harm_tier !== "harmful" && <span>Verdict <HarmChip tier={m.harm_tier} /></span>}
                   <span>Trend <TrendBadge trend={m.trend} pct={m.trend_pct} /></span>
-                  {draft && (
-                    <span className="databadge" title="Title and harm tier are drafts until the brain sets them">
-                      placeholder
-                    </span>
-                  )}
                 </div>
                 <p className="lp-views">
                   <span className="mono lp-num">{exact(m.topic_views)}</span>{" "}

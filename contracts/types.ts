@@ -241,6 +241,7 @@ export interface PublishedDebunk {
 // ---------- impact and calendar ----------
 export interface Impact {
   myth_id: string;
+  generated_at?: string; // ISO datetime the numbers were pulled; when the brain computed it
   window: DateWindow;
   myth_reach: { videos: number; views: number }; // stance = promotes
   response_reach?: { videos: number; views: number }; // stance = debunks
@@ -270,6 +271,7 @@ export interface CalendarItem {
 }
 
 export interface Calendar {
+  generated_at?: string; // ISO datetime the calendar was pulled; when the brain computed it
   week_of: string; // ISO date of the Monday
   this_week: CalendarItem[];
   watchlist: CalendarItem[];

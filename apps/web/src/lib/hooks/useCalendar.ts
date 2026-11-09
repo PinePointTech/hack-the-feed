@@ -5,13 +5,14 @@ import { api, type Sourced } from "../api";
 import { track } from "../track";
 import { useTrackOnce } from "./useTrackOnce";
 
-/** Loads the myth calendar. Returns { data, from, loading, reuseScript }; tracks "Calendar Viewed" once. */
+/** Loads the myth calendar from the brain. Returns { data, failed, reuseScript }; tracks "Calendar Viewed" once. No fixture fallback. */
 export function useCalendar() {
   const [res, setRes] = useState<Sourced<Calendar> | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
-    api.calendar().then((r) => live && setRes(r));
+    api.calendar().then((r) => live && setRes(r), () => live && setFailed(true));
     return () => { live = false; };
   }, []);
 
@@ -22,5 +23,5 @@ export function useCalendar() {
 
   const reuseScript = (myth_id: string) => track("Script Reused", { myth_id, from: "calendar" });
 
-  return { data: res?.data ?? null, from: res?.from ?? null, loading: !res, reuseScript };
+  return { data: res?.data ?? null, failed, reuseScript };
 }

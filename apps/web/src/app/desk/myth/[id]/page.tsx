@@ -1,14 +1,15 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { api } from "@/lib/api";
+import { api, settle } from "@/lib/api";
 import { DebunkVideo } from "@/components/DebunkVideo";
-import { FixtureBadge } from "@/components/FixtureBadge";
+import { DataPulled } from "@/components/DataPulled";
+import { LiveUnavailable } from "@/components/LiveUnavailable";
 import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
 import { StanceBar } from "@/components/StanceBar";
 import { QuoteCard } from "@/components/QuoteCard";
 import { Stat } from "../../_components/Stat";
-import { Placeholder } from "../../_components/Placeholder";
 import { windowWithYear } from "../../_components/window";
 import { MythOpened } from "./_components/MythOpened";
 import { SuggestDebunk } from "./_components/SuggestDebunk";
@@ -33,8 +34,10 @@ function accent(text: string, word: string) {
 
 export default async function MythPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { data: m, from } = await api.myth(id);
-  const fixture = from === "fixture";
+  const res = await settle(api.myth(id));
+  if (!res.ok && res.status === 404) notFound();
+  if (!res.ok) return <LiveUnavailable what="this myth" />;
+  const { data: m, from } = res;
   // The published debunk is for one myth. A fallback record with another id is not shown here.
   const published = await api.published(id);
   const debunk = published.data.id === id ? published.data : null;
@@ -51,7 +54,7 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           >
             Back to the radar
           </Link>
-          <FixtureBadge from={from} />
+          <DataPulled at={m.snapshot_at} />
         </nav>
 
         <header className="grid max-w-[60rem] gap-6">
@@ -62,7 +65,6 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           <div className="flex flex-wrap items-center gap-2">
             <HarmChip tier={m.harm_tier} />
             <TrendBadge trend={m.trend} pct={m.trend_pct} />
-            {fixture && <Placeholder what="draft harm tier, claim and harm reason until the brain sets them" />}
           </div>
           <div className="grid gap-2">
             <p className={LABEL}>Why this tier</p>
@@ -157,10 +159,8 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
             <h2 id="stance-h" className={H2}>
               Who is saying what
             </h2>
-            {fixture && <Placeholder what="hand-labeled stance sample" />}
           </div>
           <StanceBar counts={m.stance_counts} sampleSize={m.stance_sample_size} />
-          {fixture && <p className="text-sm text-ink-2">Example classifications. Live stance counts may still be pending.</p>}
         </section>
 
         <section aria-labelledby="videos-h" className="grid gap-4">
