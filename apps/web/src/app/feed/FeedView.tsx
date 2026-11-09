@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useFeed } from "@/lib/hooks/useFeed";
-import { canNameCreator, mythName, type FeedPost } from "@/lib/feed";
+import { canNameCreator, dataThroughLine, mythName, type FeedPost } from "@/lib/feed";
 import { compact } from "@/lib/format";
 
 const PLATFORM = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" } as const;
@@ -29,6 +29,7 @@ export function FeedView() {
               Last pull {clock(latest.last_poll_at, "not yet")}, next pull {clock(latest.next_poll_at, "not scheduled")}
             </span>
           )}
+          {dataThroughLine(latest?.data_through) && <span className="mono text-sm text-ink-2">{dataThroughLine(latest?.data_through)}</span>}
           <button type="button" className="btn" onClick={refresh} disabled={refreshing}>
             {refreshing ? "Refreshing" : "Refresh"}
           </button>

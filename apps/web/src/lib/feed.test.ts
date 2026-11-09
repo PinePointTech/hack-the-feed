@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canNameCreator, mergeFeed, mythName, type FeedPost } from "./feed.ts";
+import { canNameCreator, dataThroughLine, mergeFeed, mythName, type FeedPost } from "./feed.ts";
 
 // Built inside the test only to exercise the merge. Never rendered, never shipped as data.
 const post = (id: string, over: Partial<FeedPost> = {}): FeedPost => ({
@@ -41,4 +41,11 @@ test("a creator is named only at 100k views or more", () => {
 
 test("mythName makes a readable chip label", () => {
   assert.equal(mythName("mouth-taping"), "Mouth taping");
+});
+
+test("the data-through line names the day and time, and is null without a date", () => {
+  const line = dataThroughLine("2026-11-06T13:40:00Z");
+  assert.match(line ?? "", /^Oriane search runs to Nov (5|6), \d{1,2}:\d{2} (AM|PM)$/);
+  assert.equal(dataThroughLine(null), null);
+  assert.equal(dataThroughLine("not a date"), null);
 });

@@ -278,12 +278,13 @@ export interface Calendar {
 }
 
 // ---------- live feed ----------
-// GET  /feed?since=<ISO8601>&limit=<1..100, default 50> -> Feed (posts ordered by fetched_at desc, then views desc)
+// GET  /feed?since=<ISO8601>&limit=<1..100, default 50> -> Feed (posts within 72 h of data_through first, newest first; then views gained per hour; then views; unrelated last)
 // POST /poll -> PollResult (runs only if POLL_INTERVAL_MINUTES, default 15, passed since the last poll start)
 export interface Feed {
   generated_at: string; // ISO 8601
   last_poll_at: string | null;
   next_poll_at: string | null;
+  data_through?: string | null; // ISO 8601, newest published_at stored: how far Oriane's search runs
   posts: {
     oriane_id: string;
     platform: Platform;
