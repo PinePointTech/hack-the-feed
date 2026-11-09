@@ -7,6 +7,9 @@ export type FeedLabel = {
   stance: Stance;
   confidence: number;
   model: string;
+  // Round 3, optional: old labels lack both. quote is an exact substring of its source text; null means no sentence supports the label.
+  basis?: "transcript" | "text_only";
+  evidence?: { quote: string; source: "transcript" | "caption" | "on_screen" } | null;
 };
 
 export type FeedPost = {
