@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useFeed } from "@/lib/hooks/useFeed";
 import { canNameCreator, dataThroughLine, mythName, type FeedPost } from "@/lib/feed";
 import { compact } from "@/lib/format";
+import { labelWhy, MYTH_LINK_TEXT } from "@/lib/label-why";
+import Link from "next/link";
 
 const PLATFORM = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" } as const;
 const SOURCE = { transcript: "transcript", caption: "caption", on_screen: "on-screen text" } as const;
@@ -91,6 +93,29 @@ function Thumb({ src, platform }: { src: string | null; platform: FeedPost["plat
   return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`${box} object-cover`} />;
 }
 
+function WhyLabel({ label }: { label: NonNullable<FeedPost["label"]> }) {
+  const why = labelWhy(label);
+  return (
+    <details className="text-sm">
+      <summary className="min-h-6 cursor-pointer font-semibold">Why this label</summary>
+      <div className="mt-1.5 grid gap-1.5 text-ink-2">
+        <p>{why.stanceLine}</p>
+        {why.evidence && ("quote" in why.evidence ? (
+          <p>
+            <span className="mono text-[0.75rem]">{why.evidence.sourceLine}</span>
+            <br />
+            &ldquo;{why.evidence.quote}&rdquo;
+          </p>
+        ) : (
+          <p>{why.evidence.none}</p>
+        ))}
+        {why.basisNote && <p>{why.basisNote}</p>}
+        {why.mythHref && <Link href={why.mythHref} className="justify-self-start font-semibold text-ink underline underline-offset-2">{MYTH_LINK_TEXT}</Link>}
+      </div>
+    </details>
+  );
+}
+
 function PostCard({ post: p }: { post: FeedPost }) {
   const named = canNameCreator(p);
   return (
@@ -116,6 +141,7 @@ function PostCard({ post: p }: { post: FeedPost }) {
             <span className="databadge">Unlabeled</span>
           )}
         </div>
+        {p.label && <WhyLabel label={p.label} />}
         <blockquote className="m-0 border-t border-rule pt-2.5 font-serif text-[0.9375rem] leading-[1.45]">
           &ldquo;{p.snippet}&rdquo;
           <footer className="mono mt-1.5 text-[0.75rem] text-ink-2">
