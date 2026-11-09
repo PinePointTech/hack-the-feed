@@ -325,7 +325,7 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
                 and time.monotonic() < deadline:
             time.sleep(0.05)
         assert posts["cnt_1"]["label"] == {
-            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False, "flagged": True,
+            "health_claim": True, "myth_id": None, "stance": "promotes", "confidence": 1.0, "model": MODEL, "myth_confirmed": False, "flagged": False,  # the stub picks no evidence sentence, so no flag
             "commercial": False, "basis": "text_only", "evidence": None,  # the stub judge picks none
         }
         assert posts["cnt_2"]["label"] is None  # under the view floor
@@ -504,12 +504,14 @@ def test_labels_from_the_previous_prompt_version_are_relabeled(env):
 
 
 def test_the_feed_flags_only_promoted_claims_judged_dubious(env):
-    seed((1, 20000, "a"), (2, 20000, "b"), (3, 20000, "c"), (4, 20000, "d"))
+    seed((1, 20000, "a"), (2, 20000, "b"), (3, 20000, "c"), (4, 20000, "d"), (5, 20000, "e"))
     with closing(store.connect()) as con:
-        for n, stance, dubious, commercial in ((1, "promotes", 0.9, True), (2, "promotes", 0.2, False),
-                                              (3, "debunks", 0.9, False), (4, "promotes", 0.9, None)):
+        for n, stance, dubious, commercial, quote in ((1, "promotes", 0.9, True, "claim 1"), (2, "promotes", 0.2, False, "claim 2"),
+                                                     (3, "debunks", 0.9, False, "claim 3"), (4, "promotes", 0.9, None, "claim 4"),
+                                                     (5, "promotes", 0.9, True, None)):
             store.upsert_label(con, f"cnt_{n}", health_claim=True, myth_id=None, stance=stance, confidence=0.9,
-                               model=MODEL, labeled_at=store.iso(T0), dubious=dubious, commercial=commercial)
+                               model=MODEL, labeled_at=store.iso(T0), dubious=dubious, commercial=commercial,
+                               basis="text_only", evidence_quote=quote, evidence_source="caption" if quote else None)
         labels = {p["oriane_id"]: p["label"] for p in store.list_feed(con)}
-    assert [labels[f"cnt_{n}"].get("flagged") for n in (1, 2, 3)] == [True, False, False]
+    assert [labels[f"cnt_{n}"].get("flagged") for n in (1, 2, 3, 5)] == [True, False, False, False]  # 5: no quote, no flag
     assert "flagged" not in labels["cnt_4"]  # a label from before the two axes carries no flag

@@ -251,8 +251,10 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
         }
         if post["label"] and row["commercial"] is not None:  # labels from before the two axes lack it
             post["label"]["commercial"] = bool(row["commercial"])
-            # The bad content flag the eval measures: the creator pushes a claim the model judges dubious.
-            post["label"]["flagged"] = row["stance"] == "promotes" and (row["dubious"] or 0) >= DUBIOUS_MIN
+            # The bad content flag: the creator pushes a claim the model judges dubious, and a sentence from the
+            # post shows it. No quote, no flag (CLAUDE.md rule 4).
+            post["label"]["flagged"] = (row["stance"] == "promotes" and (row["dubious"] or 0) >= DUBIOUS_MIN
+                                        and bool(row["evidence_quote"]))
         if post["label"] and row["basis"]:  # labels from before the evidence prompt carry neither field
             post["label"]["basis"] = row["basis"]
             post["label"]["evidence"] = (
