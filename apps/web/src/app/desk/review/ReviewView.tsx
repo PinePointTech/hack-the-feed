@@ -3,7 +3,7 @@ import { useCandidates } from "@/lib/hooks/useCandidates";
 import { LiveUnavailable } from "@/components/LiveUnavailable";
 
 export function ReviewView() {
-  const { rows, loading, unavailable, busy, notice, confirm, needsToken, saveToken } = useCandidates();
+  const { rows, loading, unavailable, busy, notice, confirm, reject, needsToken, saveToken } = useCandidates();
   if (unavailable) return <LiveUnavailable what="the candidate myths" />;
 
   return (
@@ -14,7 +14,7 @@ export function ReviewView() {
           Review <em className="kw kw-mark">new myths</em>
         </h1>
         <p className="text-[1.125rem] text-ink-2">
-          The labeler proposed these from live posts. A myth only joins the radar after you confirm it.
+          The labeler proposed these from live posts. A myth only joins the radar after you confirm it. Reject removes a proposal that is not a real myth.
         </p>
       </header>
 
@@ -47,7 +47,11 @@ export function ReviewView() {
               </blockquote>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <button type="button" className="btn" onClick={() => confirm(r.id)} disabled={busy !== null}>
-                  {busy === r.id ? "Confirming" : "Confirm"}
+                  {busy === r.id ? "Working" : "Confirm"}
+                </button>
+                <button type="button" className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                  onClick={() => reject(r.id)} disabled={busy !== null}>
+                  Reject
                 </button>
                 {r.source_url && (
                   <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">

@@ -106,7 +106,7 @@ async def label_pending(
     evaluator = evaluator or judge.Judge(settings=settings)
     with closing(store.connect()) as con:
         room = settings.label_max_per_hour - store.labeled_since(con, store.iso(now - timedelta(hours=1)))
-        posts = store.unlabeled_posts(con, room, settings.label_min_views) if room > 0 else []
+        posts = store.unlabeled_posts(con, room, settings.label_min_views, PROMPT_VERSION) if room > 0 else []
         if not posts:
             return 0
         myths = {**brief.MYTHS, **store.myth_claims(con)}

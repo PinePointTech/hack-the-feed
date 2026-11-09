@@ -235,8 +235,10 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     return feed
 
 
-def unlabeled_posts(con: sqlite3.Connection, limit: int = 100, min_views: int = 0) -> list[dict]:
-    """Posts with no label yet, newest first, with at least min_views, or with no view count and
+def unlabeled_posts(
+    con: sqlite3.Connection, limit: int = 100, min_views: int = 0, prompt_version: str | None = None,
+) -> list[dict]:
+    """Posts with no label yet (or, given prompt_version, a label from another prompt version; those come last), newest first, with at least min_views, or with no view count and
     interactions (raw interactionsCount, else likes + comments + shares) of at least min_views / 20.
     Rows include raw_json."""
     interactions = (
@@ -244,10 +246,11 @@ def unlabeled_posts(con: sqlite3.Connection, limit: int = 100, min_views: int = 
         " + COALESCE(json_extract(p.raw_json, '$.commentsCount'), 0) + COALESCE(json_extract(p.raw_json, '$.sharesCount'), 0))"
     )
     rows = con.execute(
-        "SELECT p.* FROM posts p WHERE NOT EXISTS (SELECT 1 FROM labels l WHERE l.oriane_id = p.oriane_id) "
+        "SELECT p.* FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
+        "WHERE (l.oriane_id IS NULL OR (? IS NOT NULL AND l.prompt_version IS NOT ?)) "
         f"AND CASE WHEN p.views IS NULL THEN {interactions} * 20 >= ? ELSE p.views >= ? END "
-        "ORDER BY p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
-        (min_views, min_views, limit),
+        "ORDER BY l.oriane_id IS NOT NULL, p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
+        (prompt_version, prompt_version, min_views, min_views, limit),
     ).fetchall()
     return [dict(row) for row in rows]
 
@@ -279,6 +282,15 @@ def list_candidates(con: sqlite3.Connection) -> list[dict]:
         "FROM myths m WHERE m.status = 'candidate' ORDER BY post_count DESC, m.created_at, m.id"
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def reject_candidate(con: sqlite3.Connection, myth_id: str) -> bool:
+    """Delete a candidate a person rejected and free its posts for the phrase-based topic counts. False if no such candidate."""
+    with con:
+        if con.execute("DELETE FROM myths WHERE id = ? AND status = 'candidate'", (myth_id,)).rowcount == 0:
+            return False
+        con.execute("UPDATE labels SET myth_id = NULL WHERE myth_id = ?", (myth_id,))
+    return True
 
 
 def confirm_myth(con: sqlite3.Connection, myth_id: str, confirmed_at: str) -> dict | None:
