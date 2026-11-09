@@ -353,3 +353,80 @@ def test_impact_and_calendar_carry_a_pull_time(tmp_path, monkeypatch):
             pulled = client.get(path).json()["generated_at"]
             assert datetime.fromisoformat(pulled.replace("Z", "+00:00")) <= datetime.now(timezone.utc)
 
+
+
+def video(n: int, *, views: int = 20000, published: str = "2026-10-20T10:00:00Z", transcript: str = "") -> dict:
+    return {"oriane_id": f"cnt_{n}", "platform": "tiktok", "views": views, "published_at": published,
+            "snippet": f"s{n}", "matched_query": "mouth tape",
+            "raw": {"media": [{"type": "video", "transcript": transcript}], "viewsCount": views}}
+
+
+def test_only_old_enough_viewed_videos_without_a_transcript_unchecked_for_a_day_are_refreshed(env):
+    with closing(store.connect()) as con:
+        store.upsert_posts(con, [
+            video(1, views=30000), video(2, views=20000),
+            video(3, published="2026-11-07T10:00:00Z"),  # under 2 days old
+            video(4, published="2026-08-01T10:00:00Z"),  # over 60 days old
+            video(5, transcript="Has one."), video(6, views=100),  # transcript already, below the floor
+            video(7), video(8, views=10000),
+            {**video(9), "raw": {"media": [{"type": "image"}], "viewsCount": 20000}},
+            {**video(10), "raw": None},
+        ], store.iso(T0))
+        store.record_text_check(con, ["cnt_7"], [], store.iso(T0 - timedelta(hours=1)))  # checked an hour ago
+        store.record_text_check(con, ["cnt_8"], [], store.iso(T0 - timedelta(hours=25)))
+        assert store.posts_missing_transcripts(con, T0, 10000) == ["cnt_1", "cnt_2", "cnt_8"]
+        assert store.posts_missing_transcripts(con, T0, 10000, limit=2) == ["cnt_1", "cnt_2"]
+
+
+class IdOriane(FakeOriane):
+    """Answers a search by id with `found`, and every phrase search with nothing."""
+
+    def __init__(self, found: list[dict]):
+        super().__init__([])
+        self.found = found
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append((dict(request.url.params), json.loads(request.content)))
+        results = self.found if "id" in self.requests[-1][1]["filters"] else []
+        return httpx.Response(200, json={"data": {"results": results}})
+
+
+def test_a_poll_refetches_videos_once_a_day_and_queues_the_ones_that_gain_a_transcript_for_relabeling(env):
+    stored_item = {**item(1), "publishedAt": "2026-10-20T10:00:00Z"}
+    with closing(store.connect()) as con:
+        store.upsert_posts(con, [
+            {**video(1), "raw": {**stored_item, "media": [{"type": "video", "transcript": ""}]}}, video(2, views=15000),
+        ], store.iso(T0 - timedelta(days=1)))
+        for n in (1, 2):
+            store.upsert_label(con, f"cnt_{n}", health_claim=True, myth_id=None, stance="promotes", confidence=0.9,
+                               model="m", labeled_at=store.iso(T0), prompt_version="current")
+    fresh = {**stored_item, "media": [{"type": "video", "transcript": "Mouth tape fixes sleep. Try it.", "onScreenText": []}]}
+    fake = IdOriane([fresh, {**item(2, views=15000), "publishedAt": "2026-10-20T10:00:00Z", "media": [{"type": "video", "transcript": ""}]}])
+    settings = config(oriane_max_searches_per_hour=100)
+    assert poll(fake, settings, T0) == (True, 0)
+
+    params, body = fake.requests[-1]
+    assert len(fake.requests) == 5  # four phrase searches, then one refresh
+    assert body["filters"] == {"id": {"includes": ["cnt_1", "cnt_2"]}}
+    assert (params["projection"], params["limit"]) == ("default", "100")
+    assert rows("SELECT searches FROM polls") == [(5,)]
+    assert rows("SELECT oriane_id, text_checked_at FROM posts ORDER BY oriane_id") == [
+        ("cnt_1", "2026-11-08T12:00:00Z"), ("cnt_2", "2026-11-08T12:00:00Z"),
+    ]
+    assert "Mouth tape fixes sleep." in rows("SELECT raw_json FROM posts WHERE oriane_id = 'cnt_1'")[0][0]
+    # Only the post that gained a transcript is queued for relabeling.
+    assert rows("SELECT oriane_id, prompt_version FROM labels ORDER BY oriane_id") == [("cnt_1", None), ("cnt_2", "current")]
+
+    assert poll(fake, settings, T0 + timedelta(minutes=15)) == (True, 0)
+    assert len(fake.requests) == 9  # cnt_2 waits out its 24 h and cnt_1 has its transcript, so no refresh
+    assert poll(fake, settings, T0 + timedelta(hours=25)) == (True, 0)
+    assert len(fake.requests) == 14  # cnt_2 is checked again
+
+
+def test_the_refresh_runs_only_within_the_hourly_search_budget(env):
+    with closing(store.connect()) as con:
+        store.upsert_posts(con, [video(1)], store.iso(T0))
+    fake = IdOriane([])
+    assert poll(fake, config(oriane_max_searches_per_hour=4), T0) == (True, 0)
+    assert len(fake.requests) == 4  # the phrase batches spent the budget
+    assert rows("SELECT text_checked_at FROM posts") == [(None,)]

@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 NO_MYTH = "none"
 DUBIOUS_MIN = 0.6
 STANDALONE_MIN = 0.5
-PROMPT_VERSION = "ad-first-standalone-1"  # bump when a question changes, so old labels stay explainable
-CONTEXT_MAX = 1500
+PROMPT_VERSION = "evidence-quote-1"  # bump when a question changes, so old labels stay explainable
+CONTEXT_MAX = 6000
+EVIDENCE_OPTIONS = 12
+EVIDENCE_MIN_WORDS = 4
 STANCES = {
     "promotes": (
         "Not an ad. The person presents the claim as true or tells others to act on it, as advice, education "
@@ -39,8 +41,23 @@ STANCES = {
 FAILURES = (httpx.HTTPError, ValueError, KeyError, TypeError, RuntimeError)
 
 
-def questions(myths: dict[str, str]) -> dict:
-    return {
+def evidence_sentences(post: dict) -> list[tuple[str, str]]:
+    """Up to EVIDENCE_OPTIONS (source, sentence) pairs of the post's own text, nearest the matched phrase first.
+
+    A sentence ends at . ! ? or a line break and has at least EVIDENCE_MIN_WORDS words; each is an exact substring."""
+    found = [
+        (source, sentence.strip()) for source, text in poller.texts_of(json.loads(post["raw_json"]))
+        for sentence in re.findall(r"[^.!?\n]+[.!?]*", text) if len(sentence.split()) >= EVIDENCE_MIN_WORDS
+    ]
+    found = list(dict.fromkeys(found))
+    phrase = post["matched_query"].lower()
+    hits = [i for i, (_, sentence) in enumerate(found) if phrase in sentence.lower()]
+    near = lambda i: min((abs(i - hit) for hit in hits), default=i)  # noqa: E731
+    return [found[i] for i in sorted(range(len(found)), key=near)[:EVIDENCE_OPTIONS]]
+
+
+def questions(myths: dict[str, str], evidence: list[tuple[str, str]] = ()) -> dict:
+    asked = {
         "health_claim": {
             "type": "noul",
             "instructions": "Does claim_sentence make a claim about health, the body, a treatment or a supplement?",
@@ -74,11 +91,33 @@ def questions(myths: dict[str, str]) -> dict:
             ),
         },
     }
+    if evidence:
+        asked["evidence"] = {
+            "type": "choice",
+            "instructions": (
+                "Which listed sentence, in the post's own words, best shows the position the post takes on "
+                "claim_sentence? Pick none if no listed sentence shows it."
+            ),
+            "options": {**{f"s{i}": f"({source}) {sentence}" for i, (source, sentence) in enumerate(evidence, 1)},
+                        NO_MYTH: "No listed sentence shows it."},
+        }
+    return asked
 
 
 def state_for(post: dict) -> str:
+    # texts_of lists the transcript first, then the caption, then on-screen text, so a long transcript is cut last.
     context = " ".join(text for _, text in poller.texts_of(json.loads(post["raw_json"])))[:CONTEXT_MAX]
     return json.dumps({"claim_sentence": post["snippet"], "matched_phrase": post["matched_query"], "post_text": context})
+
+
+def evidence_of(post: dict, evidence: list[tuple[str, str]], answers: dict) -> tuple[str | None, str | None]:
+    """(quote, source) the judge chose, kept only if the quote is an exact substring of that source's text."""
+    choice = answers.get("evidence", {}).get("choice")
+    if not choice or choice == NO_MYTH:
+        return None, None
+    source, quote = evidence[int(choice[1:]) - 1]
+    texts = [text for kind, text in poller.texts_of(json.loads(post["raw_json"])) if kind == source]
+    return (quote, source) if any(quote in text for text in texts) else (None, None)
 
 
 def candidate_id(phrase: str) -> str:
@@ -112,12 +151,14 @@ async def label_pending(
         myths = {**brief.MYTHS, **store.myth_claims(con)}
         owned = {phrase.lower() for (phrases,) in con.execute("SELECT phrases FROM myths WHERE status = 'confirmed'")
                  for phrase in json.loads(phrases)}
-        asked = questions(myths)
+        options = [evidence_sentences(post) for post in posts]
         results = await asyncio.gather(
-            *(evaluator.ask(state_for(post), asked, client=client) for post in posts), return_exceptions=True,
+            *(evaluator.ask(state_for(post), questions(myths, sentences), client=client)
+              for post, sentences in zip(posts, options)),
+            return_exceptions=True,
         )
         labeled = 0
-        for post, result in zip(posts, results):
+        for post, sentences, result in zip(posts, options, results):
             if isinstance(result, BaseException):
                 if not isinstance(result, FAILURES):
                     raise result
@@ -131,8 +172,13 @@ async def label_pending(
             standalone = result[0].get("standalone_claim", {}).get("noul", 0.0)
             # A phrase a confirmed myth already owns never seeds a second myth with the same title.
             new_topic = post["matched_query"].lower() not in owned
+            # An evidence quote shows the post's words; unrelated labels carry none.
+            quote, source = evidence_of(post, sentences, result[0]) if health_claim and stance != "unrelated" else (None, None)
+            basis = "transcript" if poller.has_transcript(json.loads(post["raw_json"])) else "text_only"
+            # A caption-only post needs a quote to seed a candidate; a transcript backs it already.
+            grounded = basis == "transcript" or quote is not None
             if (health_claim and myth_id is None and stance == "promotes" and dubious >= DUBIOUS_MIN
-                    and standalone >= STANDALONE_MIN and new_topic):
+                    and standalone >= STANDALONE_MIN and new_topic and grounded):
                 myth_id = candidate_id(post["matched_query"]) or None
                 if myth_id and myth_id not in myths:
                     store.add_candidate(
@@ -143,6 +189,7 @@ async def label_pending(
                 con, post["oriane_id"], health_claim=health_claim, myth_id=myth_id, stance=stance,
                 confidence=confidence, model=settings.chat_model, labeled_at=store.iso(now),
                 dubious=dubious, standalone_claim=standalone, prompt_version=PROMPT_VERSION,
+                basis=basis, evidence_quote=quote, evidence_source=source,
             )
             labeled += 1
         return labeled

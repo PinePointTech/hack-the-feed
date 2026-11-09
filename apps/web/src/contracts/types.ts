@@ -304,6 +304,9 @@ export interface Feed {
       stance: "promotes" | "debunks" | "ad" | "unrelated";
       confidence: number; // 0 to 1
       model: string;
+      // Labels made before the evidence prompt lack both fields.
+      basis?: "transcript" | "text_only"; // transcript: the judge read spoken words; text_only: caption and on-screen text only
+      evidence?: { quote: string; source: "transcript" | "caption" | "on_screen" } | null; // quote is an exact substring of that source text; null: no sentence supports the label
     };
   }[];
 }
