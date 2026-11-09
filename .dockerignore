@@ -1,6 +1,9 @@
 # Only the brain image builds from this context (docker build -f services/brain/Dockerfile .).
 # Allowlist what it copies so .env files, the database and node_modules never enter the build.
 *
+# railway up uploads by these rules too, so it needs the build recipe.
+!railway.json
+!services/brain/Dockerfile
 !services/brain/pyproject.toml
 !services/brain/uv.lock
 !services/brain/app
