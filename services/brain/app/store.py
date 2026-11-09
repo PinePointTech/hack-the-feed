@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS labels (
     model TEXT NOT NULL,
     labeled_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS myths (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    claim TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('candidate', 'confirmed')),
+    source_oriane_id TEXT REFERENCES posts (oriane_id),
+    created_at TEXT NOT NULL,
+    confirmed_at TEXT
+);
 CREATE TABLE IF NOT EXISTS polls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     started_at TEXT NOT NULL,
@@ -128,14 +137,55 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     return feed
 
 
-def unlabeled_posts(con: sqlite3.Connection, limit: int = 100) -> list[dict]:
-    """Posts with no label yet, newest first (T2 calls this). Rows include raw_json."""
+def unlabeled_posts(con: sqlite3.Connection, limit: int = 100, min_views: int = 0) -> list[dict]:
+    """Posts with no label yet and at least min_views, newest first. Rows include raw_json."""
     rows = con.execute(
         "SELECT p.* FROM posts p WHERE NOT EXISTS (SELECT 1 FROM labels l WHERE l.oriane_id = p.oriane_id) "
+        "AND COALESCE(p.views, 0) >= ? "
         "ORDER BY p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
-        (limit,),
+        (min_views, limit),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def labeled_since(con: sqlite3.Connection, since: str) -> int:
+    return con.execute("SELECT COUNT(*) FROM labels WHERE labeled_at > ?", (since,)).fetchone()[0]
+
+
+def myth_claims(con: sqlite3.Connection) -> dict[str, str]:
+    """Every myth in the table, candidate or confirmed, as id -> claim sentence."""
+    return {row["id"]: row["claim"] for row in con.execute("SELECT id, claim FROM myths ORDER BY created_at, id")}
+
+
+def add_candidate(
+    con: sqlite3.Connection, myth_id: str, *, title: str, claim: str, source_oriane_id: str, created_at: str,
+) -> None:
+    """A proposed myth. An id that already exists keeps its row and status."""
+    with con:
+        con.execute(
+            "INSERT OR IGNORE INTO myths (id, title, claim, status, source_oriane_id, created_at) "
+            "VALUES (?, ?, ?, 'candidate', ?, ?)",
+            (myth_id, title, claim, source_oriane_id, created_at),
+        )
+
+
+def list_candidates(con: sqlite3.Connection) -> list[dict]:
+    rows = con.execute(
+        "SELECT m.*, (SELECT COUNT(*) FROM labels l WHERE l.myth_id = m.id) AS post_count "
+        "FROM myths m WHERE m.status = 'candidate' ORDER BY post_count DESC, m.created_at, m.id"
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def confirm_myth(con: sqlite3.Connection, myth_id: str, confirmed_at: str) -> dict | None:
+    """Promote a candidate. Only a person calls this. None if the id is unknown; confirming twice is a no-op."""
+    with con:
+        con.execute(
+            "UPDATE myths SET status = 'confirmed', confirmed_at = ? WHERE id = ? AND status = 'candidate'",
+            (confirmed_at, myth_id),
+        )
+    row = con.execute("SELECT * FROM myths WHERE id = ?", (myth_id,)).fetchone()
+    return dict(row) if row else None
 
 
 def start_poll(con: sqlite3.Connection, started_at: str) -> int:
