@@ -210,3 +210,14 @@ def test_background_loop_polls_on_start_and_post_poll_respects_the_gate(env):
         assert refreshed["ran"] is False and refreshed["new_posts"] == 0
         assert refreshed["next_poll_at"] is not None and refreshed["last_poll_at"] is not None
         assert len(fake.requests) == calls
+
+
+def test_impact_and_calendar_carry_the_stored_files_pull_time(tmp_path, monkeypatch):
+    (tmp_path / "impact").mkdir()
+    (tmp_path / "impact" / "mouth-taping.json").write_text(json.dumps({"myth_id": "mouth-taping"}))
+    (tmp_path / "calendar.json").write_text(json.dumps({"week_of": "2026-11-09", "generated_at": "2026-11-01T00:00:00Z"}))
+    monkeypatch.setattr(main.oriane, "DATA_DIR", tmp_path)
+    with TestClient(main.create_app(config(oriane_key=""))) as client:
+        pulled = client.get("/impact/mouth-taping").json()["generated_at"]
+        assert datetime.fromisoformat(pulled.replace("Z", "+00:00")) <= datetime.now(timezone.utc)
+        assert client.get("/calendar").json()["generated_at"] == "2026-11-01T00:00:00Z"  # an own stamp wins

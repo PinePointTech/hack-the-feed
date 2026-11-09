@@ -154,6 +154,12 @@ def create_app(
         expose_headers=["Content-Location"],
     )
 
+    def stamped(path) -> dict:
+        # Stored snapshots carry no pull time of their own, so the file's write time is when the data was pulled.
+        body = json.loads(path.read_bytes())
+        body.setdefault("generated_at", store.iso(datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)))
+        return body
+
     def api_error(status: int, code: str, message: str) -> JSONResponse:
         return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
 
@@ -288,16 +294,17 @@ def create_app(
         if myth_id not in radar.TOPICS:
             return api_error(404, "myth_not_found", "Unknown myth ID.")
         try:
-            return json.loads((oriane.DATA_DIR / "impact" / f"{myth_id}.json").read_bytes())
+            return stamped(oriane.DATA_DIR / "impact" / f"{myth_id}.json")
         except FileNotFoundError:
             return api_error(404, "impact_unavailable", "No measured stance sample exists for this myth.")
 
     @app.get("/calendar")
     def get_calendar():
         try:
-            return json.loads((oriane.DATA_DIR / "calendar.json").read_bytes())
+            return stamped(oriane.DATA_DIR / "calendar.json")
         except FileNotFoundError:
-            return reporting.build_calendar(radar.read_radar())
+            snapshot = radar.read_radar()
+            return {"generated_at": snapshot.get("generated_at"), **reporting.build_calendar(snapshot)}
 
     @app.post("/poll")
     async def post_poll(request: Request):
