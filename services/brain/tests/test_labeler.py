@@ -19,9 +19,10 @@ def settings(**changes):
     return config(openai_key="test-key", openai_model=MODEL, **changes)
 
 
-def answers(health: float = 0.9, myth: str = labeler.NO_MYTH, stance: str = "promotes") -> dict:
+def answers(health: float = 0.9, myth: str = labeler.NO_MYTH, stance: str = "promotes", dubious: float = 0.9) -> dict:
     return {
         "health_claim": {"noul": health},
+        "dubious": {"noul": dubious},
         "myth": {"choice": myth, "probabilities": {myth: 1.0}},
         "stance": {"choice": stance, "probabilities": {**dict.fromkeys(labeler.STANCES, 0.0), stance: 0.8}},
     }
@@ -112,6 +113,13 @@ def test_unknown_claim_becomes_a_candidate_with_the_posts_own_sentence(env):
     assert rows("SELECT myth_id FROM labels WHERE oriane_id = 'cnt_4'") == [("sea-moss",)]
 
 
+def test_a_supported_claim_is_labeled_but_never_becomes_a_candidate(env):
+    seed((1, 20000, "lymphatic drainage"))
+    label(FakeJudge(lambda state, questions: answers(dubious=0.1)))
+    assert rows("SELECT id FROM myths") == []
+    assert [(i, myth, stance) for i, _, myth, stance, *_ in labels()] == [("cnt_1", None, "promotes")]
+
+
 def test_no_candidate_for_non_health_posts_ads_or_unrelated_stance(env):
     seed((1, 20000, "a"), (2, 20000, "b"), (3, 20000, "c"))
     replies = {"claim 1": answers(health=0.2), "claim 2": answers(stance="ad"), "claim 3": answers(stance="unrelated")}
@@ -184,6 +192,7 @@ def test_a_poll_labels_new_posts_through_the_real_judge_without_blocking(env):
         asked = json.loads(json.loads(request.content)["messages"][1]["content"])["questions"]
         reply = {
             "health_claim": {"noul": 0.9},
+            "dubious": {"noul": 0.9},
             "myth": {"choice": "none", "probabilities": {name: float(name == "none") for name in asked["myth"]["options"]}},
             "stance": {"choice": "promotes", "probabilities": {name: float(name == "promotes") for name in asked["stance"]["options"]}},
         }
