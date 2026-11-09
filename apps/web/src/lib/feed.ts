@@ -10,6 +10,7 @@ export type FeedLabel = {
   // Round 3, optional: old labels lack both. quote is an exact substring of its source text; null means no sentence supports the label.
   basis?: "transcript" | "text_only";
   myth_confirmed?: boolean;
+  commercial?: boolean; // independent of stance: promotes with commercial true is a sold post that pushes the claim. Old labels lack it.
   evidence?: { quote: string; source: "transcript" | "caption" | "on_screen" } | null;
 };
 

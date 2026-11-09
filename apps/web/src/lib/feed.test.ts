@@ -27,6 +27,14 @@ test("a label that arrives later replaces the copy on screen", () => {
   assert.equal(posts[0].label?.myth_id, "mouth-taping");
 });
 
+test("a label can say a post that pushes a claim is also sold, and an old label has no commercial field", () => {
+  const sold = { health_claim: true, myth_id: null, stance: "promotes" as const, confidence: 0.9, model: "m", commercial: true };
+  const old = { ...sold, commercial: undefined };
+  const { posts } = mergeFeed([post("a", { label: old })], [post("a", { label: sold })]);
+  assert.equal(posts[0].label?.commercial, true);
+  assert.equal(posts[0].label?.stance, "promotes");
+});
+
 test("a post that dropped out of the latest page stays on screen", () => {
   const { posts, fresh } = mergeFeed([post("old")], [post("new")]);
   assert.deepEqual(posts.map((p) => p.oriane_id), ["old"]);

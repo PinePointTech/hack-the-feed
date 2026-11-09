@@ -1,5 +1,7 @@
 # Label eval baseline
 
+The labeler after task D1 (two axes, a split gold set) is scored in `label-eval-v2.md`. This page records the labeler before it.
+
 Task C2. Written 2026-11-09. Branch `build/label-eval`. The labeler under test is current `main` at `767d94c`, prompt version `ad-first-standalone-1`, model `gpt-6-luna`. No app code was changed.
 
 ## Summary
