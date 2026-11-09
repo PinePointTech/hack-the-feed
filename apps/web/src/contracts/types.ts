@@ -306,6 +306,7 @@ export interface Feed {
       model: string;
       // Labels made before the evidence prompt lack both fields.
       basis?: "transcript" | "text_only"; // transcript: the judge read spoken words; text_only: caption and on-screen text only
+      flagged?: boolean; // stance promotes and the claim judged dubious: the bad content flag. Only on two-axis labels.
       myth_confirmed?: boolean; // true when myth_id names a confirmed myth, which has a page at /desk/myth/{id}
       commercial?: boolean; // the post is made to sell or promote something; independent of stance, so a sold post that pushes the claim is promotes with commercial true. Labels made before the two axes lack it.
       evidence?: { quote: string; source: "transcript" | "caption" | "on_screen" } | null; // quote is an exact substring of that source text; null: no sentence supports the label

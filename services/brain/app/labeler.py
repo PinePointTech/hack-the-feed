@@ -18,7 +18,7 @@ from .config import Settings
 
 logger = logging.getLogger(__name__)
 NO_MYTH = "none"
-DUBIOUS_MIN = 0.6
+DUBIOUS_MIN = store.DUBIOUS_MIN
 STANDALONE_MIN = 0.5
 PROMPT_VERSION = "two-axes-1"  # bump when a question changes, so old labels stay explainable
 CONTEXT_MAX = 6000

@@ -3,13 +3,12 @@ import { useState } from "react";
 import { useFeed } from "@/lib/hooks/useFeed";
 import { canNameCreator, dataThroughLine, mythName, type FeedPost } from "@/lib/feed";
 import { compact } from "@/lib/format";
-import { labelWhy, MYTH_LINK_TEXT } from "@/lib/label-why";
+import { labelWhy, stanceChip, MYTH_LINK_TEXT } from "@/lib/label-why";
 import Link from "next/link";
 
 const PLATFORM = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" } as const;
 const SOURCE = { transcript: "transcript", caption: "caption", on_screen: "on-screen text" } as const;
 const STANCE_CHIP = { promotes: "chip chip--harmful", debunks: "chip bg-lime text-ink", ad: "chip chip--false", unrelated: "chip chip--unproven", neutral: "chip chip--unproven" } as const;
-const STANCE = { promotes: "Promotes", debunks: "Debunks", ad: "Ad", unrelated: "Unrelated", neutral: "Neutral" } as const;
 
 const clock = (iso: string | null, none: string) =>
   iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : none;
@@ -99,6 +98,7 @@ function WhyLabel({ label }: { label: NonNullable<FeedPost["label"]> }) {
     <details className="text-sm">
       <summary className="min-h-6 cursor-pointer font-semibold">Why this label</summary>
       <div className="mt-1.5 grid gap-1.5 text-ink-2">
+        {why.flagLine && <p className="font-semibold text-ink">{why.flagLine}</p>}
         <p>{why.stanceLine}</p>
         {why.evidence && ("quote" in why.evidence ? (
           <p>
@@ -135,7 +135,7 @@ function PostCard({ post: p }: { post: FeedPost }) {
           {p.label ? (
             <>
               {p.label.myth_id ? <span className="trend">{mythName(p.label.myth_id)}</span> : <span className="databadge">No myth matched</span>}
-              <span className={STANCE_CHIP[p.label.stance]} title={`Labeled by ${p.label.model}`}>{STANCE[p.label.stance]}</span>
+              <span className={stanceChip(p.label).flagged ? "chip chip--harmful" : STANCE_CHIP[p.label.stance === "promotes" ? "unrelated" : p.label.stance]} title={`Labeled by ${p.label.model}`}>{stanceChip(p.label).text}</span>
             </>
           ) : (
             <span className="databadge">Unlabeled</span>
