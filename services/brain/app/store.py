@@ -153,12 +153,18 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
 
 
 def unlabeled_posts(con: sqlite3.Connection, limit: int = 100, min_views: int = 0) -> list[dict]:
-    """Posts with no label yet and at least min_views, newest first. Rows include raw_json."""
+    """Posts with no label yet, newest first, with at least min_views, or with no view count and
+    interactions (raw interactionsCount, else likes + comments + shares) of at least min_views / 20.
+    Rows include raw_json."""
+    interactions = (
+        "COALESCE(json_extract(p.raw_json, '$.interactionsCount'), COALESCE(json_extract(p.raw_json, '$.likesCount'), 0)"
+        " + COALESCE(json_extract(p.raw_json, '$.commentsCount'), 0) + COALESCE(json_extract(p.raw_json, '$.sharesCount'), 0))"
+    )
     rows = con.execute(
         "SELECT p.* FROM posts p WHERE NOT EXISTS (SELECT 1 FROM labels l WHERE l.oriane_id = p.oriane_id) "
-        "AND COALESCE(p.views, 0) >= ? "
+        f"AND CASE WHEN p.views IS NULL THEN {interactions} * 20 >= ? ELSE p.views >= ? END "
         "ORDER BY p.fetched_at DESC, p.views DESC, p.oriane_id LIMIT ?",
-        (min_views, limit),
+        (min_views, min_views, limit),
     ).fetchall()
     return [dict(row) for row in rows]
 

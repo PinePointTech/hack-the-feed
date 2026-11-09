@@ -44,6 +44,18 @@ class FakeOriane:
         return httpx.Response(200, json={"data": {"results": self.items}})
 
 
+class PagedOriane(FakeOriane):
+    """Serves the items by offset and limit, with the real pagination metadata."""
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append((dict(request.url.params), json.loads(request.content)))
+        offset, limit = int(request.url.params["offset"]), int(request.url.params["limit"])
+        return httpx.Response(200, json={
+            "data": {"results": self.items[offset:offset + limit]},
+            "metadata": {"pagination": {"offset": offset, "limit": limit, "totalCount": len(self.items)}},
+        })
+
+
 def poll(fake: FakeOriane, settings: Settings, now: datetime) -> tuple[bool, int]:
     async def go():
         async with httpx.AsyncClient(transport=httpx.MockTransport(fake)) as client:
@@ -71,6 +83,7 @@ def test_query_asks_for_recent_posts_sorted_by_date_then_views(env):
     params, body = fake.requests[0]
     assert params["sort"] == "publishedAt:desc,viewsCount:desc"
     assert body["filters"]["publishedAt"] == {"after": "2026-10-25"}  # two windows back
+    assert body["filters"]["captionLanguage"] == {"includes": ["en"]}
     exact = body["queries"][0]["filters"]["transcript"]["includesExactly"]
     assert exact == {"operator": "or", "values": ["mouth tape"]}
 
@@ -104,7 +117,7 @@ def test_search_cap_counts_searches_in_the_last_hour(env):
     settings = config(oriane_max_searches_per_hour=2)
     assert poll(fake, settings, T0)[0] is True
     assert len(fake.requests) == 2  # four searches wanted, two allowed
-    assert rows("SELECT searches, error FROM polls") == [(2, "search cap reached: ran 2 of 4 searches")]
+    assert rows("SELECT searches, error FROM polls") == [(2, "search cap reached after 2 searches, so some results were not fetched")]
 
     assert poll(fake, settings, T0 + timedelta(minutes=15))[0] is True
     assert len(fake.requests) == 2  # budget spent, no search made
@@ -112,6 +125,41 @@ def test_search_cap_counts_searches_in_the_last_hour(env):
 
     assert poll(fake, settings, T0 + timedelta(minutes=61))[0] is True
     assert len(fake.requests) == 4  # the first poll left the hour window
+
+
+def paged(monkeypatch, count: int, page_size: int = 2) -> PagedOriane:
+    monkeypatch.setattr(poller, "PHRASES_PER_SEARCH", 4)  # one batch
+    monkeypatch.setattr(poller, "RESULTS_PER_SEARCH", page_size)
+    return PagedOriane([item(n) for n in range(count)])
+
+
+def test_a_batch_pages_by_offset_until_the_total_count(env, monkeypatch):
+    fake = paged(monkeypatch, 5)
+    assert poll(fake, config(), T0) == (True, 5)
+    assert [params["offset"] for params, _ in fake.requests] == ["0", "2", "4"]
+    assert rows("SELECT searches, new_posts, error FROM polls") == [(3, 5, None)]  # every page is charged
+    assert rows("SELECT COUNT(*) FROM posts") == [(5,)]
+
+
+def test_a_batch_stops_at_the_page_cap_and_says_so(env, monkeypatch):
+    fake = paged(monkeypatch, 5)
+    monkeypatch.setattr(poller, "MAX_PAGES_PER_BATCH", 2)
+    assert poll(fake, config(), T0) == (True, 4)
+    assert len(fake.requests) == 2
+    assert rows("SELECT error FROM polls") == [("1 of 1 searches have more than 2 pages, so older posts may be missing",)]
+
+
+def test_a_full_last_page_at_the_page_cap_is_not_an_error(env, monkeypatch):
+    fake = paged(monkeypatch, 4)
+    monkeypatch.setattr(poller, "MAX_PAGES_PER_BATCH", 2)
+    assert poll(fake, config(), T0) == (True, 4)
+    assert rows("SELECT error FROM polls") == [(None,)]
+
+
+def test_paging_stops_when_the_hourly_budget_runs_out(env, monkeypatch):
+    fake = paged(monkeypatch, 5)
+    assert poll(fake, config(oriane_max_searches_per_hour=2), T0) == (True, 4)
+    assert rows("SELECT searches, error FROM polls") == [(2, "search cap reached after 2 searches, so some results were not fetched")]
 
 
 def test_oriane_failure_is_recorded_and_still_gates_the_next_poll(env):
@@ -177,6 +225,26 @@ def test_feed_is_ordered_by_fetched_at_then_views_and_joins_labels(env):
         }
         assert "cnt_4" not in [p["oriane_id"] for p in store.unlabeled_posts(con)]
         assert len(store.unlabeled_posts(con)) == 4
+
+
+def test_posts_without_views_qualify_for_labeling_on_interactions(env):
+    def post(n: int, views: int | None, raw: dict) -> dict:
+        return {"oriane_id": f"cnt_{n}", "platform": "tiktok", "views": views, "snippet": f"s{n}",
+                "matched_query": "q", "raw": raw}
+
+    with closing(store.connect()) as con:
+        store.upsert_posts(con, [
+            post(1, None, {"interactionsCount": 500}),  # 500 * 20 = 10000
+            post(2, None, {"interactionsCount": 499}),
+            post(3, None, {"likesCount": 400, "commentsCount": 80, "sharesCount": 20}),  # sum 500
+            post(4, None, {"likesCount": 100}),
+            post(5, None, {}),
+            post(6, 9999, {"interactionsCount": 100000}),  # has views, so views decide
+            post(7, 10000, {}),
+        ], "2026-11-08T10:00:00Z")
+        ids = [p["oriane_id"] for p in store.unlabeled_posts(con, 100, 10000)]
+        assert sorted(ids) == ["cnt_1", "cnt_3", "cnt_7"]
+        assert len(store.unlabeled_posts(con, 2, 10000)) == 2  # the hourly cap still applies
 
 
 def test_feed_and_poll_endpoints_follow_the_contract(env):
