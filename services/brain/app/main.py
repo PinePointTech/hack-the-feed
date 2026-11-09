@@ -342,9 +342,10 @@ def create_app(
         with closing(store.connect()) as con:
             last_poll_at, next_poll_at = poller.schedule(con, settings)
             posts = store.list_feed(con, since=since, limit=limit)
+            data_through = store.data_through(con)
         return {
             "generated_at": store.iso(datetime.now(timezone.utc)),
-            "last_poll_at": last_poll_at, "next_poll_at": next_poll_at, "posts": posts,
+            "last_poll_at": last_poll_at, "next_poll_at": next_poll_at, "data_through": data_through, "posts": posts,
         }
 
     @app.get("/health", response_model=Health)

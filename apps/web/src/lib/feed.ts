@@ -29,6 +29,7 @@ export type FeedResponse = {
   generated_at: string;
   last_poll_at: string | null;
   next_poll_at: string | null;
+  data_through?: string | null;
   posts: FeedPost[];
 };
 
@@ -54,3 +55,13 @@ export const NAMING_MIN_VIEWS = 100_000;
 export const canNameCreator = (p: Pick<FeedPost, "views">) => (p.views ?? 0) >= NAMING_MIN_VIEWS;
 
 export const mythName =(id: string) => id.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()); // "mouth-taping" -> "Mouth taping"
+
+/** "Oriane search runs to Nov 6, 1:40 PM", in the viewer's time zone. Null when the brain sent no date. */
+export function dataThroughLine(iso: string | null | undefined) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `Oriane search runs to ${day}, ${time}`;
+}
