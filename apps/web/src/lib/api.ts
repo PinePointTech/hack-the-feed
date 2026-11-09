@@ -109,5 +109,6 @@ export const api = {
   poll: () => live<PollResponse>("/poll", { method: "POST" }, 90000),
   // Candidate myths: live only, no fixtures. A person confirms; nothing here confirms on its own.
   candidates: () => read<MythCandidates>("/myths/candidates"),
-  confirmMyth: (id: string) => live<ConfirmedMyth>(`/myths/${encodeURIComponent(id)}/confirm`, { method: "POST" }, 15000),
+  confirmMyth: (id: string, token?: string) => live<ConfirmedMyth>(`/myths/${encodeURIComponent(id)}/confirm`,
+    { method: "POST", headers: token ? { "X-Review-Token": token } : undefined }, 15000),
 };

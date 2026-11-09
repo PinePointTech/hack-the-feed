@@ -17,9 +17,13 @@ COPY services/brain/app ./app
 # radar.py seeds refreshes from the shared fixture
 COPY contracts/fixtures /app/contracts/fixtures
 
-RUN useradd --create-home --uid 1000 brain && mkdir -p /app/data && chown brain /app/data
+RUN useradd --create-home --uid 1000 brain
+# Watchlist, briefs, sources and receipts ship in the image. The database lives elsewhere (MYBUSTER_DB),
+# e.g. on a Railway volume, so redeploys keep it.
+COPY --chown=brain data /app/data
 USER brain
 ENV PATH="/app/services/brain/.venv/bin:$PATH"
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Railway and similar hosts pass the port in $PORT.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

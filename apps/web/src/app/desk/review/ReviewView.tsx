@@ -3,7 +3,7 @@ import { useCandidates } from "@/lib/hooks/useCandidates";
 import { LiveUnavailable } from "@/components/LiveUnavailable";
 
 export function ReviewView() {
-  const { rows, loading, unavailable, busy, notice, confirm } = useCandidates();
+  const { rows, loading, unavailable, busy, notice, confirm, needsToken, saveToken } = useCandidates();
   if (unavailable) return <LiveUnavailable what="the candidate myths" />;
 
   return (
@@ -19,6 +19,14 @@ export function ReviewView() {
       </header>
 
       <p role="status" className="min-h-6 text-ink-2 empty:hidden">{notice}</p>
+
+      {needsToken && (
+        <label className="grid max-w-[24rem] gap-2 font-semibold">
+          Reviewer token
+          <input type="password" autoComplete="off" className="rounded-frame border border-ink px-3 py-2 font-normal"
+            onChange={(e) => saveToken(e.target.value)} />
+        </label>
+      )}
 
       {loading ? (
         <p className="text-lg text-ink-2">Loading candidates</p>

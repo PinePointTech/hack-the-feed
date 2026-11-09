@@ -300,7 +300,11 @@ def create_app(
             return {"candidates": store.list_candidates(con)}
 
     @app.post("/myths/{myth_id}/confirm")
-    def confirm_myth(myth_id: str):
+    def confirm_myth(myth_id: str, request: Request):
+        # Once the brain is public, only a reviewer holding REVIEW_TOKEN may confirm. Unset means local use.
+        given = request.headers.get("x-review-token", "")
+        if settings.review_token and not hmac.compare_digest(given.encode(), settings.review_token.encode()):
+            return api_error(401, "review_token_required", "Enter the reviewer token to confirm myths.")
         with closing(store.connect()) as con:
             myth = store.confirm_myth(con, myth_id, store.iso(datetime.now(timezone.utc)))
         return myth or api_error(404, "myth_not_found", "Unknown candidate myth ID.")
