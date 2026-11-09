@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compact, exact, mss, pct, statusFor } from "./format.ts";
+import { compact, exact, mss, pct, pulledAt, statusFor } from "./format.ts";
 
 test("compact and exact numbers", () => {
   assert.equal(compact(49537321), "49.5M");
@@ -27,4 +27,8 @@ test("statusFor thresholds", () => {
   assert.equal(statusFor(0.5), "weak");
   assert.equal(statusFor(0.49), "unsupported");
   assert.equal(statusFor(0.04), "unsupported");
+});
+
+test("pulledAt prints UTC so server and browser agree", () => {
+  assert.equal(pulledAt("2026-11-08T23:49:00+00:00"), "Nov 8, 2026, 11:49 PM UTC");
 });

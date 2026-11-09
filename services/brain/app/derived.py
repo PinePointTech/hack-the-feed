@@ -161,7 +161,7 @@ def impact(con: sqlite3.Connection, myth_id: str, now: datetime) -> dict | None:
         return None
     current, previous = windows(now)
     labeled = [p for p in inside(posts_of(myth, load_posts(con, previous["from"])), current) if p["labeled"]]
-    result = {"myth_id": myth_id, "window": current, "myth_reach": reach([p for p in labeled if p["stance"] == "promotes"])}
+    result = {"generated_at": store.iso(now), "myth_id": myth_id, "window": current, "myth_reach": reach([p for p in labeled if p["stance"] == "promotes"])}
     if not labeled:
         result["note"] = "Pending: no posts about this myth are labeled yet, so response reach is not measured."
         return result
@@ -221,7 +221,7 @@ def calendar(con: sqlite3.Connection, now: datetime) -> dict:
                     f"({sum(counts)} posts). Watching."),
         }
         (this_week if rising else watchlist).append(item)
-    return {"week_of": monday.isoformat(), "this_week": this_week, "watchlist": watchlist}
+    return {"generated_at": store.iso(now), "week_of": monday.isoformat(), "this_week": this_week, "watchlist": watchlist}
 
 
 def write_snapshots(con: sqlite3.Connection, now: datetime) -> None:

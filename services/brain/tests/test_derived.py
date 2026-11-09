@@ -30,7 +30,7 @@ def con(tmp_path, monkeypatch):
 def add_myth(con, myth_id: str, *phrases: str) -> None:
     with con:
         con.execute(
-            "INSERT INTO myths VALUES (?, ?, ?, ?, 'false', 'because', ?, 'confirmed')",
+            "INSERT INTO myths (id, title, topic, claim, harm_tier, harm_reason, phrases, status) VALUES (?, ?, ?, ?, 'false', 'because', ?, 'confirmed')",
             (myth_id, f"Title {myth_id}", f"topic {myth_id}", f"Claim {myth_id}", json.dumps(list(phrases))),
         )
 
@@ -116,7 +116,7 @@ def test_impact_is_pending_without_labels(con):
     add_myth(con, "m1", "mouth tape")
     add_post(con, 1, "2026-11-03", 100)
     result = derived.impact(con, "m1", NOW)
-    assert set(result) == {"myth_id", "window", "myth_reach", "note"}
+    assert set(result) == {"generated_at", "myth_id", "window", "myth_reach", "note"}
     assert result["myth_reach"] == {"videos": 0, "views": 0} and result["note"].startswith("Pending")
     assert derived.impact(con, "nope", NOW) is None
 
@@ -217,7 +217,7 @@ def test_endpoints_serve_the_derived_shapes(con):
         assert client.get("/radar?refresh=1").json()["myths"][0]["topic_views"] == 770
         assert client.get("/myths/m1").json()["counter_voices"][0]["oriane_id"] == "cnt_2"
         assert client.get("/impact/m1").json()["response_ratio"] == 0.1
-        assert set(client.get("/calendar").json()) == {"week_of", "this_week", "watchlist"}
+        assert set(client.get("/calendar").json()) == {"generated_at", "week_of", "this_week", "watchlist"}
         for path in ("/myths/nope", "/impact/nope"):
             response = client.get(path)
             assert response.status_code == 404 and response.json()["error"]["code"] == "myth_not_found"

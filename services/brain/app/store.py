@@ -38,9 +38,14 @@ CREATE TABLE IF NOT EXISTS myths (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     claim TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('candidate', 'confirmed')),
+    -- candidates come from the labeler; confirmed rows are seeded or approved by a person
+    status TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('candidate', 'confirmed')),
+    topic TEXT NOT NULL DEFAULT '',
+    harm_tier TEXT NOT NULL DEFAULT 'unproven',
+    harm_reason TEXT NOT NULL DEFAULT '',
+    phrases TEXT NOT NULL DEFAULT '[]',
     source_oriane_id TEXT REFERENCES posts (oriane_id),
-    created_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     confirmed_at TEXT
 );
 CREATE TABLE IF NOT EXISTS polls (
@@ -50,16 +55,6 @@ CREATE TABLE IF NOT EXISTS polls (
     searches INTEGER NOT NULL DEFAULT 0,
     new_posts INTEGER NOT NULL DEFAULT 0,
     error TEXT
-);
-CREATE TABLE IF NOT EXISTS myths (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    topic TEXT NOT NULL,
-    claim TEXT NOT NULL,
-    harm_tier TEXT NOT NULL,
-    harm_reason TEXT NOT NULL,
-    phrases TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'confirmed'
 );
 CREATE TABLE IF NOT EXISTS snapshots (
     day TEXT NOT NULL,
@@ -191,7 +186,7 @@ def add_candidate(
 
 def list_candidates(con: sqlite3.Connection) -> list[dict]:
     rows = con.execute(
-        "SELECT m.*, (SELECT COUNT(*) FROM labels l WHERE l.myth_id = m.id) AS post_count "
+        "SELECT m.id, m.title, m.claim, m.status, m.source_oriane_id, m.created_at, m.confirmed_at, (SELECT COUNT(*) FROM labels l WHERE l.myth_id = m.id) AS post_count "
         "FROM myths m WHERE m.status = 'candidate' ORDER BY post_count DESC, m.created_at, m.id"
     ).fetchall()
     return [dict(row) for row in rows]
@@ -204,7 +199,7 @@ def confirm_myth(con: sqlite3.Connection, myth_id: str, confirmed_at: str) -> di
             "UPDATE myths SET status = 'confirmed', confirmed_at = ? WHERE id = ? AND status = 'candidate'",
             (confirmed_at, myth_id),
         )
-    row = con.execute("SELECT * FROM myths WHERE id = ?", (myth_id,)).fetchone()
+    row = con.execute("SELECT id, title, claim, status, source_oriane_id, created_at, confirmed_at FROM myths WHERE id = ?", (myth_id,)).fetchone()
     return dict(row) if row else None
 
 

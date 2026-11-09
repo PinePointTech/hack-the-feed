@@ -241,6 +241,7 @@ export interface PublishedDebunk {
 // ---------- impact and calendar ----------
 export interface Impact {
   myth_id: string;
+  generated_at?: string; // ISO datetime the numbers were pulled; the brain stamps it from the stored file
   window: DateWindow;
   myth_reach: { videos: number; views: number }; // stance = promotes
   response_reach?: { videos: number; views: number }; // stance = debunks
@@ -270,9 +271,47 @@ export interface CalendarItem {
 }
 
 export interface Calendar {
+  generated_at?: string; // ISO datetime the calendar was pulled; the brain stamps it from the stored file
   week_of: string; // ISO date of the Monday
   this_week: CalendarItem[];
   watchlist: CalendarItem[];
+}
+
+// ---------- live feed ----------
+// GET  /feed?since=<ISO8601>&limit=<1..100, default 50> -> Feed (posts ordered by fetched_at desc, then views desc)
+// POST /poll -> PollResult (runs only if POLL_INTERVAL_MINUTES, default 15, passed since the last poll start)
+export interface Feed {
+  generated_at: string; // ISO 8601
+  last_poll_at: string | null;
+  next_poll_at: string | null;
+  posts: {
+    oriane_id: string;
+    platform: Platform;
+    url: string | null;
+    handle: string | null;
+    display_name: string | null;
+    thumbnail_url: string | null;
+    views: number | null;
+    published_at: string | null;
+    fetched_at: string;
+    snippet: string; // exact words from the Oriane text
+    snippet_source: "transcript" | "caption" | "on_screen" | null;
+    matched_query: string;
+    label: null | { // null until the labeler (T2) runs
+      health_claim: boolean;
+      myth_id: string | null;
+      stance: "promotes" | "debunks" | "ad" | "unrelated";
+      confidence: number; // 0 to 1
+      model: string;
+    };
+  }[];
+}
+
+export interface PollResult {
+  ran: boolean;
+  last_poll_at: string | null;
+  next_poll_at: string | null;
+  new_posts: number;
 }
 
 // ---------- misc ----------
