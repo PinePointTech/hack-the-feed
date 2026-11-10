@@ -53,7 +53,7 @@ class Busy(Exception):
     pass
 
 
-async def model_json(client: httpx.AsyncClient, settings: Settings, prompt: str, data: dict) -> dict:
+async def model_json(client: httpx.AsyncClient, settings: Settings, prompt: str, data: dict, timeout: float = 12) -> dict:
     payload = {
         "model": settings.openai_model,
         "response_format": {"type": "json_object"},
@@ -66,7 +66,7 @@ async def model_json(client: httpx.AsyncClient, settings: Settings, prompt: str,
                 f"{settings.openai_base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {settings.openai_key}"},
                 json=payload,
-                timeout=12,
+                timeout=timeout,
             )
         except httpx.TimeoutException:
             if attempt:

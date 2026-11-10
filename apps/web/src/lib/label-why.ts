@@ -1,11 +1,12 @@
 // What a feed card says about a post, in plain words. Fixed human copy keyed by contract fields only, never
 // model prose. Pure, no "@/..." imports so node --test can run it.
-import type { FeedLabel, FeedPost } from "./feed.ts";
+import type { FeedLabel, FeedPost, Finding } from "./feed.ts";
 
-export type Verdict = "flagged" | "claim" | "corrects" | "no_claim" | "pending";
+export type Verdict = "flagged" | "checked" | "claim" | "corrects" | "no_claim" | "pending";
 
 const VERDICT: Record<Verdict, { title: string; detail: string }> = {
   flagged: { title: "Flagged", detail: "Pushes a health claim that mainstream evidence does not support." },
+  checked: { title: "Checked correction", detail: "Corrects a health claim. A published study and a clinician page both back what it says." },
   claim: { title: "Makes a health claim", detail: "The claim is modest or has support, so it is not flagged." },
   corrects: { title: "Corrects a claim", detail: "Disputes or corrects a health claim." },
   no_claim: { title: "No health claim", detail: "Mentions the topic but makes no health claim." },
@@ -16,6 +17,7 @@ const VERDICT: Record<Verdict, { title: string; detail: string }> = {
 export const FILTERS: { key: Verdict | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "flagged", label: "Flagged" },
+  { key: "checked", label: "Checked corrections" },
   { key: "claim", label: "Makes a claim" },
   { key: "corrects", label: "Corrects" },
   { key: "no_claim", label: "No claim" },
@@ -30,7 +32,7 @@ export const OLD_LABEL_NOTE = "Checked with an older method. It will be rechecke
 export function verdictOf(label: FeedLabel | null): Verdict {
   if (!label) return "pending";
   if (label.stance === "promotes") return label.flagged ? "flagged" : "claim";
-  if (label.stance === "debunks") return "corrects";
+  if (label.stance === "debunks") return label.correction ? "checked" : "corrects";
   return "no_claim"; // ad, unrelated, neutral
 }
 
@@ -43,6 +45,8 @@ export type PostView = {
   quote: { text: string; from: string };
   note: string | null;
   myth: { name: string; href: string } | null;
+  /** The excerpts that back a checked correction, else empty. */
+  backedBy: Finding[];
 };
 
 export function postView(post: FeedPost, mythName: (id: string) => string): PostView {
@@ -50,7 +54,7 @@ export function postView(post: FeedPost, mythName: (id: string) => string): Post
   const verdict = verdictOf(label);
   const sells = label?.commercial ?? label?.stance === "ad";
   // The sentence the verdict rests on, when the labeler found one, beats the sentence the search matched.
-  const ev = label?.evidence && label.evidence.quote && FROM[label.evidence.source] ? label.evidence : null;
+  const ev = [label?.correction, label?.evidence].find((e) => e && e.quote && FROM[e.source]) ?? null;
   const quote = ev
     ? { text: ev.quote, from: FROM[ev.source] }
     : { text: post.snippet, from: post.snippet_source ? FROM[post.snippet_source] : "From the post" };
@@ -62,6 +66,7 @@ export function postView(post: FeedPost, mythName: (id: string) => string): Post
     selling: !sells || verdict === "pending" ? null : verdict === "no_claim" ? "Ad" : "Selling something",
     quote,
     note: old ? OLD_LABEL_NOTE : label?.basis === "text_only" ? TEXT_ONLY_NOTE : null,
+    backedBy: verdict === "checked" ? label!.correction!.findings.filter((f) => f.relation === "supports") : [],
     myth: label?.myth_id && label.myth_confirmed ? { name: mythName(label.myth_id), href: `/desk/myth/${encodeURIComponent(label.myth_id)}` } : null,
   };
 }

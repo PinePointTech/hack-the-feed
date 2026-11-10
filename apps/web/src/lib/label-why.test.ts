@@ -50,3 +50,15 @@ test("only a confirmed myth gets a link", () => {
   assert.equal(postView(post(newLabel({ myth_id: "sea-moss", myth_confirmed: false })), name).myth, null);
   assert.equal(postView(post(newLabel({ myth_id: "a b/c", myth_confirmed: true })), name).myth?.href, "/desk/myth/a%20b%2Fc");
 });
+
+test("a correction that passed the strict check shows its own quote and the sources that back it", () => {
+  const study = { title: "T", publisher: "J Test", url: "https://pubmed.ncbi.nlm.nih.gov/1/", excerpt: "No effect.", relation: "supports" as const };
+  const page = { ...study, publisher: "Mayo Clinic", url: "https://www.mayoclinic.org/x" };
+  const other = { ...study, relation: "qualifies" as const };
+  const correction = { quote: "It does not remove toxins.", source: "transcript" as const, findings: [study, other, page] };
+  const v = postView(post(newLabel({ stance: "debunks", correction })), name);
+  assert.deepEqual([v.verdict, v.title, v.quote.text], ["checked", "Checked correction", "It does not remove toxins."]);
+  assert.deepEqual(v.backedBy, [study, page]);
+  assert.equal(verdictOf(newLabel({ stance: "debunks" })), "corrects"); // not checked, or did not pass
+  assert.deepEqual(postView(post(newLabel({ stance: "debunks" })), name).backedBy, []);
+});

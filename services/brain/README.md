@@ -130,5 +130,7 @@ The brain polls Oriane in the background and stores posts in `data/mybuster.db` 
 - `POST /poll` runs one poll only if `POLL_INTERVAL_MINUTES` (default 15) passed since the last poll started. Otherwise it returns `ran: false`.
 - `ORIANE_MAX_SEARCHES_PER_HOUR` (default 20) caps Oriane searches, counted from the `polls` table.
 - Nothing polls without `ORIANE_API_KEY`.
+- Each poll also runs one correction search: a watchlist batch AND a word such as "myth" or "no evidence", most viewed first.
+- `GET /corrections?myth_id=<id>` returns feed posts whose correction passed the strict check, at most 20. A post labeled as a correction (not selling anything) is checked in `app/corrections.py`: the model picks the post's own passage that states the correction and names the topic, then the brain fetches PubMed abstracts and pages from clinical publishers (Mayo Clinic, NHS, Cleveland Clinic and others, found by OpenAI web search and fetched by the brain). It passes only when a study and a clinician page both support it and no source contradicts it. Such a post's `label.correction` holds the quote and the findings, whose excerpts are exact text from the fetched sources. At most 3 checks per labeling batch and 10 per hour.
 
 Run the tests with `uv run pytest -q`.

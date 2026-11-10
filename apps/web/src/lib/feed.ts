@@ -13,7 +13,12 @@ export type FeedLabel = {
   flagged?: boolean; // promotes a claim judged dubious
   commercial?: boolean; // independent of stance: promotes with commercial true is a sold post that pushes the claim. Old labels lack it.
   evidence?: { quote: string; source: "transcript" | "caption" | "on_screen" } | null;
+  // Only on a correction that passed the brain's strict check: a PubMed study and a clinician page both back the quote.
+  correction?: { quote: string; source: "transcript" | "caption" | "on_screen"; findings: Finding[] };
 };
+
+/** A source excerpt from the brain. The excerpt is exact text from the fetched page or abstract. */
+export type Finding = { title: string; publisher: string; url: string; excerpt: string; relation: "supports" | "contradicts" | "qualifies" };
 
 export type FeedPost = {
   oriane_id: string;
