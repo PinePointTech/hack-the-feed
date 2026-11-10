@@ -6,7 +6,7 @@ import checkFx from "@/contracts/fixtures/check.json";
 import qaFx from "@/contracts/fixtures/qa.json";
 import publishedFx from "@/data/published-lymphatic-detox.json";
 import { checkFromFixtures, brainErrorCode } from "./fixture-logic";
-import type { FeedResponse, PollResponse } from "./feed";
+import type { FeedPost, FeedResponse, PollResponse } from "./feed";
 
 const BRAIN = process.env.NEXT_PUBLIC_BRAIN_URL ?? "http://localhost:8000";
 const MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
@@ -106,6 +106,8 @@ export const api = {
   calendar: () => read<Calendar>("/calendar"),
   // Live feed: no fixture fallback, a down brain must surface as an error. live() ignores NEXT_PUBLIC_USE_MOCKS on purpose.
   feed: () => live<FeedResponse>("/feed?limit=50", undefined, 15000),
+  // Posts whose correction passed the strict check in the brain, for one myth. Live only.
+  corrections: (mythId: string) => read<{ posts: FeedPost[] }>(`/corrections?myth_id=${encodeURIComponent(mythId)}`),
   poll: () => live<PollResponse>("/poll", { method: "POST" }, 90000),
   // Candidate myths: live only, no fixtures. A person confirms; nothing here confirms on its own.
   candidates: () => read<MythCandidates>("/myths/candidates"),

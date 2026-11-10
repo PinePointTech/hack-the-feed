@@ -13,6 +13,7 @@ import { Stat } from "../../_components/Stat";
 import { windowWithYear } from "../../_components/window";
 import { MythOpened } from "./_components/MythOpened";
 import { SuggestDebunk } from "./_components/SuggestDebunk";
+import { PostCard } from "@/app/feed/FeedView";
 
 const H2 =
   "text-[1.75rem] leading-[1.1] font-extrabold tracking-[-0.02em] [font-variation-settings:'opsz'_48]";
@@ -41,6 +42,9 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
   // The published debunk is for one myth. A fallback record with another id is not shown here.
   const published = await api.published(id);
   const debunk = published.data.id === id ? published.data : null;
+  // Corrections already on social media come first; a down brain just hides the section.
+  const found = await settle(api.corrections(id));
+  const corrections = found.ok ? found.data.posts : [];
 
   return (
     <main>
@@ -120,6 +124,20 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
             </Link>
             <span className="text-sm text-ink-2">Sources, quotes and the published video.</span>
           </div>
+        </section>
+      )}
+
+      {corrections.length > 0 && (
+        <section aria-labelledby="found-h" className="wrap grid gap-4 pb-14">
+          <h2 id="found-h" className={`${H2} border-b border-ink pb-3`}>
+            Checked corrections already out there
+          </h2>
+          <p className="max-w-[40rem] text-ink-2">
+            Creators who already correct this myth. Each one is backed by a published study and a clinician page, and nothing we found contradicts it.
+          </p>
+          <ol className="m-0 grid max-w-[40rem] list-none gap-5 p-0">
+            {corrections.map((p) => <PostCard key={p.oriane_id} post={p} />)}
+          </ol>
         </section>
       )}
 

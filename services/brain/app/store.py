@@ -71,6 +71,17 @@ CREATE TABLE IF NOT EXISTS polls (
     new_posts INTEGER NOT NULL DEFAULT 0,
     error TEXT
 );
+-- one row per post labeled as a correction, from corrections.check_post; only verified rows are shown
+CREATE TABLE IF NOT EXISTS corrections (
+    oriane_id TEXT PRIMARY KEY REFERENCES posts (oriane_id),
+    version TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('verified', 'failed', 'error')),
+    quote TEXT,
+    quote_source TEXT,
+    findings_json TEXT NOT NULL DEFAULT '[]',
+    reason TEXT,
+    checked_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS snapshots (
     day TEXT NOT NULL,
     myth_id TEXT NOT NULL,
@@ -206,8 +217,11 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     """
     rows = con.execute(
         "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, l.commercial, l.dubious, "
-        "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status "
-        "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id WHERE (? IS NULL OR p.fetched_at > ?)",
+        "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status, "
+        "c.quote AS correction_quote, c.quote_source AS correction_source, c.findings_json AS correction_findings "
+        "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
+        "LEFT JOIN corrections c ON c.oriane_id = p.oriane_id AND c.status = 'verified' AND l.stance = 'debunks' "
+        "WHERE (? IS NULL OR p.fetched_at > ?)",
         (since, since),
     ).fetchall()
     end = data_through(con)
@@ -260,8 +274,44 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
             post["label"]["evidence"] = (
                 {"quote": row["evidence_quote"], "source": row["evidence_source"]} if row["evidence_quote"] else None
             )
+        if post["label"] and row["correction_quote"]:  # a correction that passed corrections.check_post
+            post["label"]["correction"] = {"quote": row["correction_quote"], "source": row["correction_source"],
+                                           "findings": json.loads(row["correction_findings"])}
         feed.append(post)
     return feed
+
+
+def unchecked_corrections(
+    con: sqlite3.Connection, version: str, prompt_version: str, min_views: int, retry_before: str, limit: int,
+) -> list[dict]:
+    """Posts labeled as corrections by the current prompt, not sold, above the label floor, most viewed first,
+    with no check at this version (an errored check is retried once it is older than retry_before). Rows include raw_json."""
+    rows = con.execute(
+        "SELECT p.* FROM posts p JOIN labels l ON l.oriane_id = p.oriane_id "
+        "LEFT JOIN corrections c ON c.oriane_id = p.oriane_id "
+        "WHERE l.stance = 'debunks' AND l.prompt_version = ? AND COALESCE(l.commercial, 0) = 0 "
+        f"AND {_ABOVE_FLOOR} "
+        "AND (c.oriane_id IS NULL OR c.version IS NOT ? OR (c.status = 'error' AND c.checked_at < ?)) "
+        "ORDER BY p.views DESC, p.oriane_id LIMIT ?",
+        (prompt_version, min_views, min_views, version, retry_before, limit),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_correction(
+    con: sqlite3.Connection, oriane_id: str, version: str, checked_at: str, *,
+    status: str, quote: str | None, quote_source: str | None, findings: list[dict], reason: str | None,
+) -> None:
+    with con:
+        con.execute(
+            "INSERT OR REPLACE INTO corrections (oriane_id, version, status, quote, quote_source, findings_json, reason, checked_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (oriane_id, version, status, quote, quote_source, json.dumps(findings), reason, checked_at),
+        )
+
+
+def corrections_checked_since(con: sqlite3.Connection, since: str) -> int:
+    return con.execute("SELECT COUNT(*) FROM corrections WHERE checked_at >= ?", (since,)).fetchone()[0]
 
 
 # The label floor: enough views, or with no view count, enough interactions (raw interactionsCount, else

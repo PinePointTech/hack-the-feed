@@ -20,6 +20,10 @@ DEEP_EVERY = 4
 SORT = "publishedAt:desc,viewsCount:desc"
 SNIPPET_MAX = 240
 PLATFORMS = {"tiktok", "instagram", "youtube"}
+# One extra search per poll looks for posts that correct a myth: a watchlist batch AND one of these words,
+# most viewed first. The labeler and corrections.check_post decide what each post really says.
+CORRECTION_WORDS = ["myth", "myths", "debunk", "debunked", "debunking", "doesn't work", "does not work",
+                    "no evidence", "not true", "misinformation", "scam"]
 
 
 def load_watchlist() -> list[str]:
@@ -35,6 +39,12 @@ def build_query(phrases: list[str], after: str) -> dict:
         "filters": {"publishedAt": {"after": after}, "captionLanguage": {"includes": ["en"]}},
         "queries": [text_query(phrases)],
     }
+
+
+def correction_query(phrases: list[str], after: str) -> dict:
+    query = build_query(phrases, after)
+    query["queries"].append(text_query(CORRECTION_WORDS))
+    return query
 
 
 def texts_of(item: dict) -> list[tuple[str, str]]:
@@ -173,6 +183,14 @@ async def run_poll(
                     capped += poll_id % DEEP_EVERY == 1  # shortcut: results past the page cap are dropped; raise MAX_PAGES_PER_BATCH if this shows up.
                 if out_of_budget:
                     break
+            if not out_of_budget and budget > 0:
+                budget -= 1
+                batch = batches[poll_id % len(batches)]  # a different batch each poll
+                store.charge_search(con, poll_id)
+                payload = await oriane.search(client, settings, correction_query(batch, after),
+                                              projection="default", limit=RESULTS_PER_SEARCH)
+                new_posts += store.upsert_posts(
+                    con, [post for item in payload["data"]["results"] if (post := to_post(item, batch))], store.iso(now))
             if not out_of_budget and budget > 0:
                 await refresh_transcripts(con, client, settings, poll_id, now, phrases)
             problems = [

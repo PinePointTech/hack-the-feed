@@ -91,7 +91,7 @@ def test_query_asks_for_recent_posts_sorted_by_date_then_views(env):
 def test_dedupe_by_oriane_id_within_and_across_polls(env):
     fake = FakeOriane([item(1, views=500), item(2, views=900), item(3, views=100)])
     assert poll(fake, config(oriane_max_searches_per_hour=100), T0) == (True, 3)
-    assert len(fake.requests) == 4  # every search returned the same three posts
+    assert len(fake.requests) == 5  # four phrase searches and one correction search, all returning the same three posts
     assert rows("SELECT COUNT(*) FROM posts") == [(3,)]
 
     fake.items = [item(1, views=777), item(2, views=900), item(3, views=100), item(4, views=5)]
@@ -136,8 +136,8 @@ def paged(monkeypatch, count: int, page_size: int = 2) -> PagedOriane:
 def test_a_batch_pages_by_offset_until_the_total_count(env, monkeypatch):
     fake = paged(monkeypatch, 5)
     assert poll(fake, config(), T0) == (True, 5)
-    assert [params["offset"] for params, _ in fake.requests] == ["0", "2", "4"]
-    assert rows("SELECT searches, new_posts, error FROM polls") == [(3, 5, None)]  # every page is charged
+    assert [params["offset"] for params, _ in fake.requests] == ["0", "2", "4", "0"]  # then the correction search
+    assert rows("SELECT searches, new_posts, error FROM polls") == [(4, 5, None)]  # every page is charged, and the correction search
     assert rows("SELECT COUNT(*) FROM posts") == [(5,)]
 
 
@@ -145,7 +145,7 @@ def test_a_batch_stops_at_the_page_cap_and_says_so(env, monkeypatch):
     fake = paged(monkeypatch, 5)
     monkeypatch.setattr(poller, "MAX_PAGES_PER_BATCH", 2)
     assert poll(fake, config(), T0) == (True, 4)
-    assert len(fake.requests) == 2
+    assert len(fake.requests) == 3  # two pages, then the correction search
     assert rows("SELECT error FROM polls") == [("1 of 1 searches have more than 2 pages, so older posts may be missing",)]
 
 
@@ -160,7 +160,7 @@ def test_only_every_fourth_poll_pages_deep(env, monkeypatch):
     fake = paged(monkeypatch, 5)
     for i in range(5):
         poll(fake, config(oriane_max_searches_per_hour=100), T0 + timedelta(minutes=15 * i))
-    assert rows("SELECT searches FROM polls ORDER BY id") == [(3,), (1,), (1,), (1,), (3,)]  # polls 1 and 5 page
+    assert rows("SELECT searches FROM polls ORDER BY id") == [(4,), (2,), (2,), (2,), (4,)]  # polls 1 and 5 page; each adds a correction search
 
 
 def test_paging_stops_when_the_hourly_budget_runs_out(env, monkeypatch):
@@ -406,10 +406,10 @@ def test_a_poll_refetches_videos_once_a_day_and_queues_the_ones_that_gain_a_tran
     assert poll(fake, settings, T0) == (True, 0)
 
     params, body = fake.requests[-1]
-    assert len(fake.requests) == 5  # four phrase searches, then one refresh
+    assert len(fake.requests) == 6  # four phrase searches, one correction search, then one refresh
     assert body["filters"] == {"id": {"includes": ["cnt_1", "cnt_2"]}}
     assert (params["projection"], params["limit"]) == ("default", "100")
-    assert rows("SELECT searches FROM polls") == [(5,)]
+    assert rows("SELECT searches FROM polls") == [(6,)]
     assert rows("SELECT oriane_id, text_checked_at FROM posts ORDER BY oriane_id") == [
         ("cnt_1", "2026-11-08T12:00:00Z"), ("cnt_2", "2026-11-08T12:00:00Z"),
     ]
@@ -418,9 +418,9 @@ def test_a_poll_refetches_videos_once_a_day_and_queues_the_ones_that_gain_a_tran
     assert rows("SELECT oriane_id, prompt_version FROM labels ORDER BY oriane_id") == [("cnt_1", None), ("cnt_2", "current")]
 
     assert poll(fake, settings, T0 + timedelta(minutes=15)) == (True, 0)
-    assert len(fake.requests) == 9  # cnt_2 waits out its 24 h and cnt_1 has its transcript, so no refresh
+    assert len(fake.requests) == 11  # one more poll (four phrase searches and a correction search); cnt_2 waits out its 24 h and cnt_1 has its transcript, so no refresh
     assert poll(fake, settings, T0 + timedelta(hours=25)) == (True, 0)
-    assert len(fake.requests) == 14  # cnt_2 is checked again
+    assert len(fake.requests) == 17  # cnt_2 is checked again
 
 
 def test_the_refresh_runs_only_within_the_hourly_search_budget(env):
@@ -430,3 +430,13 @@ def test_the_refresh_runs_only_within_the_hourly_search_budget(env):
     assert poll(fake, config(oriane_max_searches_per_hour=4), T0) == (True, 0)
     assert len(fake.requests) == 4  # the phrase batches spent the budget
     assert rows("SELECT text_checked_at FROM posts") == [(None,)]
+
+
+def test_each_poll_runs_one_correction_search_on_the_next_batch_by_views(env):
+    fake = FakeOriane([item(1)])
+    poll(fake, config(), T0)
+    params, body = fake.requests[4]  # after the four phrase searches
+    assert params["sort"] == "viewsCount:desc"
+    phrases, words = (q["filters"]["caption"]["includesExactly"]["values"] for q in body["queries"])
+    assert phrases == ["sea moss"]  # poll 1 takes batch 1
+    assert words == poller.CORRECTION_WORDS

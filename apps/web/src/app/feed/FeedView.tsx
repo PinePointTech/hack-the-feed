@@ -7,12 +7,12 @@ import { postView, verdictOf, FILTERS, type Verdict } from "@/lib/label-why";
 import Link from "next/link";
 
 const PLATFORM = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" } as const;
-// Red only for flagged posts; amber for a claim that is not flagged; lime for a correction.
+// Red only for flagged posts; amber for a claim that is not flagged; lime only for a checked correction.
 const VERDICT_CHIP: Record<Verdict, string> = {
-  flagged: "chip chip--harmful", claim: "chip chip--false", corrects: "chip bg-lime text-ink", no_claim: "chip chip--unproven", pending: "databadge",
+  flagged: "chip chip--harmful", checked: "chip bg-lime text-ink", claim: "chip chip--false", corrects: "chip chip--unproven", no_claim: "chip chip--unproven", pending: "databadge",
 };
 const VERDICT_EDGE: Record<Verdict, string> = {
-  flagged: "border-l-[6px] border-l-harmful-text", claim: "", corrects: "", no_claim: "", pending: "",
+  flagged: "border-l-[6px] border-l-harmful-text", checked: "border-l-[6px] border-l-lime", claim: "", corrects: "", no_claim: "", pending: "",
 };
 
 const clock = (iso: string | null, none: string) =>
@@ -123,7 +123,7 @@ function Thumb({ src, platform }: { src: string | null; platform: FeedPost["plat
   return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`${box} object-cover`} />;
 }
 
-function PostCard({ post: p }: { post: FeedPost }) {
+export function PostCard({ post: p }: { post: FeedPost }) {
   const named = canNameCreator(p);
   const v = postView(p, mythName);
   return (
@@ -140,6 +140,19 @@ function PostCard({ post: p }: { post: FeedPost }) {
           &ldquo;{v.quote.text}&rdquo;
           <footer className="mt-1 font-sans text-[0.8125rem] text-ink-2">{v.quote.from}</footer>
         </blockquote>
+        {v.backedBy.length > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-[0.8125rem] font-semibold">Backed by</p>
+            <ul className="m-0 grid list-none gap-2 p-0">
+              {v.backedBy.map((f) => (
+                <li key={f.url} className="text-[0.8125rem] leading-[1.45]">
+                  <span className="font-serif">&ldquo;{f.excerpt}&rdquo;</span>{" "}
+                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">{f.publisher}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {v.note && <p className="text-[0.8125rem] text-ink-2">{v.note}</p>}
         <p className="border-t border-rule pt-2 text-[0.8125rem] text-ink-2">
           {named && p.handle ? `@${p.handle}` : "Creator not named"}

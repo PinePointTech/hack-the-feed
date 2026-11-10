@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, TypeAdapter
 
-from . import brief, check, derived, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
+from . import brief, check, corrections, derived, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -118,6 +118,8 @@ def create_app(
     async def label_batch(app: FastAPI) -> None:
         try:
             await labeler.label_pending(app.state.client, settings)
+            # Corrections are checked after labeling, since only a label can mark a post as one.
+            await corrections.check_pending(app.state.client, settings)
         except (sqlite3.Error, OSError) as error:
             logger.warning("Labeling failed (%s)", type(error).__name__)
 
@@ -361,6 +363,15 @@ def create_app(
             "generated_at": store.iso(datetime.now(timezone.utc)),
             "last_poll_at": last_poll_at, "next_poll_at": next_poll_at, "data_through": data_through, "posts": posts,
         }
+
+    @app.get("/corrections")
+    def get_corrections(myth_id: str | None = Query(None, max_length=80)):
+        """Posts whose correction passed corrections.check_post, in feed order, optionally for one myth."""
+        with closing(store.connect()) as con:
+            posts = [post for post in store.list_feed(con, limit=1_000_000)
+                     if post["label"] and post["label"].get("correction")
+                     and (myth_id is None or post["label"]["myth_id"] == myth_id)]
+        return {"posts": posts[:20]}
 
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:
