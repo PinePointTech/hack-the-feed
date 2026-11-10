@@ -1,11 +1,10 @@
 import Link from "next/link";
 
 const links = [
-  { href: "/calendar", label: "Calendar" },
   { href: "/feed", label: "Live feed" },
-  { href: "/desk", label: "Creator mode" },
-  { href: "/desk/review", label: "Review myths" },
-  { href: "/desk/impact/lymphatic-detox", label: "Impact" },
+  { href: "/desk", label: "Myths" },
+  { href: "/calendar", label: "Calendar" },
+  { href: "/desk/review", label: "Review" },
 ];
 
 const pill =

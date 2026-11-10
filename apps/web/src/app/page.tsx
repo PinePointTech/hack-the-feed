@@ -2,8 +2,8 @@ import Link from "next/link";
 import { api, settle } from "@/lib/api";
 import { exact } from "@/lib/format";
 import { isActive, sortMyths, windowLabel } from "@/lib/view-model";
-import { canNameCreator, type FeedPost } from "@/lib/feed";
 import { compact } from "@/lib/format";
+import { PostImage } from "@/components/PostImage";
 import { DataPulled } from "@/components/DataPulled";
 import { LiveUnavailableNote } from "@/components/LiveUnavailable";
 import { HarmChip } from "@/components/HarmChip";
@@ -20,19 +20,13 @@ const STEPS = [
   ["Video", "Record, edit, caption. On-screen text is checked."],
   ["Receipts", "A public page with the verdict and sources."],
   ["Calendar", "This week's myths, one week ahead."],
-  ["Impact", "Response reach against myth reach."],
+  ["Reach", "Our debunk's views against the myth's views."],
 ] as const;
 
 export default async function Home() {
   const res = await settle(api.radar());
   const data = res.ok ? res.data : null;
   const myths = data ? sortMyths(data.myths) : [];
-  // A poster image is the most viewed feed post that pushes the myth, and only one whose creator may be named.
-  // Never a post that corrects it: that would pin the myth on someone who disputes it.
-  const posts = await api.feed().then((r) => r.data.posts, () => [] as FeedPost[]);
-  const poster = (id: string) => posts
-    .filter((p) => p.label?.myth_id === id && p.label.stance === "promotes" && p.thumbnail_url && p.handle && canNameCreator(p))
-    .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))[0];
   const span = data ? `${windowLabel(data.window)}, ${data.window.to.slice(0, 4)}` : "";
 
   return (
@@ -50,19 +44,17 @@ export default async function Home() {
         ) : (
           <ol className="lp-frames">
             {myths.map((m, i) => {
-              const shot = poster(m.id);
+              // The poster is the myth's most viewed promoting video (never one that corrects it), blurred unless nameable.
+              const shot = m.top_video;
               return (
               <li key={m.id} className={`lp-frame${isActive(m) ? "" : " lp-frame--quiet"}`}>
                 <div className={`lp-poster lp-poster--${m.harm_tier}`}>
-                  {shot ? (
-                    // Oriane CDN thumbnails, as on the feed; next/image domains are not configured for them.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={shot.thumbnail_url!} alt="" loading="lazy" referrerPolicy="no-referrer" className="lp-poster-img" />
-                  ) : (
-                    <span className="lp-poster-word" aria-hidden="true">&ldquo;{m.topic}&rdquo;</span>
-                  )}
+                  <div className="lp-poster-img">
+                    <PostImage src={shot?.thumbnail_url} named={!!shot?.nameable} className="h-full w-full !bg-transparent"
+                      fallback={<span className="lp-poster-word" aria-hidden="true">&ldquo;{m.topic}&rdquo;</span>} />
+                  </div>
                   <span className="lp-frame-no" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
-                  {shot && <span className="lp-poster-credit">@{shot.handle} · {compact(shot.views ?? 0)} views</span>}
+                  {shot?.nameable && shot.thumbnail_url && <span className="lp-poster-credit">@{shot.handle} · {compact(shot.views)} views</span>}
                 </div>
                 <h3 className="lp-frame-title">
                   <Link href={`/desk/myth/${m.id}?from=radar`}>{m.title}</Link>
@@ -113,7 +105,7 @@ export default async function Home() {
           ))}
         </ol>
         <Link className="btn" href="/desk">
-          Open Creator mode
+          Pick a myth to debunk
         </Link>
         </div>
       </section>
