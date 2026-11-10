@@ -8,9 +8,9 @@
     "excerpts": [
       "Lymphatic drainage massage does not directly cause weight loss",
       "However, there is no evidence that MLD causes weight loss.",
-      "A medical professional can perform MLD safely and effectively."
+      "There is no credible evidence showing that MLD in healthy people leads to additional benefits in those areas."
     ],
-    "fetched_at": "2026-11-06T23:24:40.043364Z"
+    "fetched_at": "2026-11-10T04:29:36.137693Z"
   },
   {
     "id": "s2",
@@ -19,52 +19,10 @@
     "url": "https://www.nationalgeographic.com/health/article/lymphatic-drainage-massage-therapy-wellness",
     "kind": "journalism",
     "excerpts": [
-      "The claims that lymphatic massage can get rid of toxins are unfounded as well, adds Rockson.",
       "As far as influencers’ claims that lymphatic drainage can help you lose weight, Rockson says it has nothing to do with weight loss.",
-      "Cellulite is fluid retention within fat, so lymphatic drainage can temporarily smooth out cellulite, but it won’t affect body weight as measured on a scale."
+      "Cellulite is fluid retention within fat, so lymphatic drainage can temporarily smooth out cellulite, but it won’t affect body weight as measured on a scale.",
+      "The claims that lymphatic massage can get rid of toxins are unfounded as well, adds Rockson."
     ],
-    "fetched_at": "2026-11-06T23:24:40.043364Z"
-  },
-  {
-    "id": "s3",
-    "title": "Effects of manual lymphatic drainage on breast cancer-related lymphedema: a systematic review and meta-analysis of randomized controlled trials.",
-    "publisher": "World journal of surgical oncology",
-    "url": "https://pubmed.ncbi.nlm.nih.gov/23347817/",
-    "kind": "review",
-    "pmid": "23347817",
-    "excerpts": [
-      "Seven studies assessed the reduction in arm volume, and found no significant difference between the MLD and standard treatment groups, with a weighted mean difference of 75.12 (95% CI, -9.34 to 159.58).",
-      "The current evidence from RCTs does not support the use of MLD in preventing or treating lymphedema.",
-      "However, clinical and statistical inconsistencies between the various studies confounded our evaluation of the effect of MLD on breast-cancer-related lymphedema."
-    ],
-    "fetched_at": "2026-11-06T23:24:40.043364Z"
-  },
-  {
-    "id": "s4",
-    "title": "Manual lymphatic drainage treatment for lymphedema: a systematic review of the literature.",
-    "publisher": "Journal of cancer survivorship : research and practice",
-    "url": "https://pubmed.ncbi.nlm.nih.gov/32803533/",
-    "kind": "review",
-    "pmid": "32803533",
-    "excerpts": [
-      "Some studies reported positive effects of MLD on volume reduction, quality of life and symptom-related outcomes compared with other treatments, while other studies reported no additional benefit of MLD as a component of complex decongestive therapy.",
-      "MLD may also provide additional benefits in volume reduction for mild lymphedema.",
-      "However, in moderate to severe lymphedema, MLD may not provide additional benefit when combined with complex decongestive therapy."
-    ],
-    "fetched_at": "2026-11-06T23:24:40.043364Z"
-  },
-  {
-    "id": "s5",
-    "title": "Advances in the prevention and treatment of breast cancer-related lymphedema.",
-    "publisher": "Breast cancer research and treatment",
-    "url": "https://pubmed.ncbi.nlm.nih.gov/37103598/",
-    "kind": "review",
-    "pmid": "37103598",
-    "excerpts": [
-      "Complete decongestive therapy (CDT) remains the standard of care for patients with BCRL.",
-      "Among CDT components, facilitating manual lymphatic drainage (MLD) using indocyanine green fluorescence lymphography has been proposed.",
-      "Reconstructive microsurgical techniques such as lymphovenous anastomosis and vascular lymph node transfer are growing surgical considerations for patients as well as liposuction-based procedures for addressing fatty fibrosis formation from chronic lymphedema."
-    ],
-    "fetched_at": "2026-11-06T23:24:40.043364Z"
+    "fetched_at": "2026-11-10T04:29:36.137693Z"
   }
 ]
