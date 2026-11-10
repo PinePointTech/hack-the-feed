@@ -62,6 +62,7 @@ export interface MythSummary {
   claim_views?: number;
   claim_interactions?: number;
   top_video?: VideoRef;
+  poster_video?: VideoRef; // picture only: most viewed nameable promoting post, this window or the one before
   match_note: string; // how we matched, shown in the UI
   data_source: DataSource;
   snapshot_at: string; // ISO datetime

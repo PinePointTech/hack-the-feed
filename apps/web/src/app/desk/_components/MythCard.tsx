@@ -23,7 +23,7 @@ export function MythCard({ myth, rank }: { myth: MythSummary; rank: number }) {
       className="relative grid min-w-0 overflow-hidden rounded-frame border border-ink bg-paper motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-v2 motion-safe:hover:-translate-y-1"
     >
       <div className={`relative ${POSTER[myth.harm_tier]}`}>
-        <PostImage src={video?.thumbnail_url} named={!!video?.nameable} className="aspect-[4/3] w-full !bg-transparent"
+        <PostImage src={(myth.poster_video ?? video)?.thumbnail_url} named={!!(myth.poster_video ?? video)?.nameable} className="aspect-[4/3] w-full !bg-transparent"
           fallback={<span className="px-6 font-serif text-[2rem] leading-[1.05] font-bold italic">&ldquo;{myth.topic}&rdquo;</span>} />
         <span aria-hidden="true" className="mono absolute right-3 bottom-3 rounded-pill bg-paper px-3 py-1 text-lg font-semibold text-ink">
           {String(rank).padStart(2, "0")}
