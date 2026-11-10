@@ -336,7 +336,7 @@ def test_background_loop_polls_on_start_and_post_poll_respects_the_gate(env):
         assert [p["oriane_id"] for p in posts] == ["cnt_1"]
         assert set(posts[0]) == {
             "oriane_id", "platform", "url", "handle", "display_name", "thumbnail_url", "views", "published_at",
-            "fetched_at", "snippet", "snippet_source", "matched_query", "label",
+            "fetched_at", "snippet", "snippet_source", "matched_query", "label", "nameable",
         }
         assert posts[0]["url"] == "https://www.tiktok.com/@user1/video/701"
         calls = len(fake.requests)

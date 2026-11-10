@@ -39,7 +39,7 @@ export default async function Desk() {
       {myths.length === 0 ? (
         <p className="text-[1.125rem] text-ink-2">No myths found in this window.</p>
       ) : (
-        <ol className="m-0 grid list-none grid-cols-1 gap-5 p-0 min-[1100px]:grid-cols-3">
+        <ol className="m-0 grid list-none grid-cols-1 gap-x-6 gap-y-8 p-0 min-[1100px]:grid-cols-3">
           {myths.map((m, i) => (
             <li key={m.id} className="min-w-0">
               <MythCard myth={m} rank={i + 1} />

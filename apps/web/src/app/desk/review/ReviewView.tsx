@@ -3,7 +3,7 @@ import { useCandidates } from "@/lib/hooks/useCandidates";
 import { LiveUnavailable } from "@/components/LiveUnavailable";
 import { PostCard, POST_GRID } from "@/app/feed/FeedView";
 import { PostImage } from "@/components/PostImage";
-import { canNameCreator, maskHandles } from "@/lib/feed";
+import { maskHandles } from "@/lib/feed";
 import { compact } from "@/lib/format";
 
 export function ReviewView() {
@@ -40,7 +40,7 @@ export function ReviewView() {
         <ol className="m-0 grid list-none gap-5 p-0 min-[900px]:grid-cols-2">
           {rows.map((r) => (
             <li key={r.id} className="grid grid-cols-[7rem_minmax(0,1fr)] overflow-hidden rounded-frame border border-ink bg-paper min-[500px]:grid-cols-[9rem_minmax(0,1fr)]">
-              <PostImage src={r.source_thumbnail_url} named={canNameCreator({ views: r.source_views ?? null })}
+              <PostImage src={r.source_thumbnail_url} named={false}
                 className="h-full min-h-48 border-r border-ink" fallback={<span className="px-2 font-serif italic">&ldquo;{r.title}&rdquo;</span>} />
               <div className="grid content-start gap-3 p-4">
                 <h2 className="text-xl font-bold capitalize">{r.title}</h2>
@@ -49,7 +49,7 @@ export function ReviewView() {
                   {r.total_views ? ` · ${compact(r.total_views)} views` : ""}
                 </p>
                 <blockquote className="m-0 border-l-2 border-rule pl-3 font-serif text-[0.9375rem] leading-[1.45]">
-                  <span className="line-clamp-4">&ldquo;{canNameCreator({ views: r.source_views ?? null }) ? r.claim : maskHandles(r.claim)}&rdquo;</span>
+                  <span className="line-clamp-4">&ldquo;{maskHandles(r.claim)}&rdquo;</span>
                 </blockquote>
                 <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2">
                   <button type="button" className="btn" onClick={() => confirm(r.id)} disabled={busy !== null}>

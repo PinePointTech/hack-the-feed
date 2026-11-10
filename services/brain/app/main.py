@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, TypeAdapter
 
-from . import brief, check, corrections, derived, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
+from . import brief, check, corrections, naming, derived, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, CheckRequest, CheckResponse, PublishedDebunk, PublishRequest,
@@ -126,6 +126,7 @@ def create_app(
             await labeler.label_pending(app.state.client, settings)
             # Corrections are checked after labeling, since only a label can mark a post as one.
             await corrections.check_pending(app.state.client, settings)
+            await naming.check_pending(app.state.client, settings)
         except (sqlite3.Error, OSError) as error:
             logger.warning("Labeling failed (%s)", type(error).__name__)
 
