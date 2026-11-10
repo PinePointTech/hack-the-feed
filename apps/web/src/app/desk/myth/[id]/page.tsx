@@ -13,7 +13,7 @@ import { Stat } from "../../_components/Stat";
 import { windowWithYear } from "../../_components/window";
 import { MythOpened } from "./_components/MythOpened";
 import { SuggestDebunk } from "./_components/SuggestDebunk";
-import { PostCard } from "@/app/feed/FeedView";
+import { PostCard, POST_GRID } from "@/app/feed/FeedView";
 
 const H2 =
   "text-[1.75rem] leading-[1.1] font-extrabold tracking-[-0.02em] [font-variation-settings:'opsz'_48]";
@@ -135,7 +135,7 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           <p className="max-w-[40rem] text-ink-2">
             Creators who already correct this myth. Each one is backed by a published study and a clinician page, and nothing we found contradicts it.
           </p>
-          <ol className="m-0 grid max-w-[40rem] list-none gap-5 p-0">
+          <ol className={POST_GRID}>
             {corrections.map((p) => <PostCard key={p.oriane_id} post={p} />)}
           </ol>
         </section>

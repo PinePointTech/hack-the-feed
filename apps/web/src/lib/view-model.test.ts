@@ -4,14 +4,16 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sortMyths, windowLabel, pendingOr, isPlaceholder, openedFrom } from "./view-model.ts";
 
-test("sortMyths: tier order, then claim views descending, missing views last", () => {
+test("sortMyths: myths with posts in the window first, then tier, then claim views, then topic views", () => {
   const ids = sortMyths([
-    { id: "a", harm_tier: "unproven", claim_views: 900 },
-    { id: "b", harm_tier: "false", claim_views: 10 },
-    { id: "c", harm_tier: "harmful" },
-    { id: "d", harm_tier: "harmful", claim_views: 5 },
+    { id: "a", harm_tier: "unproven", claim_views: 900, topic_views: 1 },
+    { id: "b", harm_tier: "false", claim_views: 10, topic_views: 1 },
+    { id: "c", harm_tier: "harmful", topic_views: 1 },
+    { id: "d", harm_tier: "harmful", claim_views: 5, topic_views: 1 },
+    { id: "quiet", harm_tier: "harmful", topic_views: 0 },
+    { id: "e", harm_tier: "false", topic_views: 50 },
   ] as never[]).map((m: { id: string }) => m.id);
-  assert.deepEqual(ids, ["d", "c", "b", "a"]);
+  assert.deepEqual(ids, ["d", "c", "b", "e", "a", "quiet"]);
 });
 
 test("windowLabel", () => {

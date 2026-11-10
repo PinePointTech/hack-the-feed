@@ -12,8 +12,11 @@ const VERDICT_CHIP: Record<Verdict, string> = {
   flagged: "chip chip--harmful", checked: "chip bg-lime text-ink", claim: "chip chip--false", corrects: "chip chip--unproven", no_claim: "chip chip--unproven", pending: "databadge",
 };
 const VERDICT_EDGE: Record<Verdict, string> = {
-  flagged: "border-l-[6px] border-l-harmful-text", checked: "border-l-[6px] border-l-lime", claim: "", corrects: "", no_claim: "", pending: "",
+  flagged: "border-t-[6px] border-t-harmful-text", checked: "border-t-[6px] border-t-lime", claim: "", corrects: "", no_claim: "", pending: "",
 };
+
+/** Reel cards, as many columns as fit: about 5 on a wide screen, 2 on a phone. */
+export const POST_GRID = "m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,13.5rem),1fr))] gap-4 p-0 min-[700px]:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]";
 
 const clock = (iso: string | null, none: string) =>
   iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : none;
@@ -101,7 +104,7 @@ export function FeedView() {
             </section>
           )}
           {posts.length > 0 && (
-            <ol className="m-0 grid max-w-[40rem] list-none gap-5 p-0">
+            <ol className={POST_GRID}>
               {shown.map((p) => (
                 <PostCard key={p.oriane_id} post={p} />
               ))}
@@ -115,7 +118,7 @@ export function FeedView() {
 
 function Thumb({ src, platform }: { src: string | null; platform: FeedPost["platform"] }) {
   const [failed, setFailed] = useState(false);
-  const box = "aspect-[9/16] w-[104px] shrink-0 self-start rounded-2xl border border-ink min-[700px]:w-[148px]";
+  const box = "aspect-[9/16] w-full rounded-t-frame border-b border-ink";
   if (!src || failed)
     return <div className={`${box} grid place-items-center bg-rule text-center text-sm text-ink-2`}>{PLATFORM[platform]}</div>;
   // Remote CDN thumbnails come from three platforms, so next/image domains are not worth configuring here.
@@ -123,45 +126,46 @@ function Thumb({ src, platform }: { src: string | null; platform: FeedPost["plat
   return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`${box} object-cover`} />;
 }
 
+/** One post as a vertical reel card: thumbnail on top, verdict and quote below. Grids lay these out several per row. */
 export function PostCard({ post: p }: { post: FeedPost }) {
   const named = canNameCreator(p);
   const v = postView(p, mythName);
   return (
-    <li className={`flex min-w-0 gap-4 rounded-frame border border-ink p-4 ${VERDICT_EDGE[v.verdict]}`}>
+    <li className={`flex min-w-0 flex-col overflow-hidden rounded-frame border border-ink bg-paper ${VERDICT_EDGE[v.verdict]}`}>
       <Thumb src={p.thumbnail_url} platform={p.platform} />
-      <article className="grid min-w-0 flex-1 content-start gap-2.5">
+      <article className="grid min-w-0 flex-1 content-start gap-2 p-3.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={VERDICT_CHIP[v.verdict]} title={p.label ? `Checked by ${p.label.model}` : undefined}>{v.title}</span>
           {v.selling && <span className="databadge">{v.selling}</span>}
-          {v.myth && <Link href={v.myth.href} className="trend underline-offset-2 hover:underline">Myth: {v.myth.name}</Link>}
         </div>
-        <p className="text-[0.9375rem] leading-[1.4]">{v.detail}</p>
-        <blockquote className="m-0 border-l-2 border-rule pl-3 font-serif text-[0.9375rem] leading-[1.45]">
-          &ldquo;{v.quote.text}&rdquo;
-          <footer className="mt-1 font-sans text-[0.8125rem] text-ink-2">{v.quote.from}</footer>
+        {v.myth && <Link href={v.myth.href} className="trend justify-self-start underline-offset-2 hover:underline">Myth: {v.myth.name}</Link>}
+        <p className="text-[0.875rem] leading-[1.4]">{v.detail}</p>
+        <blockquote className="m-0 border-l-2 border-rule pl-2.5 font-serif text-[0.875rem] leading-[1.45]">
+          <span className="line-clamp-5">&ldquo;{v.quote.text}&rdquo;</span>
+          <footer className="mt-1 font-sans text-[0.75rem] text-ink-2">{v.quote.from}</footer>
         </blockquote>
         {v.backedBy.length > 0 && (
           <div className="grid gap-1.5">
-            <p className="text-[0.8125rem] font-semibold">Backed by</p>
-            <ul className="m-0 grid list-none gap-2 p-0">
+            <p className="text-[0.75rem] font-semibold">Backed by</p>
+            <ul className="m-0 grid list-none gap-1.5 p-0">
               {v.backedBy.map((f) => (
-                <li key={f.url} className="text-[0.8125rem] leading-[1.45]">
-                  <span className="font-serif">&ldquo;{f.excerpt}&rdquo;</span>{" "}
+                <li key={f.url} className="text-[0.75rem] leading-[1.45]">
+                  <span className="line-clamp-3 font-serif">&ldquo;{f.excerpt}&rdquo;</span>
                   <a href={f.url} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">{f.publisher}</a>
                 </li>
               ))}
             </ul>
           </div>
         )}
-        {v.note && <p className="text-[0.8125rem] text-ink-2">{v.note}</p>}
-        <p className="border-t border-rule pt-2 text-[0.8125rem] text-ink-2">
+        {v.note && <p className="text-[0.75rem] text-ink-2">{v.note}</p>}
+        <p className="mt-auto border-t border-rule pt-2 text-[0.75rem] text-ink-2">
           {named && p.handle ? `@${p.handle}` : "Creator not named"}
           {` · ${PLATFORM[p.platform]}`}
           {p.views !== null && ` · ${compact(p.views)} views`}
           {p.published_at && ` · ${date(p.published_at)}`}
         </p>
         {p.url ? (
-          <a href={p.url} target="_blank" rel="noopener noreferrer" className="justify-self-start font-semibold underline underline-offset-2">
+          <a href={p.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-self-start text-sm font-semibold underline underline-offset-2">
             Watch on {PLATFORM[p.platform]}
           </a>
         ) : (

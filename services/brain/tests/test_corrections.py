@@ -132,3 +132,18 @@ def test_a_failed_pick_makes_no_searches(env):
     fake = Fake(pick={"source": None})
     run(fake)
     assert not any(path.endswith(("/responses", "esearch.fcgi")) for path in fake.paths)
+
+
+def test_long_pages_are_read_where_they_name_the_topic():
+    filler = "Unrelated words about something else entirely. " * 200
+    page = filler + "Lymphatic massage is gentle. It does not remove toxins, Dr. Lee says. " + filler
+    assert corrections.passages(page, "lymphatic drainage") == [
+        "Lymphatic massage is gentle.", "It does not remove toxins, Dr. Lee says.",
+    ]
+    assert corrections.passages("Short abstract. No effect found.", "berberine") == ["Short abstract.", "No effect found."]
+
+
+def test_sentences_end_after_acronyms_but_not_after_titles_or_initials():
+    from app.fact_check import text_spans
+    text = "Ask the CDC. It says no. U.S. data agree. Then rest, Dr. Lee says."
+    assert [text[a:b].strip() for a, b in text_spans(text)] == ["Ask the CDC.", "It says no.", "U.S. data agree.", "Then rest, Dr. Lee says."]

@@ -3,9 +3,14 @@ import type { DateWindow, HarmTier, MythSummary } from "../contracts/types";
 
 const TIER_ORDER: Record<HarmTier, number> = { harmful: 0, false: 1, unproven: 2 };
 
-/** Radar order: harmful, false, unproven, then most claim views first. Returns a new array. */
-export const sortMyths = <T extends Pick<MythSummary, "harm_tier" | "claim_views">>(myths: T[]): T[] =>
-  [...myths].sort((a, b) => TIER_ORDER[a.harm_tier] - TIER_ORDER[b.harm_tier] || (b.claim_views ?? 0) - (a.claim_views ?? 0));
+/** True when the window has posts on the topic. A myth with none is not trending, whatever its harm tier. */
+export const isActive = (m: Pick<MythSummary, "topic_views">) => (m.topic_views ?? 0) > 0;
+
+/** Radar order: myths with posts in the window first, then harmful, false, unproven, then most claim views,
+ * then most topic views. Returns a new array. */
+export const sortMyths = <T extends Pick<MythSummary, "harm_tier" | "claim_views" | "topic_views">>(myths: T[]): T[] =>
+  [...myths].sort((a, b) => Number(isActive(b)) - Number(isActive(a)) || TIER_ORDER[a.harm_tier] - TIER_ORDER[b.harm_tier]
+    || (b.claim_views ?? 0) - (a.claim_views ?? 0) || (b.topic_views ?? 0) - (a.topic_views ?? 0));
 
 const dayFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 // "2026-10-07" -> "Oct 7"; dates are ISO days, so read them as UTC to avoid an off-by-one.
