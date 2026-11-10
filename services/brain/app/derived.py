@@ -145,6 +145,9 @@ def summary_of(myth: dict, mine: list[dict], current: dict, previous: dict, snap
     if promoters := [post for post in assigned(myth, now_posts) if post["stance"] == "promotes"]:
         # A nameable post first, so the myth's picture can be shown sharp; then the most viewed.
         summary["top_video"] = video_ref(max(promoters, key=lambda post: (bool(post.get("nameable")), post["views"])))
+    # The picture for the myth: the most viewed nameable promoting post from this window or the one before.
+    if named := [post for post in assigned(myth, mine) if post["stance"] == "promotes" and post.get("nameable")]:
+        summary["poster_video"] = video_ref(max(named, key=lambda post: post["views"]))
     return summary
 
 

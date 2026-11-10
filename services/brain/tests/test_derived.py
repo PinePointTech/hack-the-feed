@@ -293,3 +293,15 @@ def test_sold_posts_that_push_the_claim_count_as_promoters_and_plain_ads_do_not(
     detail = derived.myth_detail(con, "m1", NOW)
     assert [v["oriane_id"] for v in detail["videos"]] == [sold, "cnt_2"] and detail["stance_counts"] == {"promotes": 2, "ad": 1}
     assert next(m for m in derived.radar(con, NOW)["myths"] if m["id"] == "m1")["top_video"]["oriane_id"] == sold
+
+
+def test_a_myth_picture_comes_from_a_nameable_promoter_even_from_the_window_before(con):
+    add_myth(con, "m1", "mouth tape")
+    add_post(con, 1, "2026-11-06", 9_000, stance="promotes")  # this window, not checked: blurred
+    add_post(con, 2, "2026-10-28", 400_000, stance="promotes")  # the window before, cleared
+    add_post(con, 3, "2026-10-28", 900_000, stance="debunks")  # cleared, but corrects the myth: never its picture
+    for oriane_id in ("cnt_2", "cnt_3"):
+        store.save_naming(con, oriane_id, nameable=True, reason="ok", model="m", checked_at="2026-11-08T00:00:00Z")
+    m1 = derived.radar(con, NOW)["myths"][0]
+    assert (m1["top_video"]["oriane_id"], m1["top_video"]["nameable"]) == ("cnt_1", False)
+    assert (m1["poster_video"]["oriane_id"], m1["poster_video"]["nameable"]) == ("cnt_2", True)

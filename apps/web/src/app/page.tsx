@@ -44,8 +44,8 @@ export default async function Home() {
         ) : (
           <ol className="lp-frames">
             {myths.map((m, i) => {
-              // The poster is the myth's most viewed promoting video (never one that corrects it), blurred unless nameable.
-              const shot = m.top_video;
+              // A nameable promoting post when there is one (never one that corrects it), else the top one, blurred.
+              const shot = m.poster_video ?? m.top_video;
               return (
               <li key={m.id} className={`lp-frame${isActive(m) ? "" : " lp-frame--quiet"}`}>
                 <div className={`lp-poster lp-poster--${m.harm_tier}`}>
