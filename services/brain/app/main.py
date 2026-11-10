@@ -15,7 +15,7 @@ from fastapi import FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter
 
 from . import brief, check, corrections, derived, fact_check, labeler, oriane, poller, publish, qa, radar, reporting, store
 from .config import Settings
@@ -27,6 +27,12 @@ from .schemas import (
 VERSION = "0.1.0"
 HEALTH_TTL = 300
 logger = logging.getLogger(__name__)
+
+
+class Wording(BaseModel):
+    title: str | None = Field(None, min_length=3, max_length=80)
+    claim: str | None = Field(None, min_length=10, max_length=240)
+    harm_reason: str | None = Field(None, min_length=10, max_length=400)
 
 
 class Health(BaseModel):
@@ -324,6 +330,17 @@ def create_app(
         with closing(store.connect()) as con:
             myth = store.confirm_myth(con, myth_id, store.iso(datetime.now(timezone.utc)))
         return myth or api_error(404, "myth_not_found", "Unknown candidate myth ID.")
+
+    @app.post("/myths/{myth_id}/wording")
+    def reword_myth(myth_id: str, body: Wording, request: Request):
+        """A reviewer replaces the wording a candidate was confirmed with (a creator's sentence) with a neutral one."""
+        if refused := reviewer_refused(request):
+            return refused
+        with closing(store.connect()) as con:
+            if not store.reword_myth(con, myth_id, body.model_dump(exclude_none=True)):
+                return api_error(404, "myth_not_found", "Unknown confirmed myth ID.")
+            row = con.execute("SELECT id, title, claim, harm_reason FROM myths WHERE id = ?", (myth_id,)).fetchone()
+        return dict(row)
 
     @app.get("/myths/{myth_id}")
     async def get_myth(myth_id: str, request: Request, refresh: bool = False):

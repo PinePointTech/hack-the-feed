@@ -10,7 +10,7 @@ from datetime import timedelta
 import httpx
 from fastapi.testclient import TestClient
 
-from app import brief, labeler, main, store
+from app import derived, brief, labeler, main, store
 from test_poller import FakeOriane, T0, config, env, item, rows  # noqa: F401  (env is a fixture)
 
 MODEL = "stub-model"
@@ -256,6 +256,16 @@ def test_candidates_list_and_only_a_person_confirms(env):
         missing = client.post("/myths/nope/confirm")
         assert missing.status_code == 404 and missing.json()["error"]["code"] == "myth_not_found"
         assert client.get("/feed").json()["posts"][0]["label"]["myth_id"] in {"sea-moss", "castor-oil-pack"}
+
+        # A reviewer rewords a confirmed myth; a candidate cannot be reworded, and blank wording is refused.
+        body = {"title": "Sea moss fixes your thyroid", "claim": "Sea moss gel boosts thyroid health and immunity."}
+        assert client.post("/myths/sea-moss/wording", json=body).json() == {"id": "sea-moss", "harm_reason": "", **body}
+        assert client.post("/myths/castor-oil-pack/wording", json=body).status_code == 404
+        assert client.post("/myths/sea-moss/wording", json={"claim": "x"}).status_code == 422
+    with closing(store.connect()) as con:
+        # Its topic and search phrase stay the watchlist phrase it was found with, not the new title.
+        sea = next(m for m in derived.confirmed_myths(con) if m["id"] == "sea-moss")
+        assert (sea["topic"], sea["phrases"]) == ("sea moss", ["sea moss"])
 
     # Labeling again never confirms or demotes anything.
     seed((4, 20000, "sea moss"))
