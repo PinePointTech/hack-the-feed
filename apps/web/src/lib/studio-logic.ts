@@ -1,5 +1,5 @@
 // Pure studio rules. No "@/..." imports so node --test can run this file directly.
-import type { ApprovalChecklist, ClaimCheck, LineCheck, ScriptLine, SupportStatus } from "../contracts/types";
+import type { ApprovalChecklist, ClaimCheck, LineCheck, ScriptLine, Source, SupportStatus } from "../contracts/types";
 
 export type LineStatus = SupportStatus | "no_claim" | "pending" | "failed";
 export type Ticks = Omit<ApprovalChecklist, "approved_by" | "approved_at">;
@@ -41,4 +41,25 @@ export function seedChecks(lines: ScriptLine[], claims: ClaimCheck[]): Record<st
       : { line_id: l.id, has_claim: false, engine };
     return [l.id, check];
   }));
+}
+
+type Checked = { status: LineStatus; check?: LineCheck; checkedFrom?: "live" | "fixture" };
+
+// "Every claim has a source" is derived: each line has a live check, and every claim line cites an excerpt of a brief source.
+export const sourceCoverage = (lines: Checked[], sources: Source[]) =>
+  lines.length > 0 && lines.every(({ status, check, checkedFrom }) =>
+    checkedFrom === "live" && (status === "no_claim" || (status === "supported" &&
+      !!check?.evidence?.some((c) => sources.some((s) => s.id === c.source_id && s.excerpts.includes(c.excerpt))))));
+
+// Publishing needs a live QA pass for the exact script that was locked, a video that QA returned a URL for, and final approval.
+export const canPublish = (s: { finalApproved: boolean; videoUrl: string | null; qaPass: boolean; publishing: boolean }) =>
+  s.finalApproved && !!s.videoUrl && s.qaPass && !s.publishing;
+
+// Why the script cannot be locked yet, worst line first. Empty when every line is supported or has no claim.
+export function blockReason(statuses: LineStatus[]): string {
+  if (statuses.includes("unsupported")) return "A script line has no source. Fix it before you approve.";
+  if (statuses.includes("failed")) return "A line could not be checked. Retry the line checks before you approve.";
+  if (statuses.includes("pending")) return "A line is still being checked.";
+  if (statuses.includes("weak")) return "A line has weak support. Strengthen it or cut it before you approve.";
+  return "";
 }
