@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { matchClaim, type MythKey } from "./match";
 import { PostFactCheck } from "./PostFactCheck";
 import { exact } from "@/lib/format";
+import { canNameCreator, maskHandles } from "@/lib/feed";
 import type { SearchResult, TopicAnalysisResult } from "../api/search/route";
 
 type Search = { query: string } & (
@@ -99,13 +100,13 @@ function SearchResults({ query, result }: { query: string; result: SearchResult 
           <ul className="lp-live-list">
             {videos.map((video) => (
               <li key={video.id}>
-                {video.thumbnail_url && <img src={video.thumbnail_url} alt="" loading="lazy" width={96} height={128} />}
+                {video.thumbnail_url && canNameCreator(video) && <img src={video.thumbnail_url} alt="" loading="lazy" width={96} height={128} />}
                 <div>
                   <p className="lp-live-meta">
                     {video.views === null ? "Views unknown" : `${exact(video.views)} views`} · {video.platform}
                     {video.published_at ? ` · ${video.published_at.slice(0, 10)}` : ""}
                   </p>
-                  {video.snippet && <p className="lp-live-snippet">{video.snippet_source}: &ldquo;{video.snippet}&rdquo;</p>}
+                  {video.snippet && <p className="lp-live-snippet">{video.snippet_source}: &ldquo;{canNameCreator(video) ? video.snippet : maskHandles(video.snippet)}&rdquo;</p>}
                   {video.url && <a href={video.url} target="_blank" rel="noopener noreferrer">Open the post</a>}
                   <PostFactCheck key={query} postId={video.id} topic={query} />
                 </div>

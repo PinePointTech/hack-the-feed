@@ -1,5 +1,6 @@
 import type { Platform, QuoteSource, VideoRef } from "@/contracts/types";
 import { compact, exact, mss } from "@/lib/format";
+import { maskHandles } from "@/lib/feed";
 
 const SOURCE_LABEL: Record<QuoteSource, string> = {
   transcript: "Transcript",
@@ -25,7 +26,7 @@ export function QuoteCard({ video }: { video: VideoRef }) {
         </div>
       )}
       <div className="grid min-w-0 content-start gap-3">
-        <blockquote className="m-0 font-serif text-xl leading-snug">&ldquo;{video.quote}&rdquo;</blockquote>
+        <blockquote className="m-0 font-serif text-xl leading-snug">&ldquo;{named ? video.quote : maskHandles(video.quote)}&rdquo;</blockquote>
         <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
           {named ? (
             <span className="font-semibold text-ink">

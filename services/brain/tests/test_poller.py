@@ -440,3 +440,10 @@ def test_each_poll_runs_one_correction_search_on_the_next_batch_by_views(env):
     phrases, words = (q["filters"]["caption"]["includesExactly"]["values"] for q in body["queries"])
     assert phrases == ["sea moss"]  # poll 1 takes batch 1
     assert words == poller.CORRECTION_WORDS
+
+
+def test_no_next_pull_is_promised_while_searches_are_capped_to_zero(env):
+    with closing(store.connect()) as con:
+        con.execute("INSERT INTO polls (started_at) VALUES (?)", (store.iso(T0),))
+        assert poller.schedule(con, config(oriane_max_searches_per_hour=0)) == (store.iso(T0), None)
+        assert poller.schedule(con, config())[1] is not None

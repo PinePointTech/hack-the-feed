@@ -1,9 +1,10 @@
 "use client";
 import { useCandidates } from "@/lib/hooks/useCandidates";
 import { LiveUnavailable } from "@/components/LiveUnavailable";
+import { PostCard, POST_GRID } from "@/app/feed/FeedView";
 
 export function ReviewView() {
-  const { rows, loading, unavailable, busy, notice, confirm, reject, needsToken, saveToken } = useCandidates();
+  const { rows, loading, unavailable, busy, notice, confirm, reject, needsToken, saveToken, corrections, hide } = useCandidates();
   if (unavailable) return <LiveUnavailable what="the candidate myths" />;
 
   return (
@@ -62,6 +63,26 @@ export function ReviewView() {
             </li>
           ))}
         </ol>
+      )}
+
+      {corrections.length > 0 && (
+        <section className="grid gap-4 border-t border-ink pt-8" aria-labelledby="featured-corrections">
+          <div className="grid max-w-[46rem] gap-2">
+            <h2 id="featured-corrections" className="text-2xl font-bold">Featured corrections</h2>
+            <p className="text-ink-2">
+              These passed the automatic check and show on the feed and myth pages. Hide one if it is wrong or should not be featured. Hiding cannot be undone here.
+            </p>
+          </div>
+          <ol className={POST_GRID}>
+            {corrections.map((p) => (
+              <PostCard key={p.oriane_id} post={p}>
+                <button type="button" className="btn justify-self-start" onClick={() => hide(p.oriane_id)} disabled={busy !== null}>
+                  {busy === p.oriane_id ? "Working" : "Hide"}
+                </button>
+              </PostCard>
+            ))}
+          </ol>
+        </section>
       )}
     </main>
   );

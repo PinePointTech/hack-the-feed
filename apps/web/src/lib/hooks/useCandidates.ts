@@ -2,12 +2,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, BrainError } from "../api";
 import { reviewRows, type ReviewRow } from "../candidates";
+import type { FeedPost } from "../feed";
 import { track } from "../track";
 
 /**
  * Candidate myths for review. Returns { rows, loading, unavailable, busy, notice, confirm }.
  * `unavailable` means the brain did not answer the candidates read. The feed read only adds source links, so it may fail quietly.
  * confirm(id) and reject(id) call POST /myths/{id}/confirm or /reject; each drops the row on success or 404 (already gone), and tracks "Myth Confirmed" on success.
+ * `corrections` are the featured checked corrections; hide(id) calls POST /corrections/{id}/hide and drops the post on success or 404.
  * A public brain answers 401 until the reviewer enters its token; the token stays in this tab's sessionStorage only.
  */
 const TOKEN_KEY = "mybuster-review-token";
@@ -19,6 +21,7 @@ export function useCandidates() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [needsToken, setNeedsToken] = useState(false);
+  const [corrections, setCorrections] = useState<FeedPost[]>([]);
 
   useEffect(() => {
     let live = true;
@@ -34,6 +37,8 @@ export function useCandidates() {
         setLoading(false);
       },
     );
+    // Featured corrections are a side list: if the read fails, the section just stays empty.
+    api.corrections().then(({ data }) => { if (live) setCorrections(data.posts); }, () => {});
     return () => { live = false; };
   }, []);
 
@@ -63,9 +68,31 @@ export function useCandidates() {
   const confirm = useCallback((id: string) => review(id, "confirm"), [review]);
   const reject = useCallback((id: string) => review(id, "reject"), [review]);
 
+  const hide = useCallback(async (id: string) => {
+    setBusy(id);
+    setNotice(null);
+    try {
+      await api.hideCorrection(id, readToken() || undefined);
+      setCorrections((c) => c.filter((p) => p.oriane_id !== id));
+      setNotice("Hidden. That post is no longer featured as a checked correction.");
+    } catch (err) {
+      if (err instanceof BrainError && err.status === 401) {
+        setNeedsToken(true);
+        setNotice("Enter the reviewer token, then press Hide again.");
+      } else if (err instanceof BrainError && err.status === 404) {
+        setCorrections((c) => c.filter((p) => p.oriane_id !== id));
+        setNotice("That post is no longer featured, so it was removed from the list.");
+      } else {
+        setNotice("Could not hide that post. Check that the brain is running, then try again.");
+      }
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
   const saveToken = useCallback((token: string) => {
     try { sessionStorage.setItem(TOKEN_KEY, token.trim()); } catch { /* private mode: the next confirm asks again */ }
   }, []);
 
-  return { rows, loading, unavailable, busy, notice, confirm, reject, needsToken, saveToken };
+  return { rows, loading, unavailable, busy, notice, confirm, reject, needsToken, saveToken, corrections, hide };
 }

@@ -107,7 +107,9 @@ export const api = {
   // Live feed: no fixture fallback, a down brain must surface as an error. live() ignores NEXT_PUBLIC_USE_MOCKS on purpose.
   feed: () => live<FeedResponse>("/feed?limit=50", undefined, 15000),
   // Posts whose correction passed the strict check in the brain, for one myth. Live only.
-  corrections: (mythId: string) => read<{ posts: FeedPost[] }>(`/corrections?myth_id=${encodeURIComponent(mythId)}`),
+  corrections: (mythId?: string) => read<{ posts: FeedPost[] }>(mythId ? `/corrections?myth_id=${encodeURIComponent(mythId)}` : "/corrections"),
+  hideCorrection: (orianeId: string, token?: string) => live<{ oriane_id: string; hidden: true }>(`/corrections/${encodeURIComponent(orianeId)}/hide`,
+    { method: "POST", headers: token ? { "X-Review-Token": token } : undefined }, 15000),
   poll: () => live<PollResponse>("/poll", { method: "POST" }, 90000),
   // Candidate myths: live only, no fixtures. A person confirms; nothing here confirms on its own.
   candidates: () => read<MythCandidates>("/myths/candidates"),

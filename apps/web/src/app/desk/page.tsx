@@ -6,10 +6,12 @@ import { MythCard } from "./_components/MythCard";
 import { RadarViewed } from "./_components/RadarViewed";
 import { windowWithYear } from "./_components/window";
 import type { MythSummary } from "@/contracts/types";
+import { isActive } from "@/lib/view-model";
 
 const TREND_ORDER = { rising: 0, steady: 1, unknown: 2, cooling: 3 } as const;
-// Trending first: rising, then steady, then the biggest change in video count, then claim views.
+// Myths with posts in the window first, then rising, steady, the biggest change in video count, then claim views.
 const byTrend = (a: MythSummary, b: MythSummary) =>
+  Number(isActive(b)) - Number(isActive(a)) ||
   TREND_ORDER[a.trend] - TREND_ORDER[b.trend] ||
   (b.trend_pct ?? -Infinity) - (a.trend_pct ?? -Infinity) ||
   (b.claim_views ?? 0) - (a.claim_views ?? 0);
@@ -28,7 +30,7 @@ export default async function Desk() {
           Health myths <em className="kw kw-mark">trending</em> in this window
         </h1>
         <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-          <p className="text-[1.125rem] text-ink-2">Ordered by trend: rising first, then the biggest change in video count.</p>
+          <p className="text-[1.125rem] text-ink-2">Myths with posts in this window first, then rising, then the biggest change in video count.</p>
           <span className="mono text-sm text-ink-2">{windowWithYear(data.window)}</span>
           <DataPulled at={data.generated_at} />
           <Link href="/desk/review" className="font-semibold underline underline-offset-2">Review new myths</Link>
