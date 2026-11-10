@@ -113,7 +113,7 @@ export const api = {
   },
   calendar: () => read<Calendar>("/calendar"),
   // Live feed: no fixture fallback, a down brain must surface as an error. live() ignores NEXT_PUBLIC_USE_MOCKS on purpose.
-  feed: () => live<FeedResponse>("/feed?limit=50", undefined, 15000),
+  feed: (limit = 50) => live<FeedResponse>(`/feed?limit=${limit}`, undefined, 15000),
   // Posts whose correction passed the strict check in the brain, for one myth. Live only.
   corrections: (mythId?: string) => read<{ posts: FeedPost[] }>(mythId ? `/corrections?myth_id=${encodeURIComponent(mythId)}` : "/corrections"),
   hideCorrection: (orianeId: string, token?: string) => live<{ oriane_id: string; hidden: true }>(`/corrections/${encodeURIComponent(orianeId)}/hide`,

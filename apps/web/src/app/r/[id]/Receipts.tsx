@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { TACTICS } from "@/lib/tactics";
 import { receiptVideoUrl } from "@/lib/api";
 import { useReceipts, type VoteAnswer as Answer } from "@/lib/hooks/useReceipts";
 import { QuoteCard } from "@/components/QuoteCard";
@@ -121,6 +122,19 @@ export function Receipts({ id }: { id: string }) {
             ))}
           </section>
         )}
+
+        <section className="grid gap-3.5" aria-labelledby="share-h">
+          <h2 id="share-h" className={H2}>Before you share a health post</h2>
+          <p className="text-ink-2">Posts like the ones above use the same few moves. Check for each one.</p>
+          <ul className="m-0 grid list-none gap-3 p-0">
+            {TACTICS.map((t) => (
+              <li key={t.key} className="grid gap-0.5 border-l-2 border-ink pl-3">
+                <span className="font-semibold">{t.name}</span>
+                <span className="text-ink-2">{t.ask}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className="grid gap-5 rounded-3xl border border-ink p-5 min-[700px]:p-7" aria-labelledby="vote-h">
           <h2 id="vote-h" className="text-[clamp(1.5rem,1.2rem+1vw,2rem)] leading-[1.1] font-extrabold tracking-[-0.02em] [font-variation-settings:'opsz'_48]">

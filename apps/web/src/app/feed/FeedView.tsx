@@ -28,6 +28,7 @@ export function FeedView() {
   const [filter, setFilter] = useState<Verdict | "all">("all");
   const counts = posts.reduce<Record<string, number>>((n, p) => ({ ...n, [verdictOf(p.label)]: (n[verdictOf(p.label)] ?? 0) + 1 }), {});
   const checked = posts.length - (counts.pending ?? 0);
+  const sellingFlagged = posts.filter((p) => verdictOf(p.label) === "flagged" && p.label?.commercial).length;
   // In All, checked posts keep the feed order and posts not checked yet go last, so verdicts come first.
   const shown = filter === "all"
     ? [...posts.filter((p) => p.label), ...posts.filter((p) => !p.label)]
@@ -89,6 +90,7 @@ export function FeedView() {
             <section aria-label="Filter posts" className="grid max-w-[40rem] gap-3">
               <p className="text-[1.0625rem]">
                 <strong>{counts.flagged ?? 0} flagged</strong> of {checked} checked {checked === 1 ? "post" : "posts"}
+                {sellingFlagged > 0 && <>, and {sellingFlagged} of the flagged {sellingFlagged === 1 ? "one sells" : "ones sell"} something</>}
                 {counts.pending ? <span className="text-ink-2">. {counts.pending} not checked yet.</span> : "."}
               </p>
               <div className="flex flex-wrap gap-2">

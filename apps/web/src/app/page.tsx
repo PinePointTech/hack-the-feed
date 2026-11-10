@@ -10,6 +10,8 @@ import { HarmChip } from "@/components/HarmChip";
 import { TrendBadge } from "@/components/TrendBadge";
 import { ClaimCheck } from "./_landing/ClaimCheck";
 import { Featured } from "./_landing/Featured";
+import { HowMythsSpread } from "./_landing/HowMythsSpread";
+import type { FeedPost } from "@/lib/feed";
 import "./_landing/landing.css";
 
 const STEPS = [
@@ -27,6 +29,8 @@ export default async function Home() {
   const res = await settle(api.radar());
   const data = res.ok ? res.data : null;
   const myths = data ? sortMyths(data.myths) : [];
+  // The lesson section reads the live feed; without it the section is left out.
+  const posts = await api.feed(100).then((r) => r.data.posts, () => [] as FeedPost[]);
   const span = data ? `${windowLabel(data.window)}, ${data.window.to.slice(0, 4)}` : "";
 
   return (
@@ -82,6 +86,8 @@ export default async function Home() {
           </ol>
         )}
       </section>
+
+      <HowMythsSpread posts={posts} />
 
       <Featured myths={myths} />
 
