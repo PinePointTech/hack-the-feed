@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useFeed } from "@/lib/hooks/useFeed";
-import { canNameCreator, dataThroughLine, mythName, type FeedPost } from "@/lib/feed";
+import { canNameCreator, dataThroughLine, maskHandles, mythName, type FeedPost } from "@/lib/feed";
 import { compact } from "@/lib/format";
 import { postView, verdictOf, FILTERS, type Verdict } from "@/lib/label-why";
 import Link from "next/link";
@@ -42,7 +42,7 @@ export function FeedView() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {latest && (
             <span className="mono text-sm text-ink-2">
-              Last pull {clock(latest.last_poll_at, "not yet")}, next pull {clock(latest.next_poll_at, "not scheduled")}
+              Last pull {clock(latest.last_poll_at, "not yet")}, next pull {clock(latest.next_poll_at, "paused")}
             </span>
           )}
           {dataThroughLine(latest?.data_through) && <span className="mono text-sm text-ink-2">{dataThroughLine(latest?.data_through)}</span>}
@@ -116,23 +116,29 @@ export function FeedView() {
   );
 }
 
-function Thumb({ src, platform }: { src: string | null; platform: FeedPost["platform"] }) {
+function Thumb({ src, platform, named }: { src: string | null; platform: FeedPost["platform"]; named: boolean }) {
   const [failed, setFailed] = useState(false);
-  const box = "aspect-[9/16] w-full rounded-t-frame border-b border-ink";
-  if (!src || failed)
-    return <div className={`${box} grid place-items-center bg-rule text-center text-sm text-ink-2`}>{PLATFORM[platform]}</div>;
+  const box = "w-full rounded-t-frame border-b border-ink";
+  // A face identifies a creator as much as a handle, so unnamed creators get no thumbnail, only a short band.
+  if (!named || !src || failed)
+    return (
+      <div className={`${box} grid min-h-16 place-content-center gap-0.5 bg-rule px-3 py-2 text-center text-sm text-ink-2`}>
+        <span>{PLATFORM[platform]}</span>
+        {!named && <span className="text-[0.75rem]">Image not shown, creator not named</span>}
+      </div>
+    );
   // Remote CDN thumbnails come from three platforms, so next/image domains are not worth configuring here.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`${box} object-cover`} />;
+  return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`${box} aspect-[9/16] object-cover`} />;
 }
 
 /** One post as a vertical reel card: thumbnail on top, verdict and quote below. Grids lay these out several per row. */
-export function PostCard({ post: p }: { post: FeedPost }) {
+export function PostCard({ post: p, children }: { post: FeedPost; children?: ReactNode }) {
   const named = canNameCreator(p);
   const v = postView(p, mythName);
   return (
     <li className={`flex min-w-0 flex-col overflow-hidden rounded-frame border border-ink bg-paper ${VERDICT_EDGE[v.verdict]}`}>
-      <Thumb src={p.thumbnail_url} platform={p.platform} />
+      <Thumb src={p.thumbnail_url} platform={p.platform} named={named} />
       <article className="grid min-w-0 flex-1 content-start gap-2 p-3.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={VERDICT_CHIP[v.verdict]} title={p.label ? `Checked by ${p.label.model}` : undefined}>{v.title}</span>
@@ -141,7 +147,7 @@ export function PostCard({ post: p }: { post: FeedPost }) {
         {v.myth && <Link href={v.myth.href} className="trend justify-self-start underline-offset-2 hover:underline">Myth: {v.myth.name}</Link>}
         <p className="text-[0.875rem] leading-[1.4]">{v.detail}</p>
         <blockquote className="m-0 border-l-2 border-rule pl-2.5 font-serif text-[0.875rem] leading-[1.45]">
-          <span className="line-clamp-5">&ldquo;{v.quote.text}&rdquo;</span>
+          <span className="line-clamp-5">&ldquo;{named ? v.quote.text : maskHandles(v.quote.text)}&rdquo;</span>
           <footer className="mt-1 font-sans text-[0.75rem] text-ink-2">{v.quote.from}</footer>
         </blockquote>
         {v.backedBy.length > 0 && (
@@ -171,6 +177,7 @@ export function PostCard({ post: p }: { post: FeedPost }) {
         ) : (
           <p className="text-sm text-ink-2">Link unavailable</p>
         )}
+        {children}
       </article>
     </li>
   );

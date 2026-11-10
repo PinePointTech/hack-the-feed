@@ -82,6 +82,20 @@ def test_a_correction_backed_by_a_study_and_a_clinician_page_is_featured(env):
     assert correction["findings"][1]["excerpt"] in PAGE  # excerpts are exact text from the fetched page
 
 
+def test_a_reviewer_can_hide_a_featured_correction_for_good(env):
+    seed(1)
+    run(Fake())
+    with TestClient(main.create_app(config(oriane_key="", review_token="s3cret"))) as api:
+        assert api.post("/corrections/cnt_1/hide").status_code == 401
+        assert api.post("/corrections/cnt_9/hide", headers={"X-Review-Token": "s3cret"}).status_code == 404
+        assert api.post("/corrections/cnt_1/hide", headers={"X-Review-Token": "s3cret"}).json() == {"oriane_id": "cnt_1", "hidden": True}
+        assert api.get("/corrections").json() == {"posts": []}
+    with closing(store.connect()) as con:
+        assert "correction" not in store.list_feed(con)[0]["label"]
+        con.execute("UPDATE corrections SET version = 'old'")  # a new check version would recheck it, but not once hidden
+        assert store.unchecked_corrections(con, corrections.VERSION, labeler.PROMPT_VERSION, 0, store.iso(T0), 10) == []
+
+
 @pytest.mark.parametrize("fake, reason", [
     (Fake(relations=("supports", "contradicts")), "a source contradicts it"),
     (Fake(relations=("qualifies", "supports")), "no published study backs it"),

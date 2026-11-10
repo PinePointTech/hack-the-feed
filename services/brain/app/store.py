@@ -82,6 +82,11 @@ CREATE TABLE IF NOT EXISTS corrections (
     reason TEXT,
     checked_at TEXT NOT NULL
 );
+-- A reviewer hid this correction: it is never featured again and never rechecked.
+CREATE TABLE IF NOT EXISTS hidden_corrections (
+    oriane_id TEXT PRIMARY KEY REFERENCES posts (oriane_id),
+    hidden_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS snapshots (
     day TEXT NOT NULL,
     myth_id TEXT NOT NULL,
@@ -221,6 +226,7 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
         "c.quote AS correction_quote, c.quote_source AS correction_source, c.findings_json AS correction_findings "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
         "LEFT JOIN corrections c ON c.oriane_id = p.oriane_id AND c.status = 'verified' AND l.stance = 'debunks' "
+        "AND c.oriane_id NOT IN (SELECT oriane_id FROM hidden_corrections) "
         "WHERE (? IS NULL OR p.fetched_at > ?)",
         (since, since),
     ).fetchall()
@@ -291,6 +297,7 @@ def unchecked_corrections(
         "LEFT JOIN corrections c ON c.oriane_id = p.oriane_id "
         "WHERE l.stance = 'debunks' AND l.prompt_version = ? AND COALESCE(l.commercial, 0) = 0 "
         f"AND {_ABOVE_FLOOR} "
+        "AND p.oriane_id NOT IN (SELECT oriane_id FROM hidden_corrections) "
         "AND (c.oriane_id IS NULL OR c.version IS NOT ? OR (c.status = 'error' AND c.checked_at < ?)) "
         "ORDER BY p.views DESC, p.oriane_id LIMIT ?",
         (prompt_version, min_views, min_views, version, retry_before, limit),
@@ -308,6 +315,15 @@ def save_correction(
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (oriane_id, version, status, quote, quote_source, json.dumps(findings), reason, checked_at),
         )
+
+
+def hide_correction(con: sqlite3.Connection, oriane_id: str, hidden_at: str) -> bool:
+    """Hide a verified correction from the feed for good. False when the post has no verified correction."""
+    if not con.execute("SELECT 1 FROM corrections WHERE oriane_id = ? AND status = 'verified'", (oriane_id,)).fetchone():
+        return False
+    with con:
+        con.execute("INSERT OR IGNORE INTO hidden_corrections (oriane_id, hidden_at) VALUES (?, ?)", (oriane_id, hidden_at))
+    return True
 
 
 def corrections_checked_since(con: sqlite3.Connection, since: str) -> int:

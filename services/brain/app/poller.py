@@ -130,10 +130,10 @@ async def refresh_transcripts(
 
 
 def schedule(con, settings: Settings) -> tuple[str | None, str | None]:
-    """(last_poll_at, next_poll_at), both measured from the last poll start."""
+    """(last_poll_at, next_poll_at), both measured from the last poll start. No next pull while searches are off."""
     last = store.last_poll_started(con)
-    if last is None:
-        return None, None
+    if last is None or not settings.oriane_key or settings.oriane_max_searches_per_hour <= 0:
+        return last, None
     return last, store.iso(store.parse_iso(last) + timedelta(minutes=settings.poll_interval_minutes))
 
 

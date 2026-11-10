@@ -37,7 +37,7 @@ export function SuggestDebunk({ mythId, video }: { mythId: string; video: VideoR
           disabled={state.status === "loading"}
           className="inline-flex min-h-11 w-fit items-center rounded-pill border border-ink px-[18px] font-semibold hover:bg-ink hover:text-paper disabled:opacity-60"
         >
-          {state.status === "loading" ? "Drafting a debunk..." : "Suggest a debunk for Compound"}
+          {state.status === "loading" ? "Drafting a debunk..." : "Suggest a debunk"}
         </button>
       )}
       {state.status === "loading" && (
@@ -50,7 +50,7 @@ export function SuggestDebunk({ mythId, video }: { mythId: string; video: VideoR
       )}
       {state.status === "done" && (
         <div className="grid gap-3 rounded-2xl border border-ink p-4">
-          <p className="mono text-xs font-semibold text-ink-2">Suggested for Compound, {state.brief.script.duration_s}s</p>
+          <p className="mono text-xs font-semibold text-ink-2">Suggested debunk, {state.brief.script.duration_s}s</p>
           <ul className="m-0 grid list-none gap-2 p-0">
             {state.brief.hooks.map((h) => (
               <li key={h.id} className="font-serif text-[1.0625rem] leading-normal">

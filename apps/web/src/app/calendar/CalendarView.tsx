@@ -41,7 +41,7 @@ export function CalendarView() {
         <p className="text-lg text-ink-2">This week&apos;s health myths, one week ahead.</p>
       </header>
       <Section title="This week" items={data.this_week} onReuse={reuseScript} />
-      <Section title="Watchlist" items={data.watchlist} onReuse={reuseScript} />
+      <Section title="Watchlist" items={[...data.watchlist].sort((a, b) => Number(!!b.views) - Number(!!a.views))} onReuse={reuseScript} />
     </main>
   );
 }

@@ -64,6 +64,8 @@ export function mergeFeed(shown: FeedPost[], latest: FeedPost[]) {
 // so views is the only check possible here. shortcut: views only, upgrade when the brain sends follower_count and an age/illness flag.
 export const NAMING_MIN_VIEWS = 100_000;
 export const canNameCreator = (p: Pick<FeedPost, "views">) => (p.views ?? 0) >= NAMING_MIN_VIEWS;
+/** An unnamed creator's quote keeps its words but not its @handles, which could name the creator. */
+export const maskHandles = (text: string) => text.replace(/@[\w.]+/g, "@…");
 
 export const mythName =(id: string) => id.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()); // "mouth-taping" -> "Mouth taping"
 

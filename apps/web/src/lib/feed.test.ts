@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canNameCreator, dataThroughLine, mergeFeed, mythName, type FeedPost } from "./feed.ts";
+import { canNameCreator, dataThroughLine, mergeFeed, mythName, type FeedPost, maskHandles } from "./feed.ts";
 
 // Built inside the test only to exercise the merge. Never rendered, never shipped as data.
 const post = (id: string, over: Partial<FeedPost> = {}): FeedPost => ({
@@ -56,4 +56,8 @@ test("the data-through line names the day and time, and is null without a date",
   assert.match(line ?? "", /^Oriane search runs to Nov (5|6), \d{1,2}:\d{2} (AM|PM)$/);
   assert.equal(dataThroughLine(null), null);
   assert.equal(dataThroughLine("not a date"), null);
+});
+
+test("an unnamed creator's quote hides @handles but keeps the words", () => {
+  assert.equal(maskHandles("Lymphatic drainage @labodybabe and @a.b_c, email me"), "Lymphatic drainage @… and @…, email me");
 });

@@ -373,6 +373,15 @@ def create_app(
                      and (myth_id is None or post["label"]["myth_id"] == myth_id)]
         return {"posts": posts[:20]}
 
+    @app.post("/corrections/{oriane_id}/hide")
+    def hide_correction(oriane_id: str, request: Request):
+        if refused := reviewer_refused(request):
+            return refused
+        with closing(store.connect()) as con:
+            if not store.hide_correction(con, oriane_id, store.iso(datetime.now(timezone.utc))):
+                return api_error(404, "correction_not_found", "No checked correction for that post.")
+        return {"oriane_id": oriane_id, "hidden": True}
+
     @app.get("/health", response_model=Health)
     async def health(request: Request) -> Health:
         state = request.app.state
