@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { maskHandles } from "@/lib/feed";
 
 const VERDICTS = {
   no_claim: "No checkable claim found",
@@ -23,7 +24,7 @@ type FactCheck = {
 };
 type State = { status: "checking" } | { status: "error"; message: string } | { status: "done"; result: FactCheck };
 
-export function PostFactCheck({ postId, topic }: { postId: string; topic: string }) {
+export function PostFactCheck({ postId, topic, named }: { postId: string; topic: string; named: boolean }) {
   const [state, setState] = useState<State | null>(null);
 
   async function check() {
@@ -54,17 +55,17 @@ export function PostFactCheck({ postId, topic }: { postId: string; topic: string
       <div aria-live="polite">
         {state?.status === "checking" && <p>Reading the post and checking for published evidence…</p>}
         {state?.status === "error" && <p>{state.message}</p>}
-        {state?.status === "done" && <FactCheckReport result={state.result} />}
+        {state?.status === "done" && <FactCheckReport result={state.result} named={named} />}
       </div>
     </div>
   );
 }
 
-function FactCheckReport({ result }: { result: FactCheck }) {
+function FactCheckReport({ result, named }: { result: FactCheck; named: boolean }) {
   return (
     <section className="lp-post-report" aria-label="Fact-check result">
       <h3>{VERDICTS[result.verdict]}</h3>
-      {result.claim && <p>{result.claim.source}: &ldquo;{result.claim.quote}&rdquo;</p>}
+      {result.claim && <p>{result.claim.source}: &ldquo;{named ? result.claim.quote : maskHandles(result.claim.quote)}&rdquo;</p>}
       {result.receipt_id
         ? <p><Link href={`/r/${result.receipt_id}`}>Read the published MyBuster review</Link></p>
         : result.claim && <p>Automated check of one statement using published research indexed by PubMed.</p>}
