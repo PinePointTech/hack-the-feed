@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { track } from "@/lib/track";
 import {
   type LineStatus, type Ticks, lineStatus, canApprove as rulesAllowApproval, changedLines, flagKey,
-  copyScriptText as scriptText, unsupportedCount, seedChecks,
+  copyScriptText as scriptText, unsupportedCount, seedChecks, sourceCoverage, canPublish, blockReason,
 } from "@/lib/studio-logic";
 
 type From = "live" | "fixture";
@@ -189,11 +189,7 @@ export function useStudio(mythId: string) {
     const current = entry?.text === line.text ? entry : undefined;
     return { ...line, check: current?.check, checkedFrom: current?.from, status: lineStatus(current?.check) };
   });
-  const hasUnsupported = studioLines.some((line) => line.status === "unsupported");
-  const coverage = studioLines.length > 0 && studioLines.every(({ status, check, checkedFrom }) =>
-    checkedFrom === "live" && (status === "no_claim" || (status === "supported" &&
-      !!check?.evidence?.some((citation) => brief?.sources.some((source) =>
-        source.id === citation.source_id && source.excerpts.includes(citation.excerpt))))));
+  const coverage = sourceCoverage(studioLines, brief?.sources ?? []);
   const effectiveChecklist = { ...checklist, every_claim_has_source: coverage,
     video_qa_passed: !!qa?.pass && qaFrom === "live" && !!videoUrl };
   const canLock = !!brief && !approvedLines && rulesAllowApproval(effectiveChecklist, studioLines.map((line) => line.status));
@@ -299,7 +295,7 @@ export function useStudio(mythId: string) {
   }
 
   async function publish() {
-    if (!brief || !approvedLines || !finalApproved || !videoUrl || !effectiveChecklist.video_qa_passed || publishing) return;
+    if (!brief || !approvedLines || !videoUrl || !canPublish({ finalApproved, videoUrl, qaPass: effectiveChecklist.video_qa_passed, publishing })) return;
     setPublishing(true);
     try {
       const { data, from } = await api.publish({
@@ -321,7 +317,7 @@ export function useStudio(mythId: string) {
   return {
     format, FORMATS, generateBrief, briefLoading, brief, from, error,
     hookId, selectHook,
-    lines: studioLines, setLineText, checkFrom, hasUnsupported,
+    lines: studioLines, setLineText, checkFrom, blocked: blockReason(studioLines.map((line) => line.status)),
     checklist: effectiveChecklist, toggle, canLock, lockScript, unlockScript, canApprove, approve,
     reviewer, setReviewer, finalApproved, approved: !!approvedLines, approvedLines, retryChecks,
     copyScriptText, copyScript, copied,

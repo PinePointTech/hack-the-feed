@@ -286,6 +286,7 @@ export function Studio({ mythId, title }: { mythId: string; title: string }) {
               <ol className="grid gap-4">
                 {lines.map((l, i) => {
                   const c = checks[l.id];
+                  const cites = c?.evidence?.[0]?.source_id; // from the check of the current text, so an edited line never shows an old citation
                   return (
                     <li key={l.id} className={`grid gap-3 rounded-[24px] border-2 border-l-[10px] p-4 md:p-5 ${LINE_STYLE[l.status]}`}>
                       <div className="flex flex-wrap items-center gap-2">
@@ -312,7 +313,7 @@ export function Studio({ mythId, title }: { mythId: string; title: string }) {
                         className="min-h-14 w-full min-w-0 resize-none rounded-2xl border border-ink bg-paper px-4 py-3 text-lg text-ink [field-sizing:content] read-only:border-rule md:text-xl"
                       />
                       {c?.note && <p className="text-lg font-semibold">{c.note}</p>}
-                      {(l.on_screen || l.source_id) && (
+                      {(l.on_screen || cites) && (
                         <dl className="grid gap-1 text-base">
                           {l.on_screen && (
                             <div className="flex flex-wrap gap-x-2">
@@ -320,10 +321,10 @@ export function Studio({ mythId, title }: { mythId: string; title: string }) {
                               <dd className="min-w-0 font-mono">{l.on_screen}</dd>
                             </div>
                           )}
-                          {l.source_id && (
+                          {cites && (
                             <div className="flex flex-wrap gap-x-2">
                               <dt className="font-semibold text-ink-2">Cites</dt>
-                              <dd>{sourceName(l.source_id) ?? l.source_id}</dd>
+                              <dd>{sourceName(cites) ?? cites}</dd>
                             </div>
                           )}
                         </dl>
@@ -354,9 +355,9 @@ export function Studio({ mythId, title }: { mythId: string; title: string }) {
                   if (ticks[k as keyof Ticks] !== v) s.toggle(k as keyof Ticks);
                 }}
               />
-              {s.hasUnsupported && (
+              {s.blocked && !approved && (
                 <p role="alert" className="rounded-2xl bg-harmful-fill p-4 text-lg font-semibold text-harmful-text">
-                  A script line has no source. Fix it before you approve.
+                  {s.blocked}
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-4">

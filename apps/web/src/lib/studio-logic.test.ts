@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lineStatus, statusFromSupport, canApprove, changedLines, flagKey, copyScriptText, unsupportedCount, seedChecks } from "./studio-logic.ts";
-import type { LineCheck, ClaimCheck } from "../contracts/types.ts";
+import type { LineStatus } from "./studio-logic.ts";
+import { lineStatus, statusFromSupport, canApprove, changedLines, flagKey, copyScriptText, unsupportedCount, seedChecks, sourceCoverage, canPublish, blockReason } from "./studio-logic.ts";
+import type { LineCheck, ClaimCheck, Source } from "../contracts/types.ts";
 
 const lc = (x: Partial<LineCheck>): LineCheck => ({ line_id: "l1", has_claim: true, engine: "jev", ...x });
 const claim = (id: string, status: ClaimCheck["status"]): ClaimCheck => ({ id, text: id, evidence: [], support: 0.9, status, engine: "jev" });
@@ -48,4 +49,36 @@ test("unsupportedCount and seedChecks", () => {
   const seed = seedChecks([{ id: "l1", text: "x", claim_id: "c2" }, { id: "l2", text: "y" }], claims);
   assert.equal(lineStatus(seed.l1), "unsupported");
   assert.equal(lineStatus(seed.l2), "no_claim");
+});
+
+const source = { id: "s1", excerpts: ["exact words"] } as Source;
+const live = (status: LineStatus, evidence?: LineCheck["evidence"]) =>
+  ({ status, checkedFrom: "live" as const, check: lc({ evidence }) });
+
+test("sourceCoverage is derived from live checks that cite a real excerpt", () => {
+  const cited = [{ source_id: "s1", excerpt: "exact words" }];
+  assert.equal(sourceCoverage([live("supported", cited), live("no_claim")], [source]), true);
+  assert.equal(sourceCoverage([], [source]), false);
+  assert.equal(sourceCoverage([live("supported", cited), live("pending")], [source]), false);
+  assert.equal(sourceCoverage([live("unsupported", cited)], [source]), false);
+  assert.equal(sourceCoverage([live("supported", [{ source_id: "s1", excerpt: "invented" }])], [source]), false);
+  assert.equal(sourceCoverage([live("supported")], [source]), false);
+  assert.equal(sourceCoverage([{ ...live("supported", cited), checkedFrom: "fixture" }], [source]), false);
+});
+
+test("canPublish needs final approval, a QA-passed video and no publish in flight", () => {
+  const ok = { finalApproved: true, videoUrl: "/published/x/video/a.mp4", qaPass: true, publishing: false };
+  assert.equal(canPublish(ok), true);
+  assert.equal(canPublish({ ...ok, finalApproved: false }), false);
+  assert.equal(canPublish({ ...ok, videoUrl: null }), false);
+  assert.equal(canPublish({ ...ok, qaPass: false }), false);
+  assert.equal(canPublish({ ...ok, publishing: true }), false);
+});
+
+test("blockReason names the worst blocking line and is empty when clear", () => {
+  assert.equal(blockReason(["supported", "no_claim"]), "");
+  assert.match(blockReason(["weak", "unsupported"]), /no source/);
+  assert.match(blockReason(["failed", "pending"]), /could not be checked/);
+  assert.match(blockReason(["pending", "weak"]), /still being checked/);
+  assert.match(blockReason(["weak"]), /weak support/);
 });
