@@ -422,11 +422,24 @@ def reject_candidate(con: sqlite3.Connection, myth_id: str) -> bool:
     return True
 
 
+def reword_myth(con: sqlite3.Connection, myth_id: str, changes: dict[str, str]) -> bool:
+    """A person rewords a confirmed myth's title, claim or tier reason. False if no such confirmed myth."""
+    allowed = {k: v for k, v in changes.items() if k in {"title", "claim", "harm_reason"}}
+    with con:
+        found = con.execute("SELECT 1 FROM myths WHERE id = ? AND status = 'confirmed'", (myth_id,)).fetchone()
+        if found and allowed:
+            con.execute(f"UPDATE myths SET {', '.join(f'{k} = ?' for k in allowed)} WHERE id = ?", (*allowed.values(), myth_id))
+    return found is not None
+
+
 def confirm_myth(con: sqlite3.Connection, myth_id: str, confirmed_at: str) -> dict | None:
     """Promote a candidate. Only a person calls this. None if the id is unknown; confirming twice is a no-op."""
     with con:
         con.execute(
-            "UPDATE myths SET status = 'confirmed', confirmed_at = ? WHERE id = ? AND status = 'candidate'",
+            # Its watchlist phrase (the candidate title) becomes its topic and search phrase, before anyone rewords it.
+            "UPDATE myths SET status = 'confirmed', confirmed_at = ?, topic = CASE topic WHEN '' THEN title ELSE topic END, "
+            "phrases = CASE phrases WHEN '[]' THEN json_array(lower(title)) ELSE phrases END "
+            "WHERE id = ? AND status = 'candidate'",
             (confirmed_at, myth_id),
         )
     row = con.execute("SELECT id, title, claim, status, source_oriane_id, created_at, confirmed_at FROM myths WHERE id = ?", (myth_id,)).fetchone()

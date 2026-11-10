@@ -70,12 +70,14 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
             <HarmChip tier={m.harm_tier} />
             <TrendBadge trend={m.trend} pct={m.trend_pct} />
           </div>
-          <div className="grid gap-2">
-            <p className={LABEL}>Why this tier</p>
-            <p className="max-w-[36em] font-serif text-[clamp(1.25rem,1.05rem+0.7vw,1.625rem)] leading-[1.4]">
-              {m.harm_reason}
-            </p>
-          </div>
+          {m.harm_reason && (
+            <div className="grid gap-2">
+              <p className={LABEL}>Why this tier</p>
+              <p className="max-w-[36em] font-serif text-[clamp(1.25rem,1.05rem+0.7vw,1.625rem)] leading-[1.4]">
+                {m.harm_reason}
+              </p>
+            </div>
+          )}
         </header>
       </div>
 

@@ -57,6 +57,12 @@ def confirmed_myths(con: sqlite3.Connection) -> list[dict]:
                     (myth["id"], myth["title"], myth["topic"], myth["claim"], myth["harm_tier"],
                      myth["harm_reason"], json.dumps(SEED_PHRASES.get(myth["id"], [myth["topic"]]))),
                 )
+    # Myths confirmed before store.confirm_myth set a topic: give them their watchlist phrase (the title) once.
+    with con:
+        con.execute(
+            "UPDATE myths SET topic = title, phrases = json_array(lower(title)) "
+            "WHERE status = 'confirmed' AND topic = '' AND phrases = '[]'"
+        )
     return [
         {**row, "phrases": [phrase.lower() for phrase in json.loads(row["phrases"])]}
         for row in map(dict, con.execute("SELECT * FROM myths WHERE status = 'confirmed' ORDER BY rowid"))
