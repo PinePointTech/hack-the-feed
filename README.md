@@ -1,37 +1,124 @@
-# MyBuster
+# MyBuster 🕵️
 
-Find the health myth. Get the receipts. Make the debunk.
+**Spot the health myth. Show the exact words. Ship a sourced debunk.**
 
-MyBuster is a myth desk for health creators and the social media managers who run their accounts. It finds health myths spreading on TikTok, Instagram and YouTube, shows the exact posts and words, pulls real sources, drafts a debunk script that a judge model checks line by line, helps the creator make the video, checks the finished video's on-screen text against the approved script, publishes a public receipts page, and measures whether the response caught up with the myth.
+MyBuster watches health posts on TikTok, Instagram and YouTube, flags the ones that push claims mainstream evidence does not support, and helps a creator answer them with a video where every line has a source.
 
-Built at Hack the Feed (Nov 6, 2026, Amplitude HQ, San Francisco) by Vi Huynh (web and product) and Krzysztof "Kris" Stężała (AI pipeline).
+## 🔎 What it does
 
-## How it works
-1. Radar: Oriane searches transcripts, captions and on-screen text. Jev labels each video's stance. A GMI Cloud model groups videos into myths and tags a harm tier (harmful, false, unproven).
-2. Myth page: the exact quotes, with timestamps and links.
-3. Brief: real sources fetched live (PubMed and trusted health sites). A GMI model drafts only from verbatim excerpts, and Jev scores how well each claim is supported.
-4. Studio: pick a format and a hook, edit the script, and every edited line is re-checked live. An approval checklist gates export.
-5. Video: record, then edit, caption and post with Compound.mov. A GMI vision model reads the on-screen text and Jev checks it against the approved lines.
-6. Receipts: a public page with the quote, the verdict, the sources and a "Did this change your mind?" vote.
-7. Impact and calendar: response reach vs myth reach (Oriane plus Amplitude), and a public calendar of next week's myths.
+- **Live feed.** Health posts from Oriane, pulled every 15 minutes, newest first.
+- **AI labels.** Each post gets a plain verdict. A flagged post shows the exact sentence that is the proof, with a link to the video.
+- **Myth radar.** Posts group into myths, and each myth shows whether it is rising or cooling.
+- **Calendar and impact pages.** What is coming next week, and whether the response reached as many people as the myth.
+- **Studio.** Drafts a debunk from live sources, then re-checks every line as you edit it.
+- **Public receipts.** A shareable page with the quote, the verdict, the sources and a QR code.
 
-## Repo map
-| Path | Owner | What |
+## 🧭 How the pipeline works
+
+```mermaid
+flowchart LR
+    A["Oriane search<br/>every 15 min"] --> B[("SQLite store")]
+    B --> C["AI labeler<br/>reads transcript,<br/>then caption"]
+    C --> D["Flag plus<br/>evidence sentence"]
+    D --> E["Feed page"]
+    D --> F["Radar page"]
+    classDef src fill:#1d4ed8,stroke:#1e3a8a,color:#ffffff
+    classDef store fill:#475569,stroke:#1e293b,color:#ffffff
+    classDef ai fill:#7c3aed,stroke:#4c1d95,color:#ffffff
+    classDef out fill:#059669,stroke:#064e3b,color:#ffffff
+    class A src
+    class B store
+    class C,D ai
+    class E,F out
+```
+
+The labeler reads what the creator says first, then the caption. A post is flagged only when a sentence from the post itself shows the claim. The sentence is an exact substring of the text, never a paraphrase.
+
+## 🛠️ From myth to debunk
+
+```mermaid
+flowchart LR
+    R["Radar"] --> M["Myth page<br/>quotes and links"]
+    M --> S["Studio brief<br/>with sources"]
+    S --> L["Live check<br/>on every line"]
+    L --> P{"Approval<br/>checklist"}
+    P -->|approved| V["Video QA<br/>on-screen text"]
+    V --> C["Receipts page<br/>with QR"]
+    P -->|not yet| S
+    classDef find fill:#1d4ed8,stroke:#1e3a8a,color:#ffffff
+    classDef make fill:#7c3aed,stroke:#4c1d95,color:#ffffff
+    classDef gate fill:#b45309,stroke:#78350f,color:#ffffff
+    classDef ship fill:#059669,stroke:#064e3b,color:#ffffff
+    class R,M find
+    class S,L make
+    class P gate
+    class V,C ship
+```
+
+Nothing is exported until a person works through the checklist. The video QA step compares the words on screen with the approved script.
+
+## 🏷️ How a post is judged
+
+| Verdict | Meaning |
+|---|---|
+| **Flagged** | Pushes a health claim that mainstream evidence does not support |
+| **Makes a claim** | A health claim that is modest or has support |
+| **Corrects** | Disputes or corrects a health claim |
+| **No claim** | Mentions the topic but claims nothing |
+| **Not checked** | Waiting for its turn after a pull |
+
+On a small held-out test set of 30 hand-labeled posts, the flag had precision 6 of 7 and recall 6 of 9. That is a small test. A difference of one or two posts is noise, so read it as a rough guide, not a guarantee. The method and the full numbers are in `docs/research/label-eval-v2.md`.
+
+## 🚀 Quick start
+
+**Brain** (Python 3.11+, [uv](https://docs.astral.sh/uv/)):
+
+```bash
+cd services/brain
+cp .env.example .env        # then fill in the values
+uv run uvicorn app.main:app --reload --port 8000
+curl localhost:8000/health
+```
+
+**Web** (Node, npm):
+
+```bash
+cd apps/web
+npm install
+npm run dev                 # http://localhost:3000
+```
+
+Set `NEXT_PUBLIC_USE_MOCKS=1` to run the web app on fixtures without a brain.
+
+| Where | Env var names (see the `.env.example` files) |
+|---|---|
+| `services/brain/.env` | `ORIANE_API_KEY`, `ORIANE_SEARCH_URL`, `POLL_INTERVAL_MINUTES`, `ORIANE_MAX_SEARCHES_PER_HOUR`, `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `GMI_API_KEY`, `GMI_BASE_URL`, `GMI_VLM_MODEL`, `NCBI_EMAIL`, `NCBI_API_KEY`, `ALLOWED_ORIGINS`, `FACT_CHECK_API_TOKEN`, `FACT_CHECK_MODEL`, `REVIEW_TOKEN` |
+| `apps/web/.env.local` | `NEXT_PUBLIC_BRAIN_URL`, `NEXT_PUBLIC_USE_MOCKS`, `NEXT_PUBLIC_AMPLITUDE_API_KEY`, `NEXT_PUBLIC_SITE_URL`, `FACT_CHECK_API_TOKEN` |
+
+Never commit real values.
+
+## ☁️ Where it runs
+
+| Part | Host | Deploys |
 |---|---|---|
-| `apps/web/` | Vi | Next.js app: desk, studio, receipts, calendar, impact |
-| `services/brain/` | Kris | FastAPI service: Oriane, GMI, Jev, evidence, QA, publish |
-| `data/` | Kris | Cached radar, myths, briefs and published debunks (JSON) |
-| `contracts/` | shared, frozen at 3:00 PM | `types.ts` and `fixtures/` |
-| `docs/` | both | Plan, specs, research, sponsor notes |
+| Web | Vercel | Auto-deploys from `main` |
+| Brain | Railway (`railway.json`, health check at `/health`) | Auto-deploys from `main` |
 
-## Start here
-1. Read `CLAUDE.md` (rules) and `docs/00-INDEX.md` (map of every doc).
-2. Vi: `docs/START-HERE-VI.md`. Kris: `docs/START-HERE-KRIS.md`.
-3. Copy the blocks in `.env.example` to `apps/web/.env.local` and `services/brain/.env`. Never commit them.
+## 🗺️ Repo map
 
-## Run
-- Brain: `cd services/brain && uv run uvicorn app.main:app --reload --port 8000`
-- Web: `cd apps/web && npm run dev`, then open http://localhost:3000
+| Path | What |
+|---|---|
+| `apps/web/` | Next.js app: feed, radar, myth, studio, calendar, impact, receipts |
+| `services/brain/` | FastAPI service: poller, labeler, derived views, briefs, live check, video QA |
+| `contracts/` | Shared API types and fixtures |
+| `data/` | Watchlist, cached data and the hand-labeled eval set |
+| `docs/` | Product notes, specs and research |
 
-## Sponsor tech
-Oriane (social video search), GMI Cloud (serverless LLM and vision, sandbox jobs), Jev from TypeSafe (judge model), Compound.mov (video edit and post), Amplitude (product analytics). Lovable is not used.
+## 📏 House rules
+
+1. **No source, no claim.** Every claim shown links to an excerpt that is an exact substring of fetched text. With nothing found, the app says "No good source found".
+2. **People approve.** AI drafts, a person signs off. Nothing exports or publishes without the checklist.
+3. **Plain copy.** Calm, sentence case, no hype, no em dashes. Numbers in the UI come from `docs/research/` with their source.
+4. **Name the claim, not the person.** Quote exact words with a link. Never name anyone who looks under 18.
+5. **Contracts only grow.** Change `contracts/` through a pull request, with optional fields only.
+6. **Mock first.** The web app must keep running on fixtures when the brain is down.
