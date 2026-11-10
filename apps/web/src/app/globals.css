@@ -73,6 +73,10 @@ h3 {
   overflow-wrap: anywhere;
   text-wrap: balance;
 }
+/* Quotes and excerpts can hold long hashtags or URLs; on a phone they must wrap, not widen the page. */
+blockquote {
+  overflow-wrap: anywhere;
+}
 a {
   text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;

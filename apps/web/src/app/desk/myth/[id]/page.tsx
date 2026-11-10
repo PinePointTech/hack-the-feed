@@ -35,15 +35,14 @@ function accent(text: string, word: string) {
 
 export default async function MythPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const res = await settle(api.myth(id));
+  // Read in parallel so a slow brain costs one timeout, not three.
+  const [res, published, found] = await Promise.all([settle(api.myth(id)), api.published(id), settle(api.corrections(id))]);
   if (!res.ok && res.status === 404) notFound();
   if (!res.ok) return <LiveUnavailable what="this myth" />;
   const { data: m, from } = res;
   // The published debunk is for one myth. A fallback record with another id is not shown here.
-  const published = await api.published(id);
   const debunk = published.data.id === id ? published.data : null;
   // Corrections already on social media come first; a down brain just hides the section.
-  const found = await settle(api.corrections(id));
   const corrections = found.ok ? found.data.posts : [];
 
   return (

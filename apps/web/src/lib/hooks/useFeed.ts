@@ -7,7 +7,7 @@ import { useTrackOnce } from "./useTrackOnce";
 const REFETCH_MS = 60_000;
 
 /**
- * Live feed from the brain. On mount and on refresh(): POST /poll, then GET /feed. Every 60 s: GET /feed only.
+ * Live feed from the brain. On mount: GET /feed, then POST /poll and GET /feed again. On refresh(): POST /poll, then GET /feed. Every 60 s: GET /feed only.
  * Returns { posts, fresh, latest, loading, refreshing, error, down, refresh, showFresh }.
  * `fresh` are posts from a background fetch that wait behind the "N new posts" pill until showFresh().
  */
@@ -31,8 +31,8 @@ export function useFeed() {
       setError(null);
     } catch (err) {
       if (!mounted.current) return;
-      // fetch failures (TypeError, TimeoutError) mean nothing answered; an HTTP error from live() is a plain Error
-      const down = !(err instanceof Error) || err.name !== "Error";
+      // fetch failures (TypeError, TimeoutError) mean nothing answered; an HTTP error or a bad body is an answer
+      const down = !(err instanceof Error) || ["TypeError", "TimeoutError", "AbortError"].includes(err.name);
       setError({ message: err instanceof Error ? err.message : "Unknown error", down });
     } finally {
       inflight.current = false;
@@ -42,8 +42,9 @@ export function useFeed() {
 
   useEffect(() => {
     mounted.current = true;
+    // Stored posts first (a poll can take 90 s on a slow brain), then poll and swap in the fresh pull.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- pull() sets state only after its awaits
-    pull(true);
+    pull(false).then(() => { if (mounted.current) pull(true); });
     const timer = setInterval(() => pull(false), REFETCH_MS);
     return () => {
       mounted.current = false;
