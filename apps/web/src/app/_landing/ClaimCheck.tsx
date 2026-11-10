@@ -108,7 +108,7 @@ function SearchResults({ query, result }: { query: string; result: SearchResult 
                   </p>
                   {video.snippet && <p className="lp-live-snippet">{video.snippet_source}: &ldquo;{canNameCreator(video) ? video.snippet : maskHandles(video.snippet)}&rdquo;</p>}
                   {video.url && <a href={video.url} target="_blank" rel="noopener noreferrer">Open the post</a>}
-                  <PostFactCheck key={query} postId={video.id} topic={query} />
+                  <PostFactCheck key={query} postId={video.id} topic={query} named={canNameCreator(video)} />
                 </div>
               </li>
             ))}
