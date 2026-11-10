@@ -148,6 +148,7 @@ def create_app(
         async with httpx.AsyncClient(timeout=10, transport=transport) as client:
             app.state.client = client
             app.state.line_checker = check.LineChecker(settings)
+            app.state.brief_jobs = {}
             app.state.fact_checker = fact_check.FactChecker(fact_check_settings)
             app.state.video_qa = qa.VideoQA(settings, app.state.line_checker)
             app.state.health_lock = asyncio.Lock()
@@ -186,21 +187,29 @@ def create_app(
 
     @app.post("/brief", response_model=Brief, response_model_exclude_none=True)
     async def grounded_brief(body: BriefRequest, request: Request):
-        if body.myth_id not in brief.MYTHS:
+        if brief.myth_for(body.myth_id) is None:
             return api_error(404, "myth_not_found", "Unknown myth ID.")
+        # A first draft for a new myth (web search, PubMed, scoring) can outlast the request. The job keeps running
+        # after a timeout and saves the brief, so asking again a minute later returns it.
+        jobs = request.app.state.brief_jobs
+        key = (body.myth_id, body.format, body.refresh)
+        if key not in jobs or (jobs[key].done() and (jobs[key].cancelled() or jobs[key].exception())):
+            jobs[key] = asyncio.create_task(brief.generate(body, request.app.state.client, settings))
+            jobs[key].add_done_callback(lambda task, key=key: jobs.pop(key, None) if jobs.get(key) is task else None)
         try:
-            async with asyncio.timeout(45):
-                draft = await brief.generate(body, request.app.state.client, settings)
-                if not draft.claims or not draft.sources:
-                    return api_error(404, "draft_unavailable", "No verified draft is available for this claim.")
-                return draft
-        except (TimeoutError, httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
+            draft = await asyncio.wait_for(asyncio.shield(jobs[key]), 45)
+            if not draft.claims or not draft.sources:
+                return api_error(404, "draft_unavailable", "No verified draft is available for this claim.")
+            return draft
+        except TimeoutError:
+            return api_error(503, "brief_drafting", "Drafting the brief from sources. Try again in a minute.")
+        except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, RuntimeError) as error:
             logger.warning("Brief generation failed (%s)", type(error).__name__)
             return api_error(503, "brief_unavailable", "The grounded brief is temporarily unavailable.")
 
     @app.post("/check", response_model=CheckResponse, response_model_exclude_none=True)
     async def check_lines(body: CheckRequest, request: Request):
-        if body.myth_id not in brief.MYTHS:
+        if brief.myth_for(body.myth_id) is None:
             return api_error(404, "myth_not_found", "Unknown myth ID.")
         try:
             async with asyncio.timeout(12):
@@ -234,7 +243,7 @@ def create_app(
         request: Request, response: Response, myth_id: str = Form(), approved_lines: str = Form(),
         file: UploadFile = File(),
     ):
-        if myth_id not in brief.MYTHS:
+        if brief.myth_for(myth_id) is None:
             return api_error(404, "myth_not_found", "Unknown myth ID.")
         try:
             lines = TypeAdapter(list[ScriptLine]).validate_json(approved_lines)

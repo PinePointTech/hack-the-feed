@@ -31,6 +31,7 @@ FEED_SOURCE = {"Transcript": "transcript", "Caption": "caption", "Title": "capti
 PUBMED = "https://pubmed.ncbi.nlm.nih.gov/"
 # Clinician-written or medically reviewed publishers. A subset of evidence.TRUSTED_DOMAINS (no journalism).
 CLINICAL = {
+    "pmc.ncbi.nlm.nih.gov": "PubMed Central",  # journal articles NIH hosts, not NIH's own pages; checked before nih.gov
     "nih.gov": "NIH", "cdc.gov": "CDC", "who.int": "WHO", "nhs.uk": "NHS", "cochrane.org": "Cochrane",
     "mayoclinic.org": "Mayo Clinic", "clevelandclinic.org": "Cleveland Clinic",
     "hopkinsmedicine.org": "Johns Hopkins Medicine", "health.harvard.edu": "Harvard Health Publishing",

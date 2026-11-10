@@ -11,7 +11,9 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, Field
 
-from . import evidence, judge
+from contextlib import closing
+
+from . import evidence, judge, store
 from .config import Settings
 from .schemas import (
     Brief, BriefRequest, ClaimCheck, Evidence, Format, Hook, HookStyle, Script,
@@ -27,6 +29,17 @@ MYTHS = {
     "garlic-tumor": "Garlic destroys cancer tumors and garlic paste can treat a tumor instead of standard care.",
     "mouth-taping": "Taping your mouth shut at night is a proven fix, including for a sharper jawline.",
 }
+
+
+def myth_for(myth_id: str) -> evidence.Myth | None:
+    """A hand-written myth, or one a person confirmed from review (its claim and watchlist phrase from the store)."""
+    if myth_id in MYTHS:
+        return evidence.Myth(myth_id, MYTHS[myth_id])
+    with closing(store.connect()) as con:
+        row = con.execute("SELECT claim, topic FROM myths WHERE id = ? AND status = 'confirmed'", (myth_id,)).fetchone()
+    return evidence.Myth(myth_id, row["claim"], row["topic"]) if row else None
+
+
 LYMPHATIC_QUOTE = "It's the easiest way to get inflammation out of the body, detox, and wake up."
 INTRO: dict[Format, str] = {
     "stitch": "Pause there. Let's check the claim in that clip.",
@@ -142,6 +155,7 @@ def hooks_for(myth_id: str, claim: str, count: int) -> list[Hook]:
 
 def assemble(
     request: BriefRequest,
+    claim_text: str,
     sources: list[Source],
     checked: list[tuple[DraftClaim, ClaimCheck]],
     model: str,
@@ -174,7 +188,7 @@ def assemble(
     return Brief(
         myth_id=request.myth_id, verdict=verdict, what_is_true=true, what_is_false=false,
         sources=sources, claims=[claim for _, claim in checked],
-        hooks=hooks_for(request.myth_id, MYTHS[request.myth_id], len(sources)),
+        hooks=hooks_for(request.myth_id, claim_text, len(sources)),
         script=Script(
             format=request.format, duration_s=max(30, min(45, round(words / 2.3))), lines=lines,
             caption="A claim check with the sources and exact excerpts in the receipts." if sources else NO_SOURCE,
@@ -198,7 +212,10 @@ def save_brief(path: Path, brief: Brief) -> None:
 
 
 async def generate(request: BriefRequest, client: httpx.AsyncClient, settings: Settings) -> Brief:
-    claim = MYTHS[request.myth_id]
+    myth = myth_for(request.myth_id)
+    if myth is None:
+        raise KeyError(request.myth_id)
+    claim = myth.claim
     path = DATA_DIR / f"{request.myth_id}.{request.format}.json"
     if not request.refresh and path.is_file():
         try:
@@ -206,9 +223,9 @@ async def generate(request: BriefRequest, client: httpx.AsyncClient, settings: S
         except ValueError:
             logger.warning("Ignoring invalid brief cache for %s", request.myth_id)
 
-    sources = await evidence.find(evidence.Myth(request.myth_id, claim))
+    sources = await evidence.find(myth)
     if not sources:
-        return assemble(request, [], [], settings.chat_model)
+        return assemble(request, claim, [], [], settings.chat_model)
 
     excerpts = {
         f"e{index}": item
@@ -223,6 +240,6 @@ async def generate(request: BriefRequest, client: httpx.AsyncClient, settings: S
         for index, item in enumerate(draft.claims, 1)
     ))
     checked = [(item, score) for item, score in zip(draft.claims, scored) if score is not None]
-    brief = assemble(request, sources, checked, settings.chat_model)
+    brief = assemble(request, claim, sources, checked, settings.chat_model)
     save_brief(path, brief)
     return brief

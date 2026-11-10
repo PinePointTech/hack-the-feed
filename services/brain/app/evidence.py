@@ -32,6 +32,7 @@ QUOTES = str.maketrans({"‘": "'", "’": "'", "“": '"', "”": '"'})
 class Myth:
     id: str
     claim: str
+    topic: str = ""  # the watchlist phrase; searches for myths with no hand-picked query use it
 
 
 @dataclass(frozen=True)
@@ -107,7 +108,7 @@ async def fetch_pubmed(client: httpx.AsyncClient, myth: Myth) -> list[Candidate]
     search = await client.get(
         f"{EUTILS}/esearch.fcgi",
         params=params | {
-            "term": PUBMED_QUERIES.get(myth.id, myth.claim),
+            "term": PUBMED_QUERIES.get(myth.id) or (f'"{myth.topic}"' if myth.topic else myth.claim),
             "retmax": 5, "sort": "relevance", "retmode": "json",
         },
     )
@@ -217,11 +218,11 @@ async def find(myth: Myth, *, refresh: bool = False) -> list[Source]:
         return []
 
     async with httpx.AsyncClient(timeout=30, headers={"User-Agent": "Mozilla/5.0 MyBuster/0.1"}) as client:
-        groups = await asyncio.gather(
-            *(fetch_page(client, seed) for seed in SEEDED_PAGES.get(myth.id, [])),
-            fetch_pubmed(client, myth),
-            return_exceptions=True,
-        )
+        # A myth with no hand-picked pages gets clinician pages from a web search limited to clinical publishers.
+        from . import corrections  # local: corrections imports this module
+        pages = ([fetch_page(client, seed) for seed in SEEDED_PAGES[myth.id]] if myth.id in SEEDED_PAGES
+                 else [corrections.clinician_pages(client, settings, f"{myth.topic or myth.claim}: {myth.claim}")])
+        groups = await asyncio.gather(*pages, fetch_pubmed(client, myth), return_exceptions=True)
         candidates = []
         for group in groups:
             if isinstance(group, BaseException):

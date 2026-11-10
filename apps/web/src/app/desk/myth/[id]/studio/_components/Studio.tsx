@@ -165,7 +165,7 @@ export function Studio({ mythId, title }: { mythId: string; title: string }) {
           }</p>
           {loading && (
             <p className={`${card} text-lg`} role="status">
-              Searching sources, drafting and checking claims. This can take up to 45 seconds.
+              Searching sources, drafting and checking claims. The first draft for a new myth can take about two minutes.
             </p>
           )}
           {s.error && (
