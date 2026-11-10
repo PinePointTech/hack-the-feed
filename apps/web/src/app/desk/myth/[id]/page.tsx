@@ -241,7 +241,7 @@ export default async function MythPage({ params }: { params: Promise<{ id: strin
           <Link href={`/desk/myth/${m.id}/studio`} className="btn">
             Make the debunk
           </Link>
-          <Link href={`/desk/impact/${m.id}`} className="underline">View impact</Link>
+          <Link href={`/desk/impact/${m.id}`} className="underline">Are corrections keeping up? See reach</Link>
           <Suspense fallback={null}>
             <DebunkVideo id={m.id} />
           </Suspense>

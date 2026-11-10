@@ -244,6 +244,7 @@ def test_candidates_list_and_only_a_person_confirms(env):
         ]
         assert set(listed[0]) == {
             "id", "title", "claim", "status", "source_oriane_id", "created_at", "confirmed_at", "post_count",
+            "total_views", "source_url", "source_thumbnail_url", "source_views", "source_platform",
         }
 
         confirmed = client.post("/myths/sea-moss/confirm").json()

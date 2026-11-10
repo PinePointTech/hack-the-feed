@@ -81,7 +81,7 @@ export function AudiencePanel({ id, fallback }: { id: string; fallback: OurDebun
                   <span className="text-sm font-bold">Receipts views</span>
                   <span className={BIG}>{exact(stats.receipts_views)}</span>
                   <span className="mono text-[0.8125rem] text-ink-2">
-                    {exact(stats.receipts_views_demo_qr)} from the demo QR{stats.receipts_views ? ` (${demoShare}%)` : ""}
+                    {exact(stats.receipts_views_demo_qr)} from the QR code{stats.receipts_views ? ` (${demoShare}%)` : ""}
                   </span>
                 </div>
                 <div className="grid content-start gap-0.5">

@@ -403,8 +403,12 @@ def add_candidate(
 
 def list_candidates(con: sqlite3.Connection) -> list[dict]:
     rows = con.execute(
-        "SELECT m.id, m.title, m.claim, m.status, m.source_oriane_id, m.created_at, m.confirmed_at, (SELECT COUNT(*) FROM labels l WHERE l.myth_id = m.id) AS post_count "
-        "FROM myths m WHERE m.status = 'candidate' ORDER BY post_count DESC, m.created_at, m.id"
+        "SELECT m.id, m.title, m.claim, m.status, m.source_oriane_id, m.created_at, m.confirmed_at, "
+        "(SELECT COUNT(*) FROM labels l WHERE l.myth_id = m.id) AS post_count, "
+        "(SELECT COALESCE(SUM(p.views), 0) FROM labels l JOIN posts p ON p.oriane_id = l.oriane_id WHERE l.myth_id = m.id) AS total_views, "
+        "s.url AS source_url, s.thumbnail_url AS source_thumbnail_url, s.views AS source_views, s.platform AS source_platform "
+        "FROM myths m LEFT JOIN posts s ON s.oriane_id = m.source_oriane_id "
+        "WHERE m.status = 'candidate' ORDER BY post_count DESC, m.created_at, m.id"
     ).fetchall()
     return [dict(row) for row in rows]
 

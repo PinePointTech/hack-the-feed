@@ -5,6 +5,7 @@ import { canNameCreator, dataThroughLine, maskHandles, mythName, type FeedPost }
 import { compact } from "@/lib/format";
 import { postView, verdictOf, FILTERS, type Verdict } from "@/lib/label-why";
 import Link from "next/link";
+import { PostImage } from "@/components/PostImage";
 
 const PLATFORM = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" } as const;
 // Red only for flagged posts; amber for a claim that is not flagged; lime only for a checked correction.
@@ -116,29 +117,13 @@ export function FeedView() {
   );
 }
 
-function Thumb({ src, platform, named }: { src: string | null; platform: FeedPost["platform"]; named: boolean }) {
-  const [failed, setFailed] = useState(false);
-  const box = "w-full rounded-t-frame border-b border-ink";
-  // A face identifies a creator as much as a handle, so unnamed creators get no thumbnail, only a short band.
-  if (!named || !src || failed)
-    return (
-      <div className={`${box} grid min-h-16 place-content-center gap-0.5 bg-rule px-3 py-2 text-center text-sm text-ink-2`}>
-        <span>{PLATFORM[platform]}</span>
-        {!named && <span className="text-[0.75rem]">Image not shown, creator not named</span>}
-      </div>
-    );
-  // Remote CDN thumbnails come from three platforms, so next/image domains are not worth configuring here.
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className={`${box} aspect-[9/16] object-cover`} />;
-}
-
 /** One post as a vertical reel card: thumbnail on top, verdict and quote below. Grids lay these out several per row. */
 export function PostCard({ post: p, children }: { post: FeedPost; children?: ReactNode }) {
   const named = canNameCreator(p);
   const v = postView(p, mythName);
   return (
     <li className={`flex min-w-0 flex-col overflow-hidden rounded-frame border border-ink bg-paper ${VERDICT_EDGE[v.verdict]}`}>
-      <Thumb src={p.thumbnail_url} platform={p.platform} named={named} />
+      <PostImage src={p.thumbnail_url} named={named} className="aspect-[9/16] w-full rounded-t-frame border-b border-ink" fallback={PLATFORM[p.platform]} />
       <article className="grid min-w-0 flex-1 content-start gap-2 p-3.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={VERDICT_CHIP[v.verdict]} title={p.label ? `Checked by ${p.label.model}` : undefined}>{v.title}</span>

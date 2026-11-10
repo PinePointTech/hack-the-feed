@@ -335,6 +335,11 @@ export interface MythCandidates {
     created_at: string;
     confirmed_at: null;
     post_count: number; // labeled posts pointing at this candidate
+    total_views?: number; // summed views of those posts
+    source_url?: string | null; // the post that raised it
+    source_thumbnail_url?: string | null;
+    source_views?: number | null;
+    source_platform?: Platform | null;
   }[];
 }
 
