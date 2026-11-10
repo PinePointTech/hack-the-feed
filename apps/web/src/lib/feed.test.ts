@@ -41,10 +41,10 @@ test("a post that dropped out of the latest page stays on screen", () => {
   assert.deepEqual(fresh.map((p) => p.oriane_id), ["new"]);
 });
 
-test("a creator is named only at 100k views or more", () => {
-  assert.equal(canNameCreator({ views: 100_000 }), true);
-  assert.equal(canNameCreator({ views: 99_999 }), false);
-  assert.equal(canNameCreator({ views: null }), false);
+test("a creator is named only when the brain's naming check cleared the post", () => {
+  assert.equal(canNameCreator({ nameable: true }), true);
+  assert.equal(canNameCreator({ nameable: false }), false);
+  assert.equal(canNameCreator({}), false);
 });
 
 test("mythName makes a readable chip label", () => {

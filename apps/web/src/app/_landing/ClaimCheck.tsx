@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { matchClaim, type MythKey } from "./match";
 import { PostFactCheck } from "./PostFactCheck";
 import { exact } from "@/lib/format";
-import { canNameCreator, maskHandles } from "@/lib/feed";
+import { maskHandles } from "@/lib/feed";
+import { PostImage } from "@/components/PostImage";
 import type { SearchResult, TopicAnalysisResult } from "../api/search/route";
 
 type Search = { query: string } & (
@@ -100,15 +101,16 @@ function SearchResults({ query, result }: { query: string; result: SearchResult 
           <ul className="lp-live-list">
             {videos.map((video) => (
               <li key={video.id}>
-                {video.thumbnail_url && canNameCreator(video) && <img src={video.thumbnail_url} alt="" loading="lazy" width={96} height={128} />}
+                {/* Live search results never went through the naming check, so their pictures are blurred and handles hidden. */}
+                <PostImage src={video.thumbnail_url} named={false} className="h-32 w-24 shrink-0 rounded-xl" fallback={null} />
                 <div>
                   <p className="lp-live-meta">
                     {video.views === null ? "Views unknown" : `${exact(video.views)} views`} · {video.platform}
                     {video.published_at ? ` · ${video.published_at.slice(0, 10)}` : ""}
                   </p>
-                  {video.snippet && <p className="lp-live-snippet">{video.snippet_source}: &ldquo;{canNameCreator(video) ? video.snippet : maskHandles(video.snippet)}&rdquo;</p>}
+                  {video.snippet && <p className="lp-live-snippet">{video.snippet_source}: &ldquo;{maskHandles(video.snippet)}&rdquo;</p>}
                   {video.url && <a href={video.url} target="_blank" rel="noopener noreferrer">Open the post</a>}
-                  <PostFactCheck key={query} postId={video.id} topic={query} named={canNameCreator(video)} />
+                  <PostFactCheck key={query} postId={video.id} topic={query} named={false} />
                 </div>
               </li>
             ))}

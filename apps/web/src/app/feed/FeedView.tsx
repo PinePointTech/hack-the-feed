@@ -17,7 +17,7 @@ const VERDICT_EDGE: Record<Verdict, string> = {
 };
 
 /** Reel cards, as many columns as fit: about 5 on a wide screen, 2 on a phone. */
-export const POST_GRID = "m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,13.5rem),1fr))] gap-4 p-0 min-[700px]:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]";
+export const POST_GRID = "m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,13.5rem),1fr))] gap-x-5 gap-y-7 p-0 min-[700px]:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]";
 
 const clock = (iso: string | null, none: string) =>
   iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : none;

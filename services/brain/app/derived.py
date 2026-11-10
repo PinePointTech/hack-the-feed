@@ -73,6 +73,7 @@ def load_posts(con: sqlite3.Connection, since: str) -> list[dict]:
     rows = con.execute(
         # A label assigns a post only to a confirmed myth; a candidate or no myth leaves the phrase to decide.
         "SELECT p.*, l.oriane_id IS NOT NULL AS labeled, l.stance, l.confidence, "
+        "(SELECT n.nameable FROM naming_checks n WHERE n.oriane_id = p.oriane_id) AS nameable, "
         "CASE WHEN l.myth_id IN (SELECT id FROM myths WHERE status = 'confirmed') THEN l.myth_id END AS myth_id "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
         "WHERE substr(COALESCE(p.published_at, p.fetched_at), 1, 10) >= ?",
@@ -111,8 +112,8 @@ def video_ref(post: dict) -> dict:
         "published_at": post["published_at"], "thumbnail_url": post["thumbnail_url"],
         "quote": post["snippet"], "quote_source": QUOTE_SOURCES.get(post["snippet_source"], "caption"),
         "stance": post["stance"], "stance_confidence": post["confidence"],
-        # Never true here: the under-18 and own-illness checks are not stored, so we cannot clear a name.
-        "nameable": False,
+        # True only once naming.check_post cleared it: reach, does not look under 18, not their own illness.
+        "nameable": bool(post.get("nameable")),
     }
     return {key: value for key, value in ref.items() if value is not None}
 
@@ -142,7 +143,8 @@ def summary_of(myth: dict, mine: list[dict], current: dict, previous: dict, snap
     if pct is not None:
         summary["trend_pct"] = pct
     if promoters := [post for post in assigned(myth, now_posts) if post["stance"] == "promotes"]:
-        summary["top_video"] = video_ref(max(promoters, key=lambda post: post["views"]))
+        # A nameable post first, so the myth's picture can be shown sharp; then the most viewed.
+        summary["top_video"] = video_ref(max(promoters, key=lambda post: (bool(post.get("nameable")), post["views"])))
     return summary
 
 

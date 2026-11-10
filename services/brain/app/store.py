@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS hidden_corrections (
     oriane_id TEXT PRIMARY KEY REFERENCES posts (oriane_id),
     hidden_at TEXT NOT NULL
 );
+-- naming.check_post: may this post's creator be named (reach, does not look under 18, not their own illness)
+CREATE TABLE IF NOT EXISTS naming_checks (
+    oriane_id TEXT PRIMARY KEY REFERENCES posts (oriane_id),
+    nameable INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    model TEXT NOT NULL,
+    checked_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS snapshots (
     day TEXT NOT NULL,
     myth_id TEXT NOT NULL,
@@ -223,8 +231,10 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     rows = con.execute(
         "SELECT p.*, l.health_claim, l.myth_id, l.stance, l.confidence, l.model, l.basis, l.evidence_quote, l.evidence_source, l.commercial, l.dubious, "
         "(SELECT m.status FROM myths m WHERE m.id = l.myth_id) AS myth_status, "
-        "c.quote AS correction_quote, c.quote_source AS correction_source, c.findings_json AS correction_findings "
+        "c.quote AS correction_quote, c.quote_source AS correction_source, c.findings_json AS correction_findings, "
+        "COALESCE(n.nameable, 0) AS nameable "
         "FROM posts p LEFT JOIN labels l ON l.oriane_id = p.oriane_id "
+        "LEFT JOIN naming_checks n ON n.oriane_id = p.oriane_id "
         "LEFT JOIN corrections c ON c.oriane_id = p.oriane_id AND c.status = 'verified' AND l.stance = 'debunks' "
         "AND c.oriane_id NOT IN (SELECT oriane_id FROM hidden_corrections) "
         "WHERE (? IS NULL OR p.fetched_at > ?)",
@@ -263,6 +273,7 @@ def list_feed(con: sqlite3.Connection, *, since: str | None = None, limit: int =
     feed = []
     for row in (ordered + rest)[:limit]:
         post = {key: row[key] for key in FEED_FIELDS}
+        post["nameable"] = bool(row["nameable"])  # naming.check_post passed; the web names and shows only these
         post["label"] = None if row["stance"] is None else {
             "health_claim": bool(row["health_claim"]), "myth_id": row["myth_id"],
             "stance": row["stance"], "confidence": row["confidence"], "model": row["model"],
@@ -324,6 +335,28 @@ def hide_correction(con: sqlite3.Connection, oriane_id: str, hidden_at: str) -> 
     with con:
         con.execute("INSERT OR IGNORE INTO hidden_corrections (oriane_id, hidden_at) VALUES (?, ?)", (oriane_id, hidden_at))
     return True
+
+
+def unchecked_naming(con: sqlite3.Connection, retry_before: str, limit: int) -> list[dict]:
+    """Labeled posts with 100k+ views or 50k+ followers and no naming check (or a failed one older than
+    retry_before), most viewed first. Rows include raw_json."""
+    rows = con.execute(
+        "SELECT p.* FROM posts p JOIN labels l ON l.oriane_id = p.oriane_id "
+        "LEFT JOIN naming_checks n ON n.oriane_id = p.oriane_id "
+        "WHERE (p.views >= 100000 OR COALESCE(json_extract(p.raw_json, '$.profileFollowersCount'), 0) >= 50000) "
+        "AND (n.oriane_id IS NULL OR (n.reason = 'error' AND n.checked_at < ?)) "
+        "ORDER BY p.views DESC, p.oriane_id LIMIT ?",
+        (retry_before, limit),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_naming(con: sqlite3.Connection, oriane_id: str, *, nameable: bool, reason: str, model: str, checked_at: str) -> None:
+    with con:
+        con.execute(
+            "INSERT OR REPLACE INTO naming_checks (oriane_id, nameable, reason, model, checked_at) VALUES (?, ?, ?, ?, ?)",
+            (oriane_id, int(nameable), reason, model, checked_at),
+        )
 
 
 def corrections_checked_since(con: sqlite3.Connection, since: str) -> int:

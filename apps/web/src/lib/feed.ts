@@ -34,6 +34,8 @@ export type FeedPost = {
   snippet_source: "transcript" | "caption" | "on_screen" | null;
   matched_query: string;
   label: FeedLabel | null;
+  /** The brain's naming check passed: 100k+ views or 50k+ followers, does not look under 18, not their own illness. */
+  nameable?: boolean;
 };
 
 export type FeedResponse = {
@@ -62,8 +64,8 @@ export function mergeFeed(shown: FeedPost[], latest: FeedPost[]) {
 
 // CLAUDE.md rule 7: name a creator only on a post with 100k+ views. The feed has no follower count, age or illness signal,
 // so views is the only check possible here. shortcut: views only, upgrade when the brain sends follower_count and an age/illness flag.
-export const NAMING_MIN_VIEWS = 100_000;
-export const canNameCreator = (p: Pick<FeedPost, "views">) => (p.views ?? 0) >= NAMING_MIN_VIEWS;
+/** Only a post the brain's naming check cleared; an older brain or an unchecked post never names anyone. */
+export const canNameCreator = (p: Pick<FeedPost, "nameable">) => p.nameable === true;
 /** An unnamed creator's quote keeps its words but not its @handles, which could name the creator. */
 export const maskHandles = (text: string) => text.replace(/@[\w.]+/g, "@…");
 
