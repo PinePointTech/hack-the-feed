@@ -118,9 +118,16 @@ def reviewed_receipt(claim: PostClaim) -> FactCheckResult | None:
     return None
 
 
+# A sentence ends at . ! ? before whitespace, but not after a title or a common abbreviation ("Dr. Smith").
+SENTENCE_END = re.compile(
+    r"(?<!\b[A-Z]\.)(?<!\bDr\.)(?<!\bMr\.)(?<!\bMs\.)(?<!\bMrs\.)(?<!\bSt\.)(?<!\bvs\.)(?<!\bal\.)(?<!\bProf\.)"
+    r"(?<!\be\.g\.)(?<!\bi\.e\.)(?<=[.!?])\s+|\n+"
+)
+
+
 def text_spans(text: str) -> list[tuple[int, int]]:
     """Index exact sentences and split long, unpunctuated captions on whitespace."""
-    boundaries = [0, *(match.start() for match in re.finditer(r"(?<=[.!?])\s+|\n+", text)), len(text)]
+    boundaries = [0, *(match.start() for match in re.finditer(SENTENCE_END, text)), len(text)]
     spans = []
     for start, end in zip(boundaries, boundaries[1:]):
         while end - start > 500:

@@ -18,11 +18,13 @@ from . import evidence, fact_check, labeler, store
 from .config import Settings
 
 logger = logging.getLogger(__name__)
-VERSION = "strict-5"  # bump when the rule changes, so posts are checked again
+VERSION = "strict-6"  # bump when the rule changes, so posts are checked again
 MAX_PER_HOUR = 10  # shortcut: fixed cap, move to Settings if it needs tuning per deploy
 MAX_PER_BATCH = 3  # about a minute each; runs after labeling in the same task, so it must not hold the next batch
 RETRY_AFTER = timedelta(hours=24)  # a check that errored is tried again after this
 MAX_PAGES = 3
+PAGE_MAX = 60_000
+PASSAGES_MAX = 60
 MODEL_TIMEOUT = 60  # the comparison sends several abstracts and pages
 QUOTE_MAX = 400
 FEED_SOURCE = {"Transcript": "transcript", "Caption": "caption", "Title": "caption", "On-screen text": "on_screen"}
@@ -100,6 +102,18 @@ async def clinician_pages(client: httpx.AsyncClient, settings: Settings, query: 
     return pages
 
 
+def passages(text: str, topic: str) -> list[str]:
+    """Sentences to compare: from the whole page, those naming a topic word, plus the one after each (it often holds
+    the verdict). An abstract, or a page that never names the topic, is read from the start."""
+    spans = [text[a:b].strip() for a, b in fact_check.text_spans(text[:PAGE_MAX])]
+    words = [w for w in re.findall(r"[a-z']+", topic.lower()) if len(w) > 3] or [topic.lower()]
+    hits = {i + k for i, span in enumerate(spans) if any(w in span.lower() for w in words) for k in (0, 1)}
+    chosen = [span for i, span in enumerate(spans) if i in hits]
+    if len(text) <= 5000 or not chosen:
+        chosen = [text[a:b].strip() for a, b in fact_check.text_spans(text[:5000])]
+    return [span for span in chosen if span][:PASSAGES_MAX]
+
+
 def passes(findings: list[fact_check.Finding]) -> str | None:
     """None when the findings clear the bar, else the reason they do not."""
     study = lambda f: f.url.startswith(PUBMED)  # noqa: E731  (PubMed is on nih.gov, so test it before publisher_of)
@@ -150,7 +164,7 @@ async def check_post(client: httpx.AsyncClient, settings: Settings, post: dict) 
     if not studies or not pages:
         return fail("no published study backs it" if not studies else "no clinician page backs it", quote, source)
     candidates = [*studies, *pages]
-    excerpts = [[item.text[a:b].strip() for a, b in fact_check.text_spans(item.text[:5000])] for item in candidates]
+    excerpts = [passages(item.text, post["matched_query"]) for item in candidates]
     compared = await fact_check.model_json(client, settings, COMPARE, {"statement": quote, "sources": [
         {"title": item.title, "publisher": item.publisher, "excerpts": passages}
         for item, passages in zip(candidates, excerpts)
