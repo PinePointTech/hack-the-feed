@@ -15,7 +15,7 @@ export type Result<T> = Sourced<T>;
 
 /** A non-2xx answer from the brain. `status` lets a page tell "no such myth" (404) from "brain broken". */
 export class BrainError extends Error {
-  constructor(message: string, readonly status: number) { super(message); }
+  constructor(message: string, readonly status: number, readonly code?: string) { super(message); }
 }
 
 async function call<T>(path: string, init: RequestInit | undefined, fixture: () => T, ms: number): Promise<Sourced<T>> {
@@ -47,7 +47,7 @@ async function live<T>(path: string, init: RequestInit | undefined, ms: number) 
   });
   if (!response.ok) {
     const problem = await response.json().catch(() => null);
-    throw new BrainError(problem?.error?.message ?? `Brain returned HTTP ${response.status}.`, response.status);
+    throw new BrainError(problem?.error?.message ?? `Brain returned HTTP ${response.status}.`, response.status, problem?.error?.code);
   }
   return { data: (await response.json()) as T, from: "live" as const,
     videoUrl: response.headers.get("Content-Location") };
@@ -77,8 +77,16 @@ export const api = {
   myth: (id: string) => read<MythDetail>(`/myths/${encodeURIComponent(id)}`),
   brief: async (req: BriefRequest): Promise<Sourced<Brief>> => {
     try {
-      const result = MOCKS ? { data: fx<Brief>(briefFx), from: "fixture" as const }
-        : await live<Brief>("/brief", post(req), 90000);
+      let result: Sourced<Brief> | undefined;
+      // A first draft for a newly confirmed myth keeps running in the brain; ask again until it is saved (about 2 minutes).
+      for (let tries = 0; !result; tries++) {
+        try {
+          result = MOCKS ? { data: fx<Brief>(briefFx), from: "fixture" as const } : await live<Brief>("/brief", post(req), 90000);
+        } catch (e) {
+          if (!(e instanceof BrainError && e.code === "brief_drafting" && tries < 6)) throw e;
+          await new Promise((done) => setTimeout(done, 15000));
+        }
+      }
       if (result.data.myth_id !== req.myth_id || result.data.script.format !== req.format ||
           !result.data.sources.length || !result.data.claims.length) {
         throw new Error("No verified draft is available for this claim and format.");
