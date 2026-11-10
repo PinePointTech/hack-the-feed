@@ -39,6 +39,10 @@ export type TopicAnalysisResult = {
 // In-memory per serverless instance.
 const cache = new Map<string, { at: number; body: SearchResult | TopicAnalysisResult }>();
 let liveCalls: number[] = [];
+// shortcut: per server instance, so each cold start may spend one call to learn credits are still out.
+let outOfCreditsUntil = 0;
+const OUT_OF_CREDITS = "Live search is paused. The Oriane account is out of credits.";
+class OutOfCredits extends Error {}
 
 const field = (values: string[]) => ({ includesExactly: { operator: "or", values } });
 
@@ -123,6 +127,7 @@ async function queryOriane(key: string, terms: string[], window?: DateWindow): P
     cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
+  if (response.status === 402) throw new OutOfCredits();
   if (!response.ok) throw new Error(`Oriane ${response.status}`);
   const payload: OrianeResponse = await response.json();
   if (!Array.isArray(payload.data?.results)) throw new Error("Invalid Oriane results");
@@ -149,6 +154,7 @@ export async function GET(req: Request) {
   }
   const hit = cache.get(cacheKey);
   if (hit) return NextResponse.json({ ...hit.body, query: q });
+  if (now < outOfCreditsUntil) return NextResponse.json({ error: OUT_OF_CREDITS }, { status: 503 });
   liveCalls = liveCalls.filter((time) => now - time < TTL_MS);
   const requestCount = analyze ? 2 : 1;
   if (liveCalls.length + requestCount > MAX_LIVE) {
@@ -174,7 +180,11 @@ export async function GET(req: Request) {
     const result = searchResult(q, terms, await queryOriane(key, terms));
     cache.set(cacheKey, { at: now, body: result });
     return NextResponse.json(result);
-  } catch {
+  } catch (e) {
+    if (e instanceof OutOfCredits) {
+      outOfCreditsUntil = now + 60 * 60 * 1000; // stop calling Oriane for an hour
+      return NextResponse.json({ error: OUT_OF_CREDITS }, { status: 503 });
+    }
     return NextResponse.json({ error: "Oriane did not answer. Try again." }, { status: 502 });
   }
 }
