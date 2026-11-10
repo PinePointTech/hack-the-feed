@@ -1,4 +1,4 @@
-"""Sample MP4 frames, read overlays with GMI, and check them with OPENAI_MODEL."""
+"""Sample MP4 frames, read overlays with GMI (or OPENAI_MODEL when no GMI key is set), and check them with OPENAI_MODEL."""
 
 import asyncio
 import base64
@@ -98,9 +98,13 @@ class VideoQA:
         self.checker = checker
         self.judge = judge.Judge(settings=settings)
         self.vision_slots = asyncio.Semaphore(4)
-        self.key = settings.gmi_key
-        self.base_url = settings.gmi_base_url
-        self.model = os.getenv("GMI_VLM_MODEL", "google/gemini-3.5-flash-lite")
+        if settings.gmi_key:
+            self.key, self.base_url = settings.gmi_key, settings.gmi_base_url
+            self.model = os.getenv("GMI_VLM_MODEL", "google/gemini-3.5-flash-lite")
+            self.engine = gmi_label(self.model)
+        else:  # same chat-completions image input, on the OpenAI model the judge uses
+            self.key, self.base_url = settings.openai_key, settings.openai_base_url
+            self.model, self.engine = settings.openai_model, settings.chat_model
 
     async def read_frames(self, client: httpx.AsyncClient, frames: list[tuple[int, Path]]) -> list[str]:
         content = []
@@ -135,10 +139,10 @@ class VideoQA:
         for frame in raw:
             timestamp, value = frame["t_s"], frame["text"]
             if type(timestamp) is not int or not isinstance(value, str) or timestamp in observed:
-                raise ValueError("Invalid GMI frame transcription")
+                raise ValueError("Invalid frame transcription")
             observed[timestamp] = value.strip()
         if observed.keys() != {timestamp for timestamp, _ in frames}:
-            raise ValueError("GMI did not transcribe every requested frame")
+            raise ValueError("The vision model did not transcribe every requested frame")
         return [observed[timestamp] for timestamp, _ in frames]
 
     async def run(
@@ -173,7 +177,7 @@ class VideoQA:
                 }), video_url
 
             if not (self.key and self.model):
-                raise RuntimeError("Set a GMI inference key and vision model to run video QA")
+                raise RuntimeError("Set GMI_API_KEY, or OPENAI_API_KEY and OPENAI_MODEL, to run video QA")
             paths = await sample_frames(path)
             frames = list(enumerate(paths))
             groups = await asyncio.gather(*(
@@ -186,7 +190,7 @@ class VideoQA:
             report = QAReport(
                 myth_id=myth_id, frames_checked=len(frames), texts_found=len(observations),
                 issues=issues, **{"pass": passed},
-                models={"vision": gmi_label(self.model), "judge": self.settings.chat_model},
+                models={"vision": self.engine, "judge": self.settings.chat_model},
                 ran_in="local", duration_ms=round((time.perf_counter() - start) * 1000),
             )
             video_url = save_video(path, token, myth_id, lines) if passed else None
